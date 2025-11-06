@@ -1,7 +1,10 @@
 
 using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
+using System.Text;
 using Agrovent.Services;
+using Agrovent.ViewModels;
+using Agrovent.Views.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.SolidWorks;
@@ -14,19 +17,40 @@ namespace Agrovent
     {
         #region DI Services
         private ILogger<AgroventAddin> _logger;
-        #endregion 
+        #endregion
+
+        #region TaskPaneVM
+
+        TaskPaneVM _TaskPaneMV;
+
+        #endregion
 
         public override void OnConnect()
         {
+            //Инициализация контейнера сервисов
+            InitDI();
+
+            //Получение сервисов из контейнера
+            _logger = AGR_ServiceContainer.GetService<ILogger<AgroventAddin>>();
+
+            //решение проблемы с Behaviour
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+            //Инициализация группы команд в солиде
             CommandManager.AddCommandGroup<Commands_e>().CommandClick += OnCommandClickExecute;
-            // Initialization code here
+
+            InitTaskPane();
+        }
+
+
+
+        public override void OnDisconnect()
+        {
+            // Cleanup code here
         }
 
         private void OnCommandClickExecute(Commands_e command)
         {
-            InitDI();
-            _logger = AGR_ServiceContainer.GetService<ILogger<AgroventAddin>>();
-
             switch (command)
             {
                 case Commands_e.Command1:
@@ -35,12 +59,11 @@ namespace Agrovent
                 case Commands_e.Command2:
                     // Handle Command2
                     break;
-                
+
                 default:
                     break;
             }
         }
-
         private void InitDI()
         {
             AGR_ServiceContainer.Initialize(services =>
@@ -52,10 +75,16 @@ namespace Agrovent
                 // services.AddSingleton<IConfiguration>(LoadConfiguration());
             });
         }
-
-        public override void OnDisconnect()
+        private void InitTaskPane()
         {
-            // Cleanup code here
+            var _taskPaneVM = AGR_ServiceContainer.GetService<TaskPaneVM>();
+            var taskPaneView = this.CreateTaskPaneWpf<TaskPaneView>();
+
+            taskPaneView.Control.DataContext = _taskPaneVM;
+            taskPaneView.IsActive = true;
+            taskPaneView.Control.Focus();
+
+            _TaskPaneMV = _taskPaneVM;
         }
     }
 
