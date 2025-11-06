@@ -14,8 +14,4 @@
     <PackageReference Include="Xarial.XCad.SolidWorks" Version="0.8.2" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Views\Windows\" />
-  </ItemGroup>
-
 </Project>
