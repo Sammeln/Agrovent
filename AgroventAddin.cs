@@ -39,7 +39,11 @@ namespace Agrovent
             //»нициализаци€ группы команд в солиде
             CommandManager.AddCommandGroup<Commands_e>().CommandClick += OnCommandClickExecute;
 
+            //инициализаци€ модели представлени€ TaskPane
             InitTaskPane();
+
+            _logger.LogDebug("AddIn успешно добавлено.");
+
         }
 
 
