@@ -37,7 +37,7 @@ namespace Agrovent
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             //Инициализация группы команд в солиде
-            CommandManager.AddCommandGroup<Commands_e>().CommandClick += OnCommandClickExecute;
+            CommandManager.AddCommandGroup<AGR_Commands_e>().CommandClick += OnCommandClickExecute;
 
             //инициализация модели представления TaskPane
             InitTaskPane();
@@ -53,14 +53,14 @@ namespace Agrovent
             // Cleanup code here
         }
 
-        private void OnCommandClickExecute(Commands_e command)
+        private void OnCommandClickExecute(AGR_Commands_e command)
         {
             switch (command)
             {
-                case Commands_e.Command1:
+                case AGR_Commands_e.Command1:
                     // Handle Command1
                     break;
-                case Commands_e.Command2:
+                case AGR_Commands_e.Command2:
                     // Handle Command2
                     break;
 
@@ -93,7 +93,7 @@ namespace Agrovent
     }
 
 
-    public enum Commands_e
+    public enum AGR_Commands_e
     {
         Command1,
         Command2
