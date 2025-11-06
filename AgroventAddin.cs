@@ -1,5 +1,8 @@
 
+using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
+using Agrovent.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.UI.Commands;
 
@@ -16,6 +19,8 @@ namespace Agrovent
 
         private void OnCommandClickExecute(Commands_e command)
         {
+            InitDI();
+
             switch (command)
             {
                 case Commands_e.Command1:
@@ -29,6 +34,19 @@ namespace Agrovent
                     break;
             }
         }
+
+        private void InitDI()
+        {
+            AGR_ServiceContainer.Initialize(services =>
+            {
+                // Дополнительная регистрация специфичная для нашего Add-in
+                services.AddSingleton<AgroventAddin>(this);
+
+                // Можно добавить конфигурацию из файла
+                // services.AddSingleton<IConfiguration>(LoadConfiguration());
+            });
+        }
+
         public override void OnDisconnect()
         {
             // Cleanup code here

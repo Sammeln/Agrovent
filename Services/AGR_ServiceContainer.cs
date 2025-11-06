@@ -1,9 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Agrovent.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Agrovent.Services
 {
-    public static class ServiceContainer
+    public static class AGR_ServiceContainer
     {
         private static IServiceProvider? _serviceProvider;
         private static readonly object _lock = new object();
@@ -77,14 +78,14 @@ namespace Agrovent.Services
                 builder.SetMinimumLevel(LogLevel.Information);
             });
 
-            //// Основные сервисы приложения
+            // Основные сервисы приложения
             //services.AddSingleton<ICommandService, CommandService>();
             //services.AddSingleton<IComponentRepoService, ComponentRepoService>();
             //services.AddTransient<IDataContext, DataContext>();
 
-            //// ViewModels (если нужны в DI)
+            // ViewModels (если нужны в DI)
             //services.AddTransient<ComponentsSpecificationViewModel>();
-            //services.AddTransient<TaskPaneVM>();
+            services.AddTransient<TaskPaneVM>();
         }
     }
 }
