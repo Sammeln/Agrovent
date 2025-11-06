@@ -3,6 +3,7 @@ using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
 using Agrovent.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.UI.Commands;
 
@@ -11,6 +12,10 @@ namespace Agrovent
     [ComVisible(true)]
     public class AgroventAddin : SwAddInEx
     {
+        #region DI Services
+        private ILogger<AgroventAddin> _logger;
+        #endregion 
+
         public override void OnConnect()
         {
             CommandManager.AddCommandGroup<Commands_e>().CommandClick += OnCommandClickExecute;
@@ -20,6 +25,7 @@ namespace Agrovent
         private void OnCommandClickExecute(Commands_e command)
         {
             InitDI();
+            _logger = AGR_ServiceContainer.GetService<ILogger<AgroventAddin>>();
 
             switch (command)
             {
