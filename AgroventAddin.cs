@@ -13,6 +13,7 @@ using Xarial.XCad.UI.Commands;
 namespace Agrovent
 {
     [ComVisible(true)]
+    [Guid("8864d08d-f77a-47b9-858f-4af5eea4fd76")]
     public class AgroventAddin : SwAddInEx
     {
         #region DI Services
