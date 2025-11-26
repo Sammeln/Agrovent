@@ -17,6 +17,7 @@ namespace Agrovent.Infrastructure.Interfaces.Base
         abstract ComponentType_e Type { get; set; }
         abstract int Version { get; set; }
         abstract ICollection<IXProperty> PropertiesCollection { get; set; }
+        abstract int HashSum { get; set; }
 
     }
 }
