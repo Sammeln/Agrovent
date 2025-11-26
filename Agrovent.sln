@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35514.174 d17.12
+VisualStudioVersion = 17.12.35514.174
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agrovent", "Agrovent.csproj", "{6FF3B1F4-4FF5-46B2-A2D8-B6FDF00498EB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agrovent.DAL", "..\Agrovent.DAL\Agrovent.DAL.csproj", "{FC4F3242-D137-4E00-88E7-2C3592A3FE4D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{6FF3B1F4-4FF5-46B2-A2D8-B6FDF00498EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6FF3B1F4-4FF5-46B2-A2D8-B6FDF00498EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6FF3B1F4-4FF5-46B2-A2D8-B6FDF00498EB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC4F3242-D137-4E00-88E7-2C3592A3FE4D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC4F3242-D137-4E00-88E7-2C3592A3FE4D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC4F3242-D137-4E00-88E7-2C3592A3FE4D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC4F3242-D137-4E00-88E7-2C3592A3FE4D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
