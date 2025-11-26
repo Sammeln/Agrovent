@@ -4,9 +4,25 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Agrovent.Views.Windows"
+             xmlns:StateEnum="clr-namespace:Xarial.XCad.Documents.Enums;assembly=Xarial.XCad"
+             xmlns:System="clr-namespace:System;assembly=mscorlib"
+             xmlns:VM="clr-namespace:Agrovent.ViewModels"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-            
-    </Grid>
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ObjectDataProvider x:Key="dataFromEnum" MethodName="GetValues"
+                     ObjectType="{x:Type System:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="StateEnum:ComponentState_e"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+            <VM:ViewModelLocator x:Key="VMLocator"/>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    
+    <UserControl.DataContext>
+        <Binding Path="TaskPaneVM" Source="{StaticResource VMLocator}"/>
+    </UserControl.DataContext>
+    
 </UserControl>

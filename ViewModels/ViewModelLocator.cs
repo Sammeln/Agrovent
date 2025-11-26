@@ -10,6 +10,6 @@ namespace Agrovent.ViewModels
 {
     public class ViewModelLocator
     {
-        public TaskPaneVM TaskPaneVM => AGR_ServiceContainer.GetService<TaskPaneVM>();
+        public TaskPaneViewModel TaskPaneVM => AGR_ServiceContainer.GetService<TaskPaneViewModel>();
     }
 }

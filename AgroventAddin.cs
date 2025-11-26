@@ -8,6 +8,7 @@ using Agrovent.Views.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.SolidWorks;
+using Xarial.XCad.SolidWorks.Documents;
 using Xarial.XCad.UI.Commands;
 
 namespace Agrovent
@@ -18,12 +19,6 @@ namespace Agrovent
     {
         #region DI Services
         private ILogger<AgroventAddin> _logger;
-        #endregion
-
-        #region TaskPaneVM
-
-        TaskPaneVM _TaskPaneMV;
-
         #endregion
 
         public override void OnConnect()
@@ -59,7 +54,14 @@ namespace Agrovent
             switch (command)
             {
                 case AGR_Commands_e.Command1:
-                    // Handle Command1
+
+                    var s = ((Application.Documents.Active as ISwAssembly)
+                        .Configurations.Active
+                        .Components.First()
+                        .AGR_Component());
+
+
+
                     break;
                 case AGR_Commands_e.Command2:
                     // Handle Command2
@@ -82,14 +84,11 @@ namespace Agrovent
         }
         private void InitTaskPane()
         {
-            var _taskPaneVM = AGR_ServiceContainer.GetService<TaskPaneVM>();
+            var _taskPaneVM = AGR_ServiceContainer.GetService<TaskPaneViewModel>();
             var taskPaneView = this.CreateTaskPaneWpf<TaskPaneView>();
-
-            taskPaneView.Control.DataContext = _taskPaneVM;
+            //taskPaneView.Control.DataContext = _taskPaneVM;
             taskPaneView.IsActive = true;
             taskPaneView.Control.Focus();
-
-            _TaskPaneMV = _taskPaneVM;
         }
     }
 
