@@ -15,4 +15,8 @@
     <PackageReference Include="Xarial.XCad.SolidWorks" Version="0.8.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Agrovent.DAL\Agrovent.DAL.csproj" />
+  </ItemGroup>
+
 </Project>

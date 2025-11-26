@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Agrovent.DAL.Entities;
+using Agrovent.Infrastructure.Enums;
+using Xarial.XCad.Data;
 
 namespace Agrovent.Infrastructure.Interfaces.Base
 {
@@ -13,6 +16,7 @@ namespace Agrovent.Infrastructure.Interfaces.Base
         abstract string PartNumber { get; set; }
         abstract ComponentType_e Type { get; set; }
         abstract int Version { get; set; }
-        abstract IPropertiesCollection PropertiesCollection { get; set; }
+        abstract ICollection<IXProperty> PropertiesCollection { get; set; }
 
     }
+}
