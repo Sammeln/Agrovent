@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Agrovent.Infrastructure.Interfaces.Base;
 
 namespace Agrovent.ViewModels.Base
 {
@@ -29,4 +30,5 @@ namespace Agrovent.ViewModels.Base
 
 
     }
+    
 }

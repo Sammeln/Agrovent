@@ -14,7 +14,7 @@ namespace Agrovent.Infrastructure.Interfaces.Base
         abstract string Name { get; set; }
         abstract AvaArticleModel AvaArticle { get; set; }
         abstract string PartNumber { get; set; }
-        abstract ComponentType_e Type { get; set; }
+        abstract AGR_ComponentType_e Type { get; set; }
         abstract int Version { get; set; }
         abstract ICollection<IXProperty> PropertiesCollection { get; set; }
         abstract int HashSum { get; set; }
