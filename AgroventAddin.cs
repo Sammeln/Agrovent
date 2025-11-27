@@ -55,11 +55,9 @@ namespace Agrovent
             {
                 case AGR_Commands_e.Command1:
 
-                    var s = ((Application.Documents.Active as ISwAssembly)
+                    var s = (Application.Documents.Active as ISwAssembly)
                         .Configurations.Active
-                        .Components.First()
-                        .AGR_Component());
-
+                        .Components.First();
 
 
                     break;

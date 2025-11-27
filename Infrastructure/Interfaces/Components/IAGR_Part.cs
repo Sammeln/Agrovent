@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using Agrovent.Infrastructure.Interfaces;
 using Xarial.XCad.Data;
 
 public interface IAGR_Part

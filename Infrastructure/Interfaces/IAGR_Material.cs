@@ -1,6 +1,7 @@
 ﻿using Agrovent.DAL.Entities;
 
-public interface IAGR_Material
+namespace Agrovent.Infrastructure.Interfaces;
+    public interface IAGR_Material
 {
     abstract string Name { get; set; }
     abstract string Article { get; set; }
