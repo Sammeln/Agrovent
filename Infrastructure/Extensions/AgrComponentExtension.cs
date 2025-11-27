@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Agrovent.DAL.Infrastructure.Enums;
 using Agrovent.Infrastructure.Enums;
 using SolidWorks.Interop.sldworks;
 using Xarial.XCad.SolidWorks.Documents;

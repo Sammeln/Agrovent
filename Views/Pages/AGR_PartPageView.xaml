@@ -1,0 +1,65 @@
+﻿<UserControl x:Class="Agrovent.Views.Pages.AGR_PartPageView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
+             xmlns:local="clr-namespace:Agrovent.Views.Pages"
+             xmlns:enum="clr-namespace:Agrovent.DAL.Infrastructure.Enums;assembly=Agrovent.DAL"
+             xmlns:system="clr-namespace:System;assembly=mscorlib"
+             xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
+             d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_PartComponentVM}}"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
+                            ObjectType="{x:Type system:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="enum:AvaType_e"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+    </UserControl.Resources>
+    
+    <DockPanel>
+        <StackPanel VerticalAlignment="Stretch" Orientation="Vertical" DockPanel.Dock="Top">
+            <TextBox Text="{Binding Name,       Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
+            <TextBox Text="{Binding PartNumber, Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
+            <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}" SelectedItem="{Binding AvaType, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Path=., Converter={StaticResource AvaTypeConverter}}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+        </StackPanel>
+        <StackPanel VerticalAlignment="Stretch" Orientation="Vertical" >
+            <StackPanel.Resources>
+                <Style TargetType="StackPanel">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding AvaType}" Value="Purchased">
+                            <Setter Property="Visibility" Value="Hidden"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Resources>
+            <TextBox Text="{Binding Version,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
+            <TextBox Text="{Binding HashSum,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
+
+            <ListBox ItemsSource="{Binding PropertiesCollection.Properties}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Name}"/>
+                            <TextBlock Text="{Binding Value}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </StackPanel>
+
+        
+    </DockPanel>
+</UserControl>

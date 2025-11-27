@@ -84,8 +84,8 @@ namespace Agrovent
         }
         private void InitTaskPane()
         {
-            var _taskPaneVM = AGR_ServiceContainer.GetService<TaskPaneViewModel>();
-            var taskPaneView = this.CreateTaskPaneWpf<TaskPaneView>();
+            var _taskPaneVM = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
+            var taskPaneView = this.CreateTaskPaneWpf<AGR_TaskPaneView>();
             //taskPaneView.Control.DataContext = _taskPaneVM;
             taskPaneView.IsActive = true;
             taskPaneView.Control.Focus();

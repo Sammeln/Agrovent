@@ -86,7 +86,7 @@ namespace Agrovent.Services
             // ViewModels (если нужны в DI)
             //services.AddTransient<ComponentsSpecificationViewModel>();
             services.AddSingleton<ViewModelLocator>();
-            services.AddSingleton<TaskPaneViewModel>();
+            services.AddSingleton<AGR_TaskPaneViewModel>();
         }
     }
 }

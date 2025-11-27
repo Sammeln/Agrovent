@@ -25,7 +25,7 @@ namespace Agrovent.Infrastructure.Enums
         public const string Color = "Цвет покраски";
         public const string Article = "Артикул";
         public const string Version = "Версия";
-        public const string HashSum = "Хеш-сумма";
+        public const string HashSum = "Хэш-сумма";
         public const string PDM_Partnumber = "Номер ДСЕ";
     }
 }

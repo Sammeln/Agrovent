@@ -13,14 +13,14 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Agrovent.Views.Windows
+namespace Agrovent.Views.Pages
 {
     /// <summary>
-    /// Логика взаимодействия для TaskPaneView.xaml
+    /// Логика взаимодействия для AGR_AssemblyPageView.xaml
     /// </summary>
-    public partial class TaskPaneView : UserControl
+    public partial class AGR_AssemblyPageView : UserControl
     {
-        public TaskPaneView()
+        public AGR_AssemblyPageView()
         {
             InitializeComponent();
         }
