@@ -7,8 +7,8 @@ namespace Agrovent.ViewModels.Properties
 {
     internal class AGR_PartPropertiesCollection : AGR_BasePropertiesCollection, AGR_IPartPropertiesCollection
     {
-        public IXProperty Length { get => mProperties[AGR_PropertyNames.BlankLen]; set => throw new NotImplementedException(); }
-        public IXProperty Width { get => mProperties[AGR_PropertyNames.BlankWid]; set => throw new NotImplementedException(); }
+        public IXProperty Length { get ; set; }
+        public IXProperty Width { get; set; }
 
         public AGR_PartPropertiesCollection(ISwDocument3D document3D) : base(document3D)
         {

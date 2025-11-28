@@ -13,7 +13,8 @@ namespace Agrovent.Infrastructure.Interfaces.Components
 {
     public interface IAGR_BaseComponent
     {
-        abstract string Name { get; set; }
+        abstract string Name { get; }
+        abstract string ConfigName { get; }
         abstract string PartNumber { get; set; }
         abstract int Version { get; set; }
         abstract int HashSum { get; set; }

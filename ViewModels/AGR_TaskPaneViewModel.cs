@@ -17,6 +17,7 @@ using Xarial.XCad.Utils.Reflection;
 using Agrovent.ViewModels.Components;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Xarial.XCad.Geometry;
+using Agrovent.Infrastructure.Extensions;
 
 namespace Agrovent.ViewModels
 {
@@ -66,16 +67,19 @@ namespace Agrovent.ViewModels
 
             doc.Selections.NewSelection += Selections_NewSelection;
             doc.Selections.ClearSelection += Selections_ClearSelection;
+
+            BaseComponent = (doc as ISwDocument3D).AGR_BaseComponent();
+
             if (doc is ISwAssembly assembly)
             {
                 ActiveComponent = assembly;
-                BaseComponent = new AGR_AssemblyComponentVM(assembly);
+                //BaseComponent = new AGR_AssemblyComponentVM(assembly);
                 return;
             }
             if (doc is ISwPart part)
             {
                 ActiveComponent = part;
-                BaseComponent = new AGR_PartComponentVM(part);
+                //BaseComponent = new AGR_PartComponentVM(part);
                 return;
             }
         }

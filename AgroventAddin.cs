@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Agrovent.Services;
 using Agrovent.ViewModels;
+using Agrovent.ViewModels.Components;
 using Agrovent.Views.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -55,10 +56,12 @@ namespace Agrovent
             {
                 case AGR_Commands_e.Command1:
 
-                    var s = (Application.Documents.Active as ISwAssembly)
-                        .Configurations.Active
-                        .Components.First();
-
+                    if (Application.Documents.Active is ISwAssembly swAssembly)
+                    {
+                        AGR_SpecificationWindow specWindow = new AGR_SpecificationWindow();
+                        specWindow.DataContext = new AGR_SpecificationViewModel(new AGR_AssemblyComponentVM(swAssembly));
+                        specWindow.ShowDialog();
+                    }
 
                     break;
                 case AGR_Commands_e.Command2:

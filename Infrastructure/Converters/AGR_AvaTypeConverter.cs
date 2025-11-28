@@ -10,23 +10,25 @@ using Agrovent.Infrastructure.Enums;
 
 namespace Agrovent.Infrastructure.Converters
 {
-    internal class AGR_ComponentTypeConverter : IValueConverter
+    internal class AGR_AvaTypeConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value != "")
             {
-                Enum type = (AGR_ComponentType_e)value;
+                Enum type = (AvaType_e)value;
                 switch (type)
                 {
-                    case AGR_ComponentType_e.Assembly:
-                        return "Сборочные единицы";
-                    case AGR_ComponentType_e.Part:
-                        return "Детали";
-                    case AGR_ComponentType_e.Purchased:
+                    case AvaType_e.Production:
+                        return "Продукция";
+                    case AvaType_e.Component:
+                        return "Произведено";
+                    case AvaType_e.Purchased:
                         return "Покупное";
-                    case AGR_ComponentType_e.SheetMetallPart:
-                        return "Листовые детали";
+                    case AvaType_e.VirtualComponent:
+                        return "Виртуальный компонент";
+                    case AvaType_e.DontBuy:
+                        return "Не покупать";
                 }
             }
             return null;

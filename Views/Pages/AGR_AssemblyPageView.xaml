@@ -5,12 +5,18 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
              xmlns:local="clr-namespace:Agrovent.Views.Pages"
+             xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_AssemblyComponentVM}}"
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <converter:AGR_XComponentsGroupingConverter x:Key="GroupConverter"/>
+    </UserControl.Resources>
+    
     <StackPanel>
         <StackPanel VerticalAlignment="Stretch" Orientation="Vertical">
-            <TextBox Text="{Binding Name,       Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
+            <TextBox Text="{Binding Name,       Mode=OneWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
             <TextBox Text="{Binding PartNumber, Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
             <TextBox Text="{Binding Version,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
             <TextBox Text="{Binding HashSum,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
@@ -24,6 +30,19 @@
                         <TextBlock Text="{Binding Name}"/>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
+            </ListBox>
+
+            <ListBox ItemsSource="{Binding Components}" SelectedItem="{Binding SelectedItem}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Converter={StaticResource GroupConverter}}"/>
+                            <TextBlock Text="   "/>
+                            <TextBlock Text="{Binding Count}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+                
             </ListBox>
         </StackPanel>
     </StackPanel>

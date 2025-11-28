@@ -24,7 +24,7 @@
     
     <DockPanel>
         <StackPanel VerticalAlignment="Stretch" Orientation="Vertical" DockPanel.Dock="Top">
-            <TextBox Text="{Binding Name,       Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
+            <TextBox Text="{Binding Name,       Mode=OneWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
             <TextBox Text="{Binding PartNumber, Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
             <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}" SelectedItem="{Binding AvaType, Mode=TwoWay}">
                 <ComboBox.ItemTemplate>
@@ -48,6 +48,7 @@
             <TextBox Text="{Binding Version,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
             <TextBox Text="{Binding HashSum,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
 
+            <TextBlock Text="{Binding BaseMaterial.Name}"/>
             <ListBox ItemsSource="{Binding PropertiesCollection.Properties}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>

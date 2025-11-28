@@ -10,7 +10,7 @@ using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Components
 {
-    internal class AGR_Material : IAGR_Material
+    public class AGR_Material : IAGR_Material
     {
         public string Name { get; set; }
         public string Article { get; set; }

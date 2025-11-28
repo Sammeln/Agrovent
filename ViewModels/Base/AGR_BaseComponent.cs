@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.IO;
 using System.Xml.Linq;
 using Agrovent.DAL.Entities;
 using Agrovent.DAL.Infrastructure.Enums;
@@ -19,12 +20,13 @@ public class AGR_BaseComponent : BaseViewModel, IAGR_BaseComponent
     internal ISwCustomPropertiesCollection mProperties;
 
 
-    public string Name { get => mProperties[AGR_PropertyNames.Name].Value.ToString(); set => mProperties[AGR_PropertyNames.Name].Value = value; }
+    public string Name { get => Path.GetFileNameWithoutExtension(mDocument.Title); }
+    public string ConfigName { get => mConfiguration.Name; }
     public string PartNumber { get => mProperties[AGR_PropertyNames.Partnumber].Value.ToString(); set => mProperties[AGR_PropertyNames.Partnumber].Value = value; }
     public int Version { get => Convert.ToInt32(mProperties[AGR_PropertyNames.Version].Value); set => mProperties[AGR_PropertyNames.Version].Value = value; }
     //public int HashSum { get => Convert.ToInt32(mProperties[AGR_PropertyNames.HashSum].Value); set => mProperties[AGR_PropertyNames.HashSum].Value = value; }
     public int HashSum { get => 1; set => throw new NotImplementedException(); }
-    public AvaArticleModel AvaArticle { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+    public AvaArticleModel AvaArticle { get; set; }
     private AGR_ComponentType_e _ComponentType;
     public AGR_ComponentType_e ComponentType
     {
@@ -83,6 +85,7 @@ public class AGR_BaseComponent : BaseViewModel, IAGR_BaseComponent
         mDocument = swDocument3D;
         mConfiguration = mDocument.Configurations.Active;
         mProperties = mConfiguration.Properties;
+
         ComponentType = mDocument.ComponentType();
         
     }

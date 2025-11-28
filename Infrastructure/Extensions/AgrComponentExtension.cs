@@ -6,7 +6,10 @@ using System.Text;
 using System.Threading.Tasks;
 using Agrovent.DAL.Infrastructure.Enums;
 using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces.Components;
+using Agrovent.ViewModels.Components;
 using SolidWorks.Interop.sldworks;
+using Xarial.XCad.Documents;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.Infrastructure.Extensions
@@ -52,6 +55,39 @@ namespace Agrovent.Infrastructure.Extensions
             //Part,
             //SheetMetallPart,
             //Purchased
+        }
+
+        public static IAGR_BaseComponent AGR_BaseComponent(this IXComponent xComp)
+        {
+            var xDoc = xComp.ReferencedDocument as ISwDocument3D;
+            var componentType = xDoc.ComponentType();
+            switch (componentType)
+            {
+                case AGR_ComponentType_e.Assembly:
+                    return new AGR_AssemblyComponentVM(xDoc);
+                case AGR_ComponentType_e.Part:
+                case AGR_ComponentType_e.SheetMetallPart:
+                case AGR_ComponentType_e.Purchased:
+                    return new AGR_PartComponentVM(xDoc);
+                default:
+                    throw new NotImplementedException($"Component type {componentType} is not implemented.");
+            }
+        }
+        public static IAGR_BaseComponent AGR_BaseComponent(this IXDocument xDoc)
+        {
+            var swDoc = xDoc as ISwDocument3D;
+            var componentType = swDoc.ComponentType();
+            switch (componentType)
+            {
+                case AGR_ComponentType_e.Assembly:
+                    return new AGR_AssemblyComponentVM(swDoc);
+                case AGR_ComponentType_e.Part:
+                case AGR_ComponentType_e.SheetMetallPart:
+                case AGR_ComponentType_e.Purchased:
+                    return new AGR_PartComponentVM(swDoc);
+                default:
+                    throw new NotImplementedException($"Component type {componentType} is not implemented.");
+            }
         }
     }
 }
