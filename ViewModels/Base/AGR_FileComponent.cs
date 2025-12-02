@@ -12,12 +12,12 @@ namespace Agrovent.ViewModels.Base
     public class AGR_FileComponent : AGR_BaseComponent, IHasFile
     {
 
-        public string? CurrentModelFilePath { get => mDocument.Path; }
-        public string? CurrentDrawFilePath => GetDrawFilePath();
-        public string? StorageModelFilePath { get => GetStorageModelFilePath();}
-        public string? StorageDrawFilePath { get => GetStorageDrawFilePath();}
-        public string? ProductionModelFilePath { get => GetProdModelFilePath();}
-        public string? ProductionDrawFilePath { get => GetProdDrawFilePath();}
+        public string CurrentModelFilePath  => mDocument.Path; 
+        public string CurrentDrawFilePath => GetDrawFilePath();
+        public string? StorageModelFilePath  => GetStorageModelFilePath();
+        public string? StorageDrawFilePath  => GetStorageDrawFilePath();
+        public string? ProductionModelFilePath  => GetProdModelFilePath();
+        public string? ProductionDrawFilePath  => GetProdDrawFilePath();
 
         private string? GetDrawFilePath()
         {

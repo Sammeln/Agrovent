@@ -6,12 +6,13 @@ using System.Threading.Tasks;
 using Agrovent.DAL.Entities;
 using Agrovent.DAL.Infrastructure.Enums;
 using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces.Base;
 using Agrovent.Infrastructure.Interfaces.Properties;
 using Xarial.XCad.Data;
 
 namespace Agrovent.Infrastructure.Interfaces.Components
 {
-    public interface IAGR_BaseComponent
+    public interface IAGR_BaseComponent : IAGR_BaseObject, IAGR_PageView
     {
         abstract string Name { get; }
         abstract string ConfigName { get; }

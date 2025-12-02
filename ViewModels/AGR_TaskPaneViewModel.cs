@@ -18,12 +18,15 @@ using Agrovent.ViewModels.Components;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Xarial.XCad.Geometry;
 using Agrovent.Infrastructure.Extensions;
+using Xarial.XCad.SolidWorks;
+using Agrovent.Views.Pages;
+using Agrovent.Infrastructure.Interfaces.Base;
 
 namespace Agrovent.ViewModels
 {
     public class AGR_TaskPaneViewModel : BaseViewModel
     {
-
+        private readonly ISwApplication _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
 
         #region Property - ISwAssembly ActiveComponent
         private ISwDocument3D _ActiveComponent;
@@ -36,8 +39,8 @@ namespace Agrovent.ViewModels
 
 
         #region Property - 
-        private IAGR_BaseComponent _BaseComponent;
-        public IAGR_BaseComponent BaseComponent
+        private IAGR_PageView? _BaseComponent;
+        public IAGR_PageView? BaseComponent
         {
             get => _BaseComponent;
             set => Set(ref _BaseComponent, value);
@@ -47,8 +50,18 @@ namespace Agrovent.ViewModels
         #region CTOR
         public AGR_TaskPaneViewModel()
         {
-            var app = AGR_ServiceContainer.GetService<AgroventAddin>();
-            app.Application.Documents.DocumentActivated += Documents_DocumentActivated;
+            BaseComponent = new AGR_HomePageVM();
+            _app.Documents.DocumentActivated += Documents_DocumentActivated;
+            _app.Idle += _app_Idle;
+
+        }
+
+        private void _app_Idle(Xarial.XCad.IXApplication app)
+        {
+            if (_app.Documents.Count == 0 && ActiveComponent != null)
+            {
+                BaseComponent = null;
+            }
         }
 
 
@@ -56,12 +69,11 @@ namespace Agrovent.ViewModels
 
         private void Documents_DocumentActivated(IXDocument doc)
         {
-
-
             if (ActiveComponent != null)
             {
                 ActiveComponent.Selections.NewSelection -= Selections_NewSelection;
                 ActiveComponent.Selections.ClearSelection -= Selections_ClearSelection;
+
                 //(ActiveComponent.Assembly as AssemblyDoc).ComponentVisibleChangeNotify -= TaskPaneVM_ComponentVisibleChangeNotify;
             }
 
@@ -83,6 +95,7 @@ namespace Agrovent.ViewModels
                 return;
             }
         }
+
         private void Selections_NewSelection(IXDocument doc, Xarial.XCad.IXSelObject selObject)
         {
             if (selObject is IXFace face)

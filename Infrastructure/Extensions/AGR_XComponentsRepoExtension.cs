@@ -47,36 +47,40 @@ namespace Agrovent.Infrastructure.Extensions
 
                 yield return comp;
 
-                IXComponentRepository children;
+                IXComponentRepository children = null;
                 AvaType_e avaType = AvaType_e.Purchased;
 
                 var state = comp.State;
-                try
-                {
-                    var avaTypeProp = comp.ReferencedConfiguration.Properties.GetOrPreCreate(AGR_PropertyNames.AvaType);
-                    if (avaTypeProp.IsCommitted) avaType = (AvaType_e)Convert.ToInt32(avaTypeProp.Value);
-                }
-                catch (Exception ex)
-                {
-                    
-                }
 
-                if (!state.HasFlag(ComponentState_e.Suppressed) && 
+                if (!state.HasFlag(ComponentState_e.Suppressed) &&
                     !state.HasFlag(ComponentState_e.SuppressedIdMismatch) &&
                     !state.HasFlag(ComponentState_e.ExcludedFromBom) &&
-                    !state.HasFlag(ComponentState_e.Embedded) &&
-                    avaType != AvaType_e.Purchased &&
-                    avaType != AvaType_e.DontBuy
+                    !state.HasFlag(ComponentState_e.Embedded)
                     )
                 {
                     try
                     {
-                        children = comp.Children;
+                        var avaTypeProp = comp.ReferencedConfiguration.Properties.GetOrPreCreate(AGR_PropertyNames.AvaType);
+                        if (avaTypeProp.IsCommitted) avaType = (AvaType_e)Convert.ToInt32(avaTypeProp.Value);
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        children = null;
+
                     }
+                    if (avaType != AvaType_e.Purchased &&
+                        avaType != AvaType_e.DontBuy)
+
+                    {
+                        try
+                        {
+                            children = comp.Children;
+                        }
+                        catch
+                        {
+                            children = null;
+                        }
+                    }
+
                 }
                 else
                 {
@@ -92,10 +96,68 @@ namespace Agrovent.Infrastructure.Extensions
                 }
             }
         }
+        public static IEnumerable<IXComponent> AGR_ActiveComponents(this IXComponentRepository repo)
+        {
+            IEnumerator<IXComponent> enumer;
 
+            try
+            {
+                enumer = repo.GetEnumerator();
+            }
+            catch
+            {
+                yield break;
+            }
+
+            while (true)
+            {
+                IXComponent comp;
+
+                try
+                {
+                    if (!enumer.MoveNext())
+                    {
+                        break;
+                    }
+
+                    comp = enumer.Current;
+                }
+                catch
+                {
+                    break;
+                }
+
+
+                IXComponentRepository children;
+                AvaType_e avaType = AvaType_e.Purchased;
+
+                var state = comp.State;
+                if (!state.HasFlag(ComponentState_e.Suppressed) &&
+                    !state.HasFlag(ComponentState_e.SuppressedIdMismatch) &&
+                    !state.HasFlag(ComponentState_e.ExcludedFromBom) &&
+                    !state.HasFlag(ComponentState_e.Embedded)
+                    )
+                {
+                    yield return comp;
+
+                }
+                else
+                {
+                    children = null;
+                }
+            }
+        }
         public static IEnumerable<IAGR_BaseComponent> AGR_BaseComponents(this IXComponentRepository repo)
         {
             foreach (var xComp in repo.AGR_TryFlatten())
+            {
+                var agrComp = xComp.AGR_BaseComponent();
+                yield return agrComp;
+            }
+        }
+        public static IEnumerable<IAGR_BaseComponent> AGR_BaseComponents(this IEnumerable<IXComponent> repo)
+        {
+            foreach (var xComp in repo)
             {
                 var agrComp = xComp.AGR_BaseComponent();
                 yield return agrComp;

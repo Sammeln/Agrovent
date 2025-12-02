@@ -5,45 +5,238 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
              xmlns:local="clr-namespace:Agrovent.Views.Pages"
+             xmlns:enum="clr-namespace:Agrovent.DAL.Infrastructure.Enums;assembly=Agrovent.DAL"
+             xmlns:system="clr-namespace:System;assembly=mscorlib"
              xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
-             mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_AssemblyComponentVM}}"
-             d:DesignHeight="450" d:DesignWidth="800">
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="800">
 
     <UserControl.Resources>
-        <converter:AGR_XComponentsGroupingConverter x:Key="GroupConverter"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
+                <!--<ResourceDictionary Source="../../Resources/Styles/AssemblyComponentStyles.xaml"/>-->
+            </ResourceDictionary.MergedDictionaries>
+
+            <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
+                                ObjectType="{x:Type system:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="enum:AvaType_e"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+
+            <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+
+            <!-- Converter для видимости секций -->
+            <converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        </ResourceDictionary>
     </UserControl.Resources>
-    
-    <StackPanel>
-        <StackPanel VerticalAlignment="Stretch" Orientation="Vertical">
-            <TextBox Text="{Binding Name,       Mode=OneWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
-            <TextBox Text="{Binding PartNumber, Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
-            <TextBox Text="{Binding Version,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
-            <TextBox Text="{Binding HashSum,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
 
-            <TextBlock Text="{Binding StorageModelFilePath,  FallbackValue=Empty}"/>
-            <TextBlock Text="{Binding ProductionModelFilePath,  FallbackValue=Empty}"/>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="16" Orientation="Vertical">
 
-            <ListBox ItemsSource="{Binding PropertiesCollection.Properties}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Name}"/>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+            <!-- Секция: Основная информация -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="Основная информация" Style="{StaticResource SectionHeaderStyle}"/>
 
-            <ListBox ItemsSource="{Binding Components}" SelectedItem="{Binding SelectedItem}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Converter={StaticResource GroupConverter}}"/>
-                            <TextBlock Text="   "/>
-                            <TextBlock Text="{Binding Count}"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-                
-            </ListBox>
+                    <!-- Наименование -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Наименование:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
+                    </DockPanel>
+
+                    <!-- Тип AVA -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Тип:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
+                                  SelectedItem="{Binding AvaType}"
+                                  Style="{StaticResource ModernComboBox}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DockPanel>
+
+                    <!-- Partnumber -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Partnumber:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding PartNumber, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ModernTextBox}"/>
+                    </DockPanel>
+
+                    <!-- Конфигурация -->
+                    <!--<DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Конфигурация:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding ConfigName, Mode=OneWay}" 
+                                 Style="{StaticResource ReadOnlyTextBox}"/>
+                    </DockPanel>-->
+
+                    <!-- Версия -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Версия:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding Version, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ReadOnlyTextBox}"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Секция: Компоненты сборки -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Компоненты сборки" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <!-- Вкладки для разных типов компонентов -->
+                    <DataGrid ItemsSource="{Binding AGR_TopComponents}" 
+                                      Style="{StaticResource ComponentsDataGrid}" IsReadOnly="False">
+                        <DataGrid.Columns>
+
+                            <DataGridTemplateColumn Header="Название" Width="*" SortMemberPath="Name">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Style="{StaticResource ReadOnlyValueStyle}" Text="{Binding Name, Mode=OneWay}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <!--<DataGridTextColumn Header="Конфигурация" 
+                                                       Binding="{Binding ConfigName}" 
+                                                       Width="120"/>
+                                    <DataGridTextColumn Header="Тип" 
+                                                       Binding="{Binding ComponentType}" 
+                                                       Width="120"/>-->
+                            <DataGridTemplateColumn Header="PartNumber" Width="*" SortMemberPath="PartNumber">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding PartNumber, Mode=TwoWay}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <!--<DataGridTextColumn Header="Версия" 
+                                                       Binding="{Binding Version}" 
+                                                       Width="80"/>-->
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <!-- Статистика по компонентам -->
+                    <!--<StackPanel Margin="0,16,0,0">
+                        <TextBlock Text="Статистика:" 
+                                   Style="{StaticResource SectionHeaderStyle}"
+                                   FontSize="12"/>
+
+                        <WrapPanel Style="{StaticResource StatsContainerStyle}">
+                            <Border Style="{StaticResource StatBlockStyle}"
+                                    Background="{StaticResource TotalComponentsColor}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Всего компонентов:" 
+                                               Style="{StaticResource StatLabelStyle}"/>
+                                    <TextBlock Text="{Binding TotalComponentsCount}"
+                                               Style="{StaticResource StatCounterStyle}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource StatBlockStyle}"
+                                    Background="{StaticResource PartsColor}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Деталей:" 
+                                               Style="{StaticResource StatLabelStyle}"/>
+                                    <TextBlock Text="{Binding PartsCount}"
+                                               Style="{StaticResource StatCounterStyle}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource StatBlockStyle}"
+                                    Background="{StaticResource AssembliesColor}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Сборок:" 
+                                               Style="{StaticResource StatLabelStyle}"/>
+                                    <TextBlock Text="{Binding AssembliesCount}"
+                                               Style="{StaticResource StatCounterStyle}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource StatBlockStyle}"
+                                    Background="{StaticResource PurchasedColor}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Покупных:" 
+                                               Style="{StaticResource StatLabelStyle}"/>
+                                    <TextBlock Text="{Binding PurchasedCount}"
+                                               Style="{StaticResource StatCounterStyle}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource StatBlockStyle}"
+                                    Background="{StaticResource SheetMetalColor}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Листовых:" 
+                                               Style="{StaticResource StatLabelStyle}"/>
+                                    <TextBlock Text="{Binding SheetMetalPartsCount}"
+                                               Style="{StaticResource StatCounterStyle}"/>
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+                    </StackPanel>-->
+                </StackPanel>
+            </Border>
+
+            <!-- Секция: Пользовательские свойства -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Свойства" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <DataGrid ItemsSource="{Binding PropertiesCollection.Properties}"  
+                              Style="{StaticResource PropertiesDataGrid}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
+            <!-- Секция: Файлы -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Файлы" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <!-- Текущий файл модели -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Модель (текущая):" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding CurrentModelFilePath, Mode=OneWay}" 
+                                 Style="{StaticResource ReadOnlyTextBox}"
+                                 TextWrapping="NoWrap"/>
+                    </DockPanel>
+
+                    <!-- Файл чертежа -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                              Visibility="{Binding CurrentDrawFilePath, Converter={StaticResource NullToVisibilityConverter}}">
+                        <TextBlock Text="Чертеж:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding CurrentDrawFilePath, Mode=OneWay}" 
+                                   Style="{StaticResource ReadOnlyTextBox}"
+                                   TextWrapping="NoWrap"/>
+                    </DockPanel>
+
+                    <!-- Хранилище модели -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                              Visibility="{Binding StorageModelFilePath, Converter={StaticResource NullToVisibilityConverter}}">
+                        <TextBlock Text="Модель (хранилище):" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding StorageModelFilePath, Mode=OneWay}" 
+                                   Style="{StaticResource ReadOnlyTextBox}"
+                                   TextWrapping="NoWrap"/>
+                    </DockPanel>
+
+                    <!-- Хранилище чертежа -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                              Visibility="{Binding StorageDrawFilePath, Converter={StaticResource NullToVisibilityConverter}}">
+                        <TextBlock Text="Чертеж (хранилище):" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding StorageDrawFilePath, Mode=OneWay}" 
+                                   Style="{StaticResource ReadOnlyTextBox}"
+                                   TextWrapping="NoWrap"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
-    </StackPanel>
+    </ScrollViewer>
 </UserControl>

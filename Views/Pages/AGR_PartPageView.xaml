@@ -10,57 +10,172 @@
              xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
              d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_PartComponentVM}}"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="800" d:DesignWidth="800">
 
     <UserControl.Resources>
-        <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
-                            ObjectType="{x:Type system:Enum}">
-            <ObjectDataProvider.MethodParameters>
-                <x:Type TypeName="enum:AvaType_e"/>
-            </ObjectDataProvider.MethodParameters>
-        </ObjectDataProvider>
-        <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
+                                ObjectType="{x:Type system:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="enum:AvaType_e"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+
+            <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+
+            <!-- Converter для видимости секций в зависимости от типа компонента -->
+            <converter:AGR_ComponentTypeToVisibilityConverter x:Key="ComponentTypeToVisibilityConverter"/>
+            <converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        </ResourceDictionary>
     </UserControl.Resources>
-    
-    <DockPanel>
-        <StackPanel VerticalAlignment="Stretch" Orientation="Vertical" DockPanel.Dock="Top">
-            <TextBox Text="{Binding Name,       Mode=OneWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
-            <TextBox Text="{Binding PartNumber, Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
-            <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}" SelectedItem="{Binding AvaType, Mode=TwoWay}">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Path=., Converter={StaticResource AvaTypeConverter}}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="16" Orientation="Vertical">
+
+            <!-- Секция: Основная информация -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="Основная информация" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <!-- Наименование -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Наименование:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
+                    </DockPanel>
+
+                    <!-- Тип AVA -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Тип:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
+                                  SelectedItem="{Binding AvaType}"
+                                  Style="{StaticResource ModernComboBox}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DockPanel>
+
+                    <!-- Partnumber -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}"
+                               Visibility="{Binding ComponentType,
+                               Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                        <TextBlock Text="Partnumber:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding PartNumber, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ModernTextBox}"/>
+                    </DockPanel>
+                    
+                    <!-- Артикул -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                               Visibility="{Binding ComponentType,Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=True}">
+                        <TextBlock Text="Артикул:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding AvaArticle.Article, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ModernTextBox}"/>
+                    </DockPanel>
+                    
+                    <!-- Версия -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                                Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                        <TextBlock Text="Версия:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBlock Text="{Binding Version, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ReadOnlyValueStyle}"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Секция: Материал (только для не-purchased) -->
+            <Border Style="{StaticResource CardStyle}" 
+                    Visibility="{Binding ComponentType,
+                        NotifyOnSourceUpdated=True,
+                        NotifyOnTargetUpdated=True, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                <StackPanel>
+                    <TextBlock Text="Материал" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <!-- Название материала -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Материал:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding BaseMaterial.Name}" 
+                                   Style="{StaticResource ReadOnlyTextBox}"/>
+                    </DockPanel>
+
+                    <!-- Количество материала -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Количество:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding BaseMaterialCount, StringFormat={}{0:F3}}"
+                                   Style="{StaticResource ModernTextBox}"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Секция: Покраска (только для не-purchased) -->
+            <Border Style="{StaticResource CardStyle}" 
+                    Visibility="{Binding ComponentType, NotifyOnSourceUpdated=True, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                <StackPanel>
+                    <TextBlock Text="Покраска" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <!-- Название краски -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Краска:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBlock Text="{Binding Paint.Name}" 
+                                   Style="{StaticResource ReadOnlyValueStyle}"/>
+                    </DockPanel>
+
+                    <!-- Количество краски -->
+                    <!--<DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Количество:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBlock Text="{Binding PaintCount, StringFormat={}{0:F2}}"
+                                   Style="{StaticResource ReadOnlyValueStyle}"/>
+                    </DockPanel>-->
+                </StackPanel>
+            </Border>
+
+            <!-- Секция: Пользовательские свойства (только для не-purchased) -->
+            <Border Style="{StaticResource CardStyle}" 
+                    Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                <StackPanel>
+                    <TextBlock Text="Свойства" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <DataGrid ItemsSource="{Binding PropertiesCollection.Properties}"  Style="{StaticResource PropertiesDataGrid}"
+                              >
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    
+                </StackPanel>
+            </Border>
+
+            <!-- Секция: Файлы (только для не-purchased) -->
+            <Border Style="{StaticResource CardStyle}" 
+                    Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                <StackPanel>
+                    <TextBlock Text="Файлы" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <!-- Текущий файл модели -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Модель (текущая):" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding CurrentModelFilePath, Mode=OneWay}" 
+                                   Style="{StaticResource ReadOnlyTextBox}"
+                                   TextWrapping="NoWrap"/>
+                    </DockPanel>
+
+                    <!-- Файл чертежа -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                                Visibility="{Binding CurrentDrawFilePath, Converter={StaticResource NullToVisibilityConverter}}">
+                        <TextBlock Text="Чертеж:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBlock Text="{Binding CurrentDrawFilePath, Mode=OneWay}" 
+                                   Style="{StaticResource ReadOnlyValueStyle}"
+                                   TextWrapping="NoWrap"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
 
         </StackPanel>
-        <StackPanel VerticalAlignment="Stretch" Orientation="Vertical" >
-            <StackPanel.Resources>
-                <Style TargetType="StackPanel">
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding AvaType}" Value="Purchased">
-                            <Setter Property="Visibility" Value="Hidden"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </StackPanel.Resources>
-            <TextBox Text="{Binding Version,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
-            <TextBox Text="{Binding HashSum,    Mode=TwoWay,    UpdateSourceTrigger=PropertyChanged, FallbackValue=Empty}"/>
-
-            <TextBlock Text="{Binding BaseMaterial.Name}"/>
-            <ListBox ItemsSource="{Binding PropertiesCollection.Properties}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Name}"/>
-                            <TextBlock Text="{Binding Value}"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </StackPanel>
-
-        
-    </DockPanel>
+    </ScrollViewer>
 </UserControl>

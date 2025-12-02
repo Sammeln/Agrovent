@@ -9,20 +9,26 @@ using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Agrovent.ViewModels.Components;
 using SolidWorks.Interop.sldworks;
+using Xarial.XCad.Data;
 using Xarial.XCad.Documents;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.Infrastructure.Extensions
 {
-    public static class AgrComponentExtension
+    public static class AGR_ComponentExtension
     {
         public static AvaType_e AvaType(this ISwDocument3D xDoc)
         {
-            var avaType = Convert.ToInt32(xDoc.Configurations.Active.Properties[AGR_PropertyNames.AvaType].Value);
+            var prop = xDoc.Configurations.Active.Properties.GetOrPreCreate(AGR_PropertyNames.AvaType);
+            if (!prop.IsCommitted) prop.Commit(CancellationToken.None);
+            if (!string.IsNullOrEmpty(prop.Value.ToString()))
+            {
+                var avaType = Convert.ToInt32(xDoc.Configurations.Active.Properties[AGR_PropertyNames.AvaType].Value);
             if ((AvaType_e)avaType != null)
             {
                 return (AvaType_e)avaType;
             }
+        }
             return AvaType_e.Component;
         }
         public static AGR_ComponentType_e ComponentType(this ISwDocument3D xDoc)

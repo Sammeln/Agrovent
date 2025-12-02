@@ -22,18 +22,41 @@ public class AGR_BaseComponent : BaseViewModel, IAGR_BaseComponent
 
     public string Name { get => Path.GetFileNameWithoutExtension(mDocument.Title); }
     public string ConfigName { get => mConfiguration.Name; }
-    public string PartNumber { get => mProperties[AGR_PropertyNames.Partnumber].Value.ToString(); set => mProperties[AGR_PropertyNames.Partnumber].Value = value; }
-    public int Version { get => Convert.ToInt32(mProperties[AGR_PropertyNames.Version].Value); set => mProperties[AGR_PropertyNames.Version].Value = value; }
+    public string PartNumber 
+    {
+        get => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString(); 
+        set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value; 
+    }
+    public int Version
+    {
+        get;
+        set;
+        //get => Convert.ToInt32(mProperties.AGR_TryGetProp(AGR_PropertyNames.Version).Value);
+        //set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
+    }
     //public int HashSum { get => Convert.ToInt32(mProperties[AGR_PropertyNames.HashSum].Value); set => mProperties[AGR_PropertyNames.HashSum].Value = value; }
-    public int HashSum { get => 1; set => throw new NotImplementedException(); }
+    public int HashSum
+    {
+        get
+        {
+            var value = mProperties.AGR_TryGetProp(AGR_PropertyNames.HashSum).Value;
+            if (!string.IsNullOrEmpty(value.ToString()))
+            {
+                return Convert.ToInt32(value);
+            }
+            return 0;
+        }
+
+        set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
+    }
     public AvaArticleModel AvaArticle { get; set; }
-    private AGR_ComponentType_e _ComponentType;
+
     public AGR_ComponentType_e ComponentType
     {
-        get => _ComponentType;
+        get => mDocument.ComponentType();
         set
         {
-            Set(ref _ComponentType, value);
+            OnPropertyChanged(nameof(ComponentType));
             switch (value)
             {
                 case AGR_ComponentType_e.Assembly:
@@ -58,10 +81,20 @@ public class AGR_BaseComponent : BaseViewModel, IAGR_BaseComponent
     }
     public AvaType_e AvaType
     {
-        get => (AvaType_e)Convert.ToInt32(mProperties[AGR_PropertyNames.AvaType].Value);
+        get
+        {
+            var val = mProperties.AGR_TryGetProp(AGR_PropertyNames.AvaType).Value;
+            if (!string.IsNullOrEmpty(val.ToString()))
+            {
+                return (AvaType_e)Convert.ToInt32(val);
+            }
+            return AvaType_e.Component;
+        }
+
         set
         {
-            mProperties[AGR_PropertyNames.AvaType].Value = (int)value;
+            mProperties.AGR_TryGetProp(AGR_PropertyNames.AvaType).Value = (int)value;
+
             if (value == AvaType_e.Purchased)
             {
                 ComponentType = AGR_ComponentType_e.Purchased;

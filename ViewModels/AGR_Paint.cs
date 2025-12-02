@@ -21,7 +21,9 @@ namespace Agrovent.ViewModels
         public AGR_Paint(ISwDocument3D doc3D)
         {
             var colorProp = doc3D.Configurations.Active.Properties.GetOrPreCreate(AGR_PropertyNames.Color);
+            if (!colorProp.IsCommitted) colorProp.Commit(CancellationToken.None);
             Name = colorProp.Value.ToString();
+
         }
     }
 }

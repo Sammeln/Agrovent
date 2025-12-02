@@ -5,6 +5,7 @@ using System.Text;
 using Agrovent.Services;
 using Agrovent.ViewModels;
 using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.Specification;
 using Agrovent.Views.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

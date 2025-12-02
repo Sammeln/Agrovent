@@ -21,9 +21,6 @@ namespace Agrovent.ViewModels.Components
             if (ComponentType == AGR_ComponentType_e.Purchased) return;
          
             BaseMaterial = new AGR_Material(swDocument3D);
-            Random rnd = new Random();
-            var i = rnd.Next(10,80);
-            BaseMaterialCount = (decimal)i / 100;
             Paint = new AGR_Paint(swDocument3D);
         }
     }

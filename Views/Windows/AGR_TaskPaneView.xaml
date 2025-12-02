@@ -27,6 +27,9 @@
             <DataTemplate DataType="{x:Type VM:AGR_AssemblyComponentVM}">
                 <page:AGR_AssemblyPageView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type VM:AGR_HomePageVM}">
+                <page:AGR_EmptyPage/>
+            </DataTemplate>
 
         </ResourceDictionary>
     </UserControl.Resources>

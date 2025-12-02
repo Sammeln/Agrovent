@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Agrovent.ViewModels.Base;
@@ -17,50 +18,49 @@ namespace Agrovent.ViewModels.Components
 
 
         #region Property - 
-        private IGrouping<string, IXComponent> _SelectedItem;
-        public IGrouping<string, IXComponent> SelectedItem
+        private IAGR_BaseComponent _SelectedItem;
+        public IAGR_BaseComponent SelectedItem
         {
             get => _SelectedItem;
-            set
-            {
-                mDocument.Selections.Clear();
-
-                Set(ref _SelectedItem, value);
-                foreach (var item in value)
-                {
-                    item.Select(true);
-                }
-            }
+            set => Set(ref _SelectedItem, value);
         }
         #endregion
 
-        #region Property - 
-        private ObservableCollection<IGrouping<string, IXComponent>> _Components;
-        public ObservableCollection<IGrouping<string, IXComponent>> Components
+        #region Property - ObservableCollection<IAGR_BaseComponent> _AGR_TopComponents
+        private ObservableCollection<IAGR_BaseComponent> _AGR_TopComponents;
+        public ObservableCollection<IAGR_BaseComponent> AGR_TopComponents
         {
-            get => _Components;
-            set => Set(ref _Components, value);
+            get => _AGR_TopComponents;
+            set => Set(ref _AGR_TopComponents, value);
         }
         #endregion
 
-        #region Property - 
-        private ObservableCollection<IAGR_BaseComponent> _AGR_Components;
-        public ObservableCollection<IAGR_BaseComponent> AGR_Components
+        #region Property - ObservableCollection<IAGR_BaseComponent> _AGR_FlatComponents
+        private ObservableCollection<IAGR_BaseComponent> _AGR_FlatComponents;
+        public ObservableCollection<IAGR_BaseComponent> AGR_FlatComponents
         {
-            get => _AGR_Components;
-            set => Set(ref _AGR_Components, value);
+            get => _AGR_FlatComponents;
+            set => Set(ref _AGR_FlatComponents, value);
         }
         #endregion 
-
+        public int TotalComponentsCount => AGR_TopComponents?.Count ?? 0;
+        public int PartsCount => AGR_TopComponents?.Count(c => c.ComponentType == AGR_ComponentType_e.Part) ?? 0;
+        public int AssembliesCount => AGR_TopComponents?.Count(c => c.ComponentType == AGR_ComponentType_e.Assembly) ?? 0;
+        public int PurchasedCount => AGR_TopComponents?.Count(c => c.ComponentType == AGR_ComponentType_e.Purchased) ?? 0;
+        public int SheetMetalPartsCount => AGR_TopComponents?.Count(c => c.ComponentType == AGR_ComponentType_e.SheetMetallPart) ?? 0;
+        
         public AGR_AssemblyComponentVM(ISwDocument3D swDocument3D) : base(swDocument3D)
         {
             var assem = swDocument3D as ISwAssembly;
-            var comps = assem.Configurations.Active.Components.GroupBy(x => x.ReferencedDocument.Title + x.ReferencedConfiguration.Name);
-            Components = new ObservableCollection<IGrouping<string, IXComponent>>(comps);
+            var comps = assem.Configurations.Active.Components
+                .AGR_ActiveComponents()
+                .GroupBy(x => x.ReferencedDocument.Title + x.ReferencedConfiguration.Name);
 
-            var agrComps = assem.Configurations.Active.Components.AGR_BaseComponents();
+             AGR_TopComponents = new(assem.Configurations.Active.Components
+                .AGR_ActiveComponents().AGR_BaseComponents());
 
-            AGR_Components = new ObservableCollection<IAGR_BaseComponent>(agrComps);
+            AGR_FlatComponents = new(assem.Configurations.Active.Components
+                .AGR_TryFlatten().AGR_BaseComponents());
         }
     }
 }

@@ -19,4 +19,8 @@
     <ProjectReference Include="..\Agrovent.DAL\Agrovent.DAL.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ViewModels\TaskPane\" />
+  </ItemGroup>
+
 </Project>

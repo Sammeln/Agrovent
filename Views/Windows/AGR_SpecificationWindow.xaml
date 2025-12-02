@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Agrovent.Views.Windows"
-        xmlns:vm="clr-namespace:Agrovent.ViewModels"
+        xmlns:vm="clr-namespace:Agrovent.ViewModels.Specification"
         xmlns:system="clr-namespace:System;assembly=mscorlib"
         xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
         xmlns:enum="clr-namespace:Agrovent.DAL.Infrastructure.Enums;assembly=Agrovent.DAL"
@@ -26,14 +26,13 @@
     </Window.Resources>
 
     <Grid>
-        <DataGrid AutoGenerateColumns="False" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizingWhenGrouping="True"
+        <DataGrid AutoGenerateColumns="True" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizingWhenGrouping="True"
                   CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="None" HeadersVisibility="Column"
                   >
             <DataGrid.Resources>
                 <CollectionViewSource x:Key="CVS_Components" Source="{Binding Components}">
                     <CollectionViewSource.GroupDescriptions>
-                        <PropertyGroupDescription PropertyName="Item1.ComponentType"/>
-                        <PropertyGroupDescription PropertyName="Item1.Name"/>
+                        <PropertyGroupDescription PropertyName="ComponentType"/>
                     </CollectionViewSource.GroupDescriptions>
                 </CollectionViewSource>
             </DataGrid.Resources>
@@ -52,8 +51,8 @@
                                         <Expander IsExpanded="True">
                                             <Expander.Header>
                                                 <DockPanel>
-                                                    <TextBlock FontWeight="Bold" Text="{Binding Path=Name, Converter={StaticResource ComponentTypeConverter}}" Margin="0 0 5 0"/>
-                                                    <TextBlock FontWeight="Bold" Text="{Binding Path=ItemCount}"/>
+                                                    <TextBlock FontWeight="Bold" Text="{Binding Path=Name}" Margin="0 0 5 0"/>
+                                                    <!--<TextBlock FontWeight="Bold" Text="{Binding Path=ItemCount}"/>-->
                                                 </DockPanel>
                                             </Expander.Header>
                                             <Expander.Content>
@@ -82,7 +81,8 @@
 
             </DataGrid.GroupStyle>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Наименование" Binding="{Binding Item1.Name}" IsReadOnly="True"/>
+                
+                <!--<DataGridTextColumn Header="Наименование" Binding="{Binding Item1.Name}" IsReadOnly="True"/>
                 
                 <DataGridTemplateColumn Header="Тип">
                     <DataGridTemplateColumn.CellTemplate>
@@ -104,7 +104,7 @@
                 </DataGridTemplateColumn>
 
 
-                <DataGridTextColumn Header="Количество" Binding="{Binding Item2}"/>
+                <DataGridTextColumn Header="Количество" Binding="{Binding Item2}"/>-->
             </DataGrid.Columns>
         </DataGrid>
 
