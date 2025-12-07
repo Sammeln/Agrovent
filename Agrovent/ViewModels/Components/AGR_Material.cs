@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Agrovent.DAL.Entities.Components;
-using Agrovent.DAL.Infrastructure.Enums;
-using Agrovent.DAL.Infrastructure.Interfaces;
+﻿using Agrovent.DAL.Entities.Components;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Components
@@ -15,7 +10,7 @@ namespace Agrovent.ViewModels.Components
         public string Name { get; set; }
         public string Article { get; set; }
         public string UOM { get; set; }
-        public AvaArticleModel AvaModel { get; set; }
+        public IAGR_AvaArticleModel AvaModel { get; set; }
 
         public AGR_Material(ISwDocument3D doc3D)
         {

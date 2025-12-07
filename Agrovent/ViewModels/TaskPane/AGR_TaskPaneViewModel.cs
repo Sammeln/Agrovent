@@ -6,7 +6,7 @@ using Agrovent.ViewModels.Components;
 using Xarial.XCad.Geometry;
 using Agrovent.Infrastructure.Extensions;
 using Xarial.XCad.SolidWorks;
-using Agrovent.DAL.Infrastructure.Interfaces.Base;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
 
 namespace Agrovent.ViewModels.TaskPane
 {

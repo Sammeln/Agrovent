@@ -15,18 +15,18 @@ namespace Agrovent.Infrastructure.Converters
         {
             if (value != "")
             {
-                Enum type = (AvaType_e)value;
+                Enum type = (AGR_AvaType_e)value;
                 switch (type)
                 {
-                    case AvaType_e.Production:
+                    case AGR_AvaType_e.Production:
                         return "Продукция";
-                    case AvaType_e.Component:
+                    case AGR_AvaType_e.Component:
                         return "Произведено";
-                    case AvaType_e.Purchased:
+                    case AGR_AvaType_e.Purchased:
                         return "Покупное";
-                    case AvaType_e.VirtualComponent:
+                    case AGR_AvaType_e.VirtualComponent:
                         return "Виртуальный компонент";
-                    case AvaType_e.DontBuy:
+                    case AGR_AvaType_e.DontBuy:
                         return "Не покупать";
                 }
             }

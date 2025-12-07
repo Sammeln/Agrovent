@@ -1,15 +1,13 @@
 ﻿// ComponentRepository.cs
 using Microsoft.EntityFrameworkCore;
 using Agrovent.DAL.Entities.Components;
-using Agrovent.DAL.Infrastructure.Enums;
-using Agrovent.ViewModels.Components;
-using Agrovent.DAL.Infrastructure.Enums;
-using Agrovent.ViewModels.Base;
-using Agrovent.ViewModels.Specification;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Components;
 
 namespace Agrovent.DAL.Repositories
 {
-    public class ComponentRepository : IComponentRepository
+    public class ComponentRepository : IAGR_ComponentRepository
     {
         private readonly DataContext _context;
 
@@ -36,7 +34,7 @@ namespace Agrovent.DAL.Repositories
             return component?.GetLatestVersion();
         }
 
-        public async Task<ComponentVersion> SaveComponent(AGR_BaseComponent component, int hashSum)
+        public async Task<ComponentVersion> SaveComponent(IAGR_BaseComponent component, int hashSum)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -107,7 +105,7 @@ namespace Agrovent.DAL.Repositories
                 if (component.ComponentType == AGR_ComponentType_e.Part ||
                     component.ComponentType == AGR_ComponentType_e.SheetMetallPart)
                 {
-                    if (component is AGR_PartComponentVM partComponent)
+                    if (component is IAGR_Part partComponent)
                     {
                         var material = new ComponentMaterial
                         {
@@ -126,12 +124,12 @@ namespace Agrovent.DAL.Repositories
                 {
                     var files = new List<ComponentFile>
                     {
-                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType_e.CurrentModel, FilePath = fileComponent.CurrentModelFilePath },
-                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType_e.CurrentDrawing, FilePath = fileComponent.CurrentDrawFilePath },
-                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType_e.StorageModel, FilePath = fileComponent.StorageModelFilePath },
-                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType_e.StorageDrawing, FilePath = fileComponent.StorageDrawFilePath },
-                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType_e.ProductionModel, FilePath = fileComponent.ProductionModelFilePath },
-                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType_e.ProductionDrawing, FilePath = fileComponent.ProductionDrawFilePath }
+                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType.CurrentModel, FilePath = fileComponent.CurrentModelFilePath },
+                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType.CurrentDrawing, FilePath = fileComponent.CurrentDrawFilePath },
+                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType.StorageModel, FilePath = fileComponent.StorageModelFilePath },
+                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType.StorageDrawing, FilePath = fileComponent.StorageDrawFilePath },
+                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType.ProductionModel, FilePath = fileComponent.ProductionModelFilePath },
+                        new() { ComponentVersionId = componentVersion.Id, FileType = FileType.ProductionDrawing, FilePath = fileComponent.ProductionDrawFilePath }
                     };
 
                     // Добавляем только файлы, которые существуют
@@ -153,16 +151,15 @@ namespace Agrovent.DAL.Repositories
             }
         }
 
-        private PropertyType_e MapPropertyType(object property)
+        private PropertyType MapPropertyType(object property)
         {
-            return PropertyType_e.String;
-            //return property switch
-            //{
-            //    AGR_StringPropertyVM => PropertyType.String,
-            //    AGR_NumberPropertyVM => PropertyType.Number,
-            //    AGR_BooleanPropertyVM => PropertyType.Boolean,
-            //    _ => PropertyType.String
-            //};
+            return property switch
+            {
+                AGR_StringPropertyVM => PropertyType.String,
+                AGR_NumberPropertyVM => PropertyType.Number,
+                AGR_BooleanPropertyVM => PropertyType.Boolean,
+                _ => PropertyType.String
+            };
         }
 
         public async Task<ComponentVersion?> FindComponentByHash(int hashSum)

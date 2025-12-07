@@ -5,7 +5,7 @@ using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Properties
 {
-    internal class AGR_SheetPartPropertiesCollection : AGR_BasePropertiesCollection, AGR_ISheetMetallPropertiesCollection
+    internal class AGR_SheetPartPropertiesCollection : AGR_BasePropertiesCollection, IAGR_SheetMetallPropertiesCollection
     {
         public IXProperty SheetMetall_Length { get => mProperties[AGR_PropertyNames.BlankVolume]; set => throw new NotImplementedException(); }
         public IXProperty SheetMetall_Width { get => mProperties[AGR_PropertyNames.BlankVolume]; set => throw new NotImplementedException(); }

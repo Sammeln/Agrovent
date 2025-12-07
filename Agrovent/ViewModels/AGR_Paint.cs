@@ -1,6 +1,6 @@
 ﻿using Agrovent.DAL.Entities.Components;
-using Agrovent.DAL.Infrastructure.Enums;
-using Agrovent.DAL.Infrastructure.Interfaces;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces;
 using Xarial.XCad.Data;
 using Xarial.XCad.SolidWorks.Documents;
 
@@ -11,7 +11,7 @@ namespace Agrovent.ViewModels
         public string Name { get; set; }
         public string Article { get; set; }
         public string UOM { get; set; }
-        public AvaArticleModel AvaModel { get; set; }
+        public IAGR_AvaArticleModel AvaModel { get; set; }
 
         public AGR_Paint(ISwDocument3D doc3D)
         {

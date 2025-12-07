@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Agrovent.DAL.Infrastructure.Enums;
-using Agrovent.DAL.Infrastructure.Interfaces.Components;
+﻿using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Specification;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 

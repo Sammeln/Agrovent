@@ -16,4 +16,8 @@
     <PackageReference Include="Xarial.XCad" Version="0.8.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Agrovent.Infrastructure\Agrovent.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>

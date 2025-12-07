@@ -1,9 +1,9 @@
 ﻿using System.IO;
 using Agrovent.DAL.Entities.Components;
 using Agrovent.DAL.Infrastructure.Enums;
-using Agrovent.DAL.Infrastructure.Interfaces.Components;
 using Agrovent.DAL.Infrastructure.Interfaces.Properties;
 using Agrovent.Infrastructure.Extensions;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Properties;
 using Xarial.XCad.SolidWorks.Data;
 using Xarial.XCad.SolidWorks.Documents;
@@ -76,23 +76,23 @@ namespace Agrovent.ViewModels.Base
                 }
             }
         }
-        public AvaType_e AvaType
+        public AGR_AvaType_e AvaType
         {
             get
             {
                 var val = mProperties.AGR_TryGetProp(AGR_PropertyNames.AvaType).Value;
                 if (!string.IsNullOrEmpty(val.ToString()))
                 {
-                    return (AvaType_e)Convert.ToInt32(val);
+                    return (AGR_AvaType_e)Convert.ToInt32(val);
                 }
-                return AvaType_e.Component;
+                return AGR_AvaType_e.Component;
             }
 
             set
             {
                 mProperties.AGR_TryGetProp(AGR_PropertyNames.AvaType).Value = (int)value;
 
-                if (value == AvaType_e.Purchased)
+                if (value == AGR_AvaType_e.Purchased)
                 {
                     ComponentType = AGR_ComponentType_e.Purchased;
                 }
@@ -103,8 +103,8 @@ namespace Agrovent.ViewModels.Base
             }
         }
 
-        private AGR_IPropertiesCollection? _PropertiesCollection;
-        public AGR_IPropertiesCollection? PropertiesCollection
+        private IAGR_PropertiesCollection? _PropertiesCollection;
+        public IAGR_PropertiesCollection? PropertiesCollection
         {
             get => _PropertiesCollection;
             set => Set(ref _PropertiesCollection, value);

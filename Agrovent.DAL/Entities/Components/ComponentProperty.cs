@@ -13,6 +13,6 @@ namespace Agrovent.DAL.Entities.Components
 
         public string Name { get; set; }
         public string Value { get; set; }
-        public PropertyType_e Type { get; set; }
+        public AGR_PropertyType_e Type { get; set; }
     }
 }

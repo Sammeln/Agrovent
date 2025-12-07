@@ -8,7 +8,7 @@ using Agrovent.DAL.Infrastructure.Interfaces.Properties;
 
 namespace Agrovent.ViewModels.Properties
 {
-    internal class AGR_BasePropertiesCollection : AGR_IBasePropertiesCollection
+    internal class AGR_BasePropertiesCollection : IAGR_BasePropertiesCollection
     {
         private ISwDocument3D mDocument;
         private ISwConfiguration mConfiguration;

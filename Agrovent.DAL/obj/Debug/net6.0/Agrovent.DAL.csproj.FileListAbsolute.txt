@@ -12,3 +12,9 @@ C:\Users\Кирилл и Женя\Source\Repos\Agrovent.DAL\obj\Debug\net6.0\Agr
 C:\Users\Кирилл и Женя\Source\Repos\Agrovent.DAL\obj\Debug\net6.0\ref\Agrovent.DAL.dll
 C:\Users\Кирилл и Женя\Source\Repos\Agrovent.DAL\bin\Debug\net6.0\Agrovent.DAL.runtimeconfig.json
 C:\Users\Кирилл и Женя\Source\Repos\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.genruntimeconfig.cache
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.csproj.AssemblyReference.cache
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.AssemblyInfoInputs.cache
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.AssemblyInfo.cs
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.csproj.CoreCompileInputs.cache
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.sourcelink.json

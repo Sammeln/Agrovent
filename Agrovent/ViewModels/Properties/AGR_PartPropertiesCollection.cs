@@ -4,7 +4,7 @@ using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Properties
 {
-    internal class AGR_PartPropertiesCollection : AGR_BasePropertiesCollection, AGR_IPartPropertiesCollection
+    internal class AGR_PartPropertiesCollection : AGR_BasePropertiesCollection, IAGR_PartPropertiesCollection
     {
         public IXProperty Length { get ; set; }
         public IXProperty Width { get; set; }

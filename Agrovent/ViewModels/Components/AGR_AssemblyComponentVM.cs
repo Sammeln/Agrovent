@@ -4,8 +4,8 @@ using Agrovent.Infrastructure.Extensions;
 using Agrovent.ViewModels.Base;
 using Xarial.XCad.SolidWorks.Documents;
 using Agrovent.DAL.Infrastructure.Enums;
-using Agrovent.DAL.Infrastructure.Interfaces.Components;
 using Agrovent.ViewModels.Specification;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
 
 namespace Agrovent.ViewModels.Components
 {

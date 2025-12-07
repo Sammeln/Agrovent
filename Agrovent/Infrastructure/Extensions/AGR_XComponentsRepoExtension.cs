@@ -2,7 +2,7 @@
 using Xarial.XCad.Documents;
 using Xarial.XCad.Data;
 using Agrovent.DAL.Infrastructure.Enums;
-using Agrovent.DAL.Infrastructure.Interfaces.Components;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
 
 namespace Agrovent.Infrastructure.Extensions
 {
@@ -42,7 +42,7 @@ namespace Agrovent.Infrastructure.Extensions
                 yield return comp;
 
                 IXComponentRepository children = null;
-                AvaType_e avaType = AvaType_e.Purchased;
+                AGR_AvaType_e avaType = AGR_AvaType_e.Purchased;
 
                 var state = comp.State;
 
@@ -55,14 +55,14 @@ namespace Agrovent.Infrastructure.Extensions
                     try
                     {
                         var avaTypeProp = comp.ReferencedConfiguration.Properties.GetOrPreCreate(AGR_PropertyNames.AvaType);
-                        if (avaTypeProp.IsCommitted) avaType = (AvaType_e)Convert.ToInt32(avaTypeProp.Value);
+                        if (avaTypeProp.IsCommitted) avaType = (AGR_AvaType_e)Convert.ToInt32(avaTypeProp.Value);
                     }
                     catch (Exception ex)
                     {
 
                     }
-                    if (avaType != AvaType_e.Purchased &&
-                        avaType != AvaType_e.DontBuy)
+                    if (avaType != AGR_AvaType_e.Purchased &&
+                        avaType != AGR_AvaType_e.DontBuy)
 
                     {
                         try
@@ -123,7 +123,7 @@ namespace Agrovent.Infrastructure.Extensions
 
 
                 IXComponentRepository children;
-                AvaType_e avaType = AvaType_e.Purchased;
+                AGR_AvaType_e avaType = AGR_AvaType_e.Purchased;
 
                 var state = comp.State;
                 if (!state.HasFlag(ComponentState_e.Suppressed) &&

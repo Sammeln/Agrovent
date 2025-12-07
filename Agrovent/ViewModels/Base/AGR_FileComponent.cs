@@ -1,11 +1,11 @@
 ﻿using System.IO;
-using Agrovent.DAL.Infrastructure.Interfaces;
 using Agrovent.Infrastructure;
+using Agrovent.Infrastructure.Interfaces.Components;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Base
 {
-    public class AGR_FileComponent : AGR_BaseComponent, IHasFile
+    public class AGR_FileComponent : AGR_BaseComponent, IAGR_HasFile
     {
 
         public string CurrentModelFilePath  => mDocument.Path; 
