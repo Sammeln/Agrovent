@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Agrovent.DAL.Entities.Base
 {
-    public class BaseEntity : IBaseEntity
+    public class BaseEntity : IAGR_BaseEntity
     {
         public int Id { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

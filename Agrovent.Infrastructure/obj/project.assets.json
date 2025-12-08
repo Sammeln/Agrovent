@@ -100,25 +100,25 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Кирилл и Женя\\.nuget\\packages\\": {},
+    "C:\\Users\\Usr\\.nuget\\packages\\": {},
     "D:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {},
     "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Кирилл и Женя\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj",
+      "projectUniqueName": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj",
       "projectName": "Agrovent.Infrastructure",
-      "projectPath": "C:\\Users\\Кирилл и Женя\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj",
-      "packagesPath": "C:\\Users\\Кирилл и Женя\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Кирилл и Женя\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\obj\\",
+      "projectPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj",
+      "packagesPath": "C:\\Users\\Usr\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "D:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
         "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
       ],
       "configFilePaths": [
-        "C:\\Users\\Кирилл и Женя\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\Usr\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],

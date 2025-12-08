@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Agrovent.Infrastructure.Interfaces
+namespace Agrovent.DAL.Infrastructure.Interfaces
 {
     public interface IAGR_BaseEntity
     {

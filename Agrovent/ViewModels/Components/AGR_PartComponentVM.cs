@@ -8,7 +8,7 @@ using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Components
 {
-    public class AGR_PartComponentVM : AGR_FileComponent, IAGR_HasMaterial, IAGR_HasPaint, IAGR_Part
+    public class AGR_PartComponentVM : AGR_FileComponent, IAGR_Part
     {
         public IAGR_Material BaseMaterial { get; set; }
         public decimal BaseMaterialCount { get; set; }

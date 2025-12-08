@@ -6,7 +6,7 @@ using Agrovent.ViewModels.Components;
 
 namespace Agrovent.ViewModels.Specification
 {
-    public class SpecificationItemVM : BaseViewModel, IAGR_SpecificationItem
+    public class AGR_SpecificationItemVM : BaseViewModel, IAGR_SpecificationItem
     {
         private readonly IAGR_BaseComponent _component;
         private readonly int _quantity;
@@ -26,7 +26,7 @@ namespace Agrovent.ViewModels.Specification
         public string? PaintName => (_component as AGR_PartComponentVM)?.Paint?.Name;
         public decimal? PaintCount => (_component as AGR_PartComponentVM)?.PaintCount;
 
-        public SpecificationItemVM(IAGR_BaseComponent component, int quantity)
+        public AGR_SpecificationItemVM(IAGR_BaseComponent component, int quantity)
         {
             _component = component;
             _quantity = quantity;

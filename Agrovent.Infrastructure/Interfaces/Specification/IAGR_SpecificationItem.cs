@@ -1,4 +1,5 @@
 ﻿using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
 
 namespace Agrovent.Infrastructure.Interfaces.Specification
 {
@@ -8,6 +9,7 @@ namespace Agrovent.Infrastructure.Interfaces.Specification
         public string ConfigName { get; }
         public string PartNumber { get; }
         public int Quantity { get; }
+        public IAGR_BaseComponent Component { get; }
 
         public AGR_ComponentType_e ComponentType { get; }
 

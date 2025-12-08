@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.12.35514.174
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agrovent", "Agrovent.csproj", "{6FF3B1F4-4FF5-46B2-A2D8-B6FDF00498EB}"
+	ProjectSection(ProjectDependencies) = postProject
+		{50B9A029-B02B-46A9-9D2C-780FF08257BA} = {50B9A029-B02B-46A9-9D2C-780FF08257BA}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agrovent.DAL", "..\Agrovent.DAL\Agrovent.DAL.csproj", "{FC4F3242-D137-4E00-88E7-2C3592A3FE4D}"
 EndProject

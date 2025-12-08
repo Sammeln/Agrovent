@@ -1,8 +1,8 @@
 ﻿using Xarial.XCad.Documents.Enums;
 using Xarial.XCad.Documents;
 using Xarial.XCad.Data;
-using Agrovent.DAL.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Enums;
 
 namespace Agrovent.Infrastructure.Extensions
 {

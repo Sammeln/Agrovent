@@ -1,12 +1,13 @@
 ﻿using System.IO;
 using Agrovent.DAL.Entities.Components;
-using Agrovent.DAL.Infrastructure.Enums;
-using Agrovent.DAL.Infrastructure.Interfaces.Properties;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces.Properties;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Properties;
 using Xarial.XCad.SolidWorks.Data;
 using Xarial.XCad.SolidWorks.Documents;
+using Agrovent.Infrastructure.Interfaces;
 
 namespace Agrovent.ViewModels.Base
 {
@@ -46,7 +47,7 @@ namespace Agrovent.ViewModels.Base
 
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
-        public AvaArticleModel AvaArticle { get; set; }
+        public IAGR_AvaArticleModel AvaArticle { get; set; }
 
         public AGR_ComponentType_e ComponentType
         {

@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
              xmlns:local="clr-namespace:Agrovent.Views.Pages"
-             xmlns:enum="clr-namespace:Agrovent.DAL.Infrastructure.Enums;assembly=Agrovent.DAL"
+             xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
              xmlns:system="clr-namespace:System;assembly=mscorlib"
              xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
              d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_AssemblyComponentVM}}"
@@ -22,7 +22,7 @@
             <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
                                 ObjectType="{x:Type system:Enum}">
                 <ObjectDataProvider.MethodParameters>
-                    <x:Type TypeName="enum:AvaType_e"/>
+                    <x:Type TypeName="enum:AGR_AvaType_e"/>
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
 
@@ -110,7 +110,7 @@
                             <DataGridTemplateColumn Header="PartNumber" Width="*" SortMemberPath="PartNumber">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding PartNumber, Mode=TwoWay}"/>
+                                        <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding PartNumber, Mode=OneWay}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

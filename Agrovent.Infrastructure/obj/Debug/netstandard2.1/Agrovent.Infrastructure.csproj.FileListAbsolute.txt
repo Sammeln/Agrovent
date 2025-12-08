@@ -9,3 +9,14 @@ C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.Infrastructure\
 C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.sourcelink.json
 C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.dll
 C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.pdb
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\bin\Debug\netstandard2.1\Agrovent.Infrastructure.deps.json
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\bin\Debug\netstandard2.1\Agrovent.Infrastructure.dll
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\bin\Debug\netstandard2.1\Agrovent.Infrastructure.pdb
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.csproj.AssemblyReference.cache
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.AssemblyInfoInputs.cache
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.AssemblyInfo.cs
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.sourcelink.json
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.dll
+C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.pdb

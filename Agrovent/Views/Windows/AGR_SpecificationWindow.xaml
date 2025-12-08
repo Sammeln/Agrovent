@@ -7,7 +7,7 @@
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Specification"
         xmlns:system="clr-namespace:System;assembly=mscorlib"
         xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
-        xmlns:enum="clr-namespace:Agrovent.DAL.Infrastructure.Enums;assembly=Agrovent.DAL"
+        xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
         d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_SpecificationViewModel}}"
         mc:Ignorable="d"
         Title="AGR_SpecificationWindow" Height="450" Width="800">
@@ -17,7 +17,7 @@
             <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
                     ObjectType="{x:Type system:Enum}">
                 <ObjectDataProvider.MethodParameters>
-                    <x:Type TypeName="enum:AvaType_e"/>
+                    <x:Type TypeName="enum:AGR_AvaType_e"/>
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
             <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>

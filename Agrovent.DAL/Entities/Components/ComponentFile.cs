@@ -1,5 +1,5 @@
 ﻿using Agrovent.DAL.Entities.Base;
-using Agrovent.DAL.Infrastructure.Enums;
+using Agrovent.Infrastructure.Enums;
 
 
 namespace Agrovent.DAL.Entities.Components

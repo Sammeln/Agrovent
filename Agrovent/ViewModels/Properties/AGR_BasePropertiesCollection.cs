@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using Agrovent.DAL.Infrastructure.Enums;
+using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
+using Agrovent.Infrastructure.Interfaces.Properties;
 using Xarial.XCad.Data;
 using Xarial.XCad.SolidWorks.Data;
 using Xarial.XCad.SolidWorks.Documents;
-using Agrovent.DAL.Infrastructure.Interfaces.Properties;
 
 namespace Agrovent.ViewModels.Properties
 {
