@@ -7,6 +7,8 @@ using Agrovent.ViewModels.Specification;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Agrovent.Infrastructure.Interfaces.Specification;
+using Agrovent.Services;
+using Agrovent.Infrastructure.Interfaces;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -50,7 +52,11 @@ namespace Agrovent.ViewModels.Components
         {
             return AGR_TopComponents;
         }
-
+        public async Task SaveToDatabaseAsync()
+        {
+            var versionService = AGR_ServiceContainer.GetService<IAGR_ComponentVersionService>();
+            await versionService.CheckAndSaveComponentAsync(this);
+        }
         public AGR_AssemblyComponentVM(ISwDocument3D swDocument3D) : base(swDocument3D)
         {
             var assem = swDocument3D as ISwAssembly;

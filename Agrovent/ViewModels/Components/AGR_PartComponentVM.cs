@@ -2,6 +2,7 @@
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Agrovent.Infrastructure.Interfaces.Properties;
+using Agrovent.Services;
 using Agrovent.ViewModels.Base;
 using Xarial.XCad.Data;
 using Xarial.XCad.SolidWorks.Documents;
@@ -16,7 +17,11 @@ namespace Agrovent.ViewModels.Components
         public decimal? PaintCount { get; set; }
         public IAGR_BasePropertiesCollection PropertiesCollection { get; set; }
 
-
+        public async Task SaveToDatabaseAsync()
+        {
+            var versionService = AGR_ServiceContainer.GetService<IAGR_ComponentVersionService>();
+            await versionService.CheckAndSaveComponentAsync(this);
+        }
         public AGR_PartComponentVM(ISwDocument3D swDocument3D) : base(swDocument3D)
         {
             if (ComponentType == AGR_ComponentType_e.Purchased) return;

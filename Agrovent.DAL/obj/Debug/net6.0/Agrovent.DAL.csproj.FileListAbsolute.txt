@@ -36,3 +36,15 @@ C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\refint\Agrovent
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.pdb
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.genruntimeconfig.cache
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\ref\Agrovent.DAL.dll
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\bin\Debug\net6.0\Agrovent.DAL.deps.json
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\bin\Debug\net6.0\Agrovent.DAL.runtimeconfig.json
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\bin\Debug\net6.0\Agrovent.DAL.dll
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\bin\Debug\net6.0\Agrovent.DAL.pdb
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\bin\Debug\net6.0\Agrovent.Infrastructure.dll
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\bin\Debug\net6.0\Agrovent.Infrastructure.pdb
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.FE8ACFB1.Up2Date
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.dll
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\refint\Agrovent.DAL.dll
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.pdb
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\Agrovent.DAL.genruntimeconfig.cache
+C:\Users\Кирилл и Женя\source\repos\Agrovent\Agrovent.DAL\obj\Debug\net6.0\ref\Agrovent.DAL.dll
