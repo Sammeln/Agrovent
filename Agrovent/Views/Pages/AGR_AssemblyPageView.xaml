@@ -37,9 +37,11 @@
         <StackPanel Margin="16" Orientation="Vertical">
 
             <!-- Секция: Основная информация -->
-            <Border Style="{StaticResource CardStyle}">
-                <StackPanel Orientation="Vertical">
+            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True">
+                <Expander.Header>
                     <TextBlock Text="Основная информация" Style="{StaticResource SectionHeaderStyle}"/>
+                </Expander.Header>
+                <StackPanel Orientation="Vertical">
 
                     <!-- Наименование -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}">
@@ -82,12 +84,14 @@
                                  Style="{StaticResource ReadOnlyTextBox}"/>
                     </DockPanel>
                 </StackPanel>
-            </Border>
+            </Expander>
 
             <!-- Секция: Компоненты сборки -->
-            <Border Style="{StaticResource CardStyle}">
-                <StackPanel>
+            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True">
+                <Expander.Header>
                     <TextBlock Text="Компоненты сборки" Style="{StaticResource SectionHeaderStyle}"/>
+                </Expander.Header>
+                <StackPanel>
 
                     <!-- Вкладки для разных типов компонентов -->
                     <DataGrid ItemsSource="{Binding AGR_TopComponents}" 
@@ -114,7 +118,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            
+
                             <DataGridTemplateColumn Header="Кол-во" Width="*" SortMemberPath="PartNumber">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -183,13 +187,14 @@
                         </WrapPanel>
                     </StackPanel>-->
                 </StackPanel>
-            </Border>
+            </Expander>
 
             <!-- Секция: Пользовательские свойства -->
-            <Border Style="{StaticResource CardStyle}">
-                <StackPanel>
+            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="False">
+                <Expander.Header>
                     <TextBlock Text="Свойства" Style="{StaticResource SectionHeaderStyle}"/>
-
+                </Expander.Header>     
+                <StackPanel>
                     <DataGrid ItemsSource="{Binding PropertiesCollection.Properties}"  
                               Style="{StaticResource PropertiesDataGrid}">
                         <DataGrid.Columns>
@@ -198,13 +203,14 @@
                         </DataGrid.Columns>
                     </DataGrid>
                 </StackPanel>
-            </Border>
+            </Expander>
 
             <!-- Секция: Файлы -->
-            <Border Style="{StaticResource CardStyle}">
-                <StackPanel>
+            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="False">
+                <Expander.Header>
                     <TextBlock Text="Файлы" Style="{StaticResource SectionHeaderStyle}"/>
-
+                </Expander.Header>
+                <StackPanel>
                     <!-- Текущий файл модели -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}">
                         <TextBlock Text="Модель (текущая):" Style="{StaticResource PropertyLabelStyle}"/>
@@ -240,7 +246,7 @@
                                    TextWrapping="NoWrap"/>
                     </DockPanel>
                 </StackPanel>
-            </Border>
+            </Expander>
 
         </StackPanel>
     </ScrollViewer>

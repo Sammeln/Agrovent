@@ -107,11 +107,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Usr\\Source\\Repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj",
+      "projectUniqueName": "C:\\Users\\Usr\\Source\\Repos\\Agrovent2\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj",
       "projectName": "Agrovent.Infrastructure",
-      "projectPath": "C:\\Users\\Usr\\Source\\Repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj",
+      "projectPath": "C:\\Users\\Usr\\Source\\Repos\\Agrovent2\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj",
       "packagesPath": "C:\\Users\\Usr\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Usr\\Source\\Repos\\Agrovent\\Agrovent.Infrastructure\\obj\\",
+      "outputPath": "C:\\Users\\Usr\\Source\\Repos\\Agrovent2\\Agrovent.Infrastructure\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "D:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",

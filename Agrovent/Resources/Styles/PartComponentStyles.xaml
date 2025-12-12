@@ -12,6 +12,14 @@
         <Setter Property="Margin" Value="0,5,0,0"/>
         <Setter Property="Padding" Value="15 5"/>
     </Style>
+    
+    <!-- Общие стили для карточек -->
+    <Style x:Key="CardStyleExpander" TargetType="Expander">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="#E0E0E0"/>
+        <Setter Property="Margin" Value="0,5,0,0"/>
+        <Setter Property="Padding" Value="15 5"/>
+    </Style>
 
     <!-- Стиль для заголовков разделов -->
     <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
@@ -36,16 +44,17 @@
 
     <!-- Стиль для заголовка таблицы свойств -->
     <Style x:Key="PropertiesDataGridHeader" TargetType="DataGridColumnHeader">
-        <Setter Property="Background" Value="White"/>
+        <Setter Property="Background" Value="#c4b5fd"/>
         <Setter Property="Foreground" Value="#616161"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Height" Value="25"/>
     </Style>
 
     <!-- Стиль для значений таблицы значений свойств -->
     <Style x:Key="PropertiesDataGrid" TargetType="DataGrid">
         <Setter Property="HeadersVisibility" Value="Column"/>
-        <Setter Property="AlternatingRowBackground" Value="AliceBlue"/>
+        <Setter Property="AlternatingRowBackground" Value="#d2f9e6"/>
         <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="HorizontalGridLinesBrush" Value="#BDBDBD"/>
         <Setter Property="AutoGenerateColumns" Value="False"/>
@@ -154,6 +163,7 @@
         <Setter Property="Margin" Value="0,8,0,0"/>
         <Setter Property="MaxHeight" Value="300"/>
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ColumnHeaderStyle" Value="{StaticResource PropertiesDataGridHeader}"/>
     </Style>
 
     <!-- Стиль для статистических блоков -->

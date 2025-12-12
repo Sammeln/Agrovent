@@ -9,6 +9,8 @@ using Agrovent.Infrastructure.Interfaces;
 using System.Reflection;
 using System.IO;
 using Xarial.XCad.Documents;
+using Agrovent.Infrastructure.Interfaces.Services;
+using Agrovent.ViewModels.TaskPane;
 
 namespace Agrovent
 {
@@ -48,8 +50,11 @@ namespace Agrovent
 
             // 5. Сервисы
             services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
+            services.AddSingleton<IAGR_ComponentViewModelCache, AGR_ComponentViewModelCache>();
+            services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
 
             // 6. ViewModels (если нужно)
+            services.AddScoped<AGR_TaskPaneViewModel>();
             // services.AddTransient<AGR_AssemblyComponentVM>();
             // services.AddTransient<AGR_PartComponentVM>();
 

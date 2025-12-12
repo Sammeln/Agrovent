@@ -80,52 +80,6 @@ namespace Agrovent.ViewModels.Components
                 .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
             AGR_FlatComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedFlat);
 
-            //switch (ComponentType)
-            //{
-            //    case AGR_ComponentType_e.Assembly:
-            //        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-            //        break;
-            //    case AGR_ComponentType_e.Part:
-            //        PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
-            //        break;
-            //    case AGR_ComponentType_e.SheetMetallPart:
-            //        PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
-            //        break;
-            //    case AGR_ComponentType_e.Purchased:
-            //        PropertiesCollection?.Properties.Clear();
-            //        break;
-            //    case AGR_ComponentType_e.NA:
-            //        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-            //        break;
-            //    default:
-            //        break;
-            //}
-            //ComponentTypeChanged += AGR_AssemblyComponentVM_ComponentTypeChanged; ;
-
-        }
-
-        private void AGR_AssemblyComponentVM_ComponentTypeChanged(AGR_ComponentType_e type)
-        {
-            switch (type)
-            {
-                case AGR_ComponentType_e.Assembly:
-                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.Part:
-                    PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.SheetMetallPart:
-                    PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.Purchased:
-                    PropertiesCollection?.Properties.Clear();
-                    break;
-                case AGR_ComponentType_e.NA:
-                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-                    break;
-                default:
-                    break;
-            }
         }
     }
 }

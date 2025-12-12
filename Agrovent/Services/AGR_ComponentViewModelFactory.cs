@@ -14,7 +14,10 @@ namespace Agrovent.Services
     public interface IAGR_ComponentViewModelFactory
     {
         AGR_AssemblyComponentVM CreateAssemblyComponent(ISwDocument3D document);
+        Task<AGR_AssemblyComponentVM> CreateAssemblyComponentAsync(ISwDocument3D document);
+        Task<IAGR_BaseComponent> CreateComponentAsync(ISwDocument3D document);
         AGR_PartComponentVM CreatePartComponent(ISwDocument3D document);
+        Task<AGR_PartComponentVM> CreatePartComponentAsync(ISwDocument3D document);
     }
 
     public class AGR_ComponentViewModelFactory : IAGR_ComponentViewModelFactory

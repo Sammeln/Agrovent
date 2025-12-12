@@ -7,133 +7,412 @@ using Xarial.XCad.Geometry;
 using Agrovent.Infrastructure.Extensions;
 using Xarial.XCad.SolidWorks;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Agrovent.ViewModels.TaskPane
 {
     public class AGR_TaskPaneViewModel : BaseViewModel
     {
-        private readonly ISwApplication _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
+        private readonly ISwApplication _app;
+        private readonly IAGR_ComponentViewModelFactory _viewModelFactory;
+        private readonly IAGR_ComponentViewModelCache _viewModelCache;
+        private readonly ILogger<AGR_TaskPaneViewModel> _logger;
+        
+        //123
 
-        #region Property - ISwAssembly ActiveComponent
+        private CancellationTokenSource _cancellationTokenSource;
+
+        #region Properties
         private ISwDocument3D _ActiveComponent;
         public ISwDocument3D ActiveComponent
         {
             get => _ActiveComponent;
             set => Set(ref _ActiveComponent, value);
         }
-        #endregion
 
-        #region Property - 
-        private IAGR_PageView? _ActiveView;
-        public IAGR_PageView? ActiveView
+        private IAGR_PageView _ActiveView;
+        public IAGR_PageView ActiveView
         {
             get => _ActiveView;
             set => Set(ref _ActiveView, value);
         }
-        #endregion
 
-        #region Property - 
-        private IAGR_PageView? _BaseComponent;
-        public IAGR_PageView? BaseComponent
+        private IAGR_PageView _BaseComponent;
+        public IAGR_PageView BaseComponent
         {
             get => _BaseComponent;
             set => Set(ref _BaseComponent, value);
         }
-        #endregion
 
-        #region Property - 
-        private IAGR_PageView? _Selection;
-        public IAGR_PageView? Selection
+        private IAGR_PageView _Selection;
+        public IAGR_PageView Selection
         {
             get => _Selection;
             set => Set(ref _Selection, value);
         }
-        #endregion 
 
-        #region CTOR
-        public AGR_TaskPaneViewModel()
+        private bool _IsLoading;
+        public bool IsLoading
         {
-            BaseComponent = new AGR_HomePageVM();
-            _app.Documents.DocumentActivated += Documents_DocumentActivated;
-            _app.Idle += _app_Idle;
-
+            get => _IsLoading;
+            set => Set(ref _IsLoading, value);
         }
 
-        private void _app_Idle(Xarial.XCad.IXApplication app)
+        private string _LoadingMessage;
+        public string LoadingMessage
         {
-            if (_app.Documents.Count == 0 && ActiveComponent != null)
-            {
-                ActiveView = null;
-            }
+            get => _LoadingMessage;
+            set => Set(ref _LoadingMessage, value);
         }
-
-
         #endregion
 
-        private void Documents_DocumentActivated(IXDocument doc)
+        public AGR_TaskPaneViewModel(
+            IAGR_ComponentViewModelFactory viewModelFactory,
+            IAGR_ComponentViewModelCache viewModelCache,
+            ILogger<AGR_TaskPaneViewModel> logger)
         {
-            if (ActiveComponent != null)
-            {
-                ActiveComponent.Selections.NewSelection -= Selections_NewSelection;
-                ActiveComponent.Selections.ClearSelection -= Selections_ClearSelection;
+            _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
+            _viewModelFactory = viewModelFactory;
+            _viewModelCache = viewModelCache;
+            _logger = logger;
+            _cancellationTokenSource = new CancellationTokenSource();
 
-                //(ActiveComponent.Assembly as AssemblyDoc).ComponentVisibleChangeNotify -= TaskPaneVM_ComponentVisibleChangeNotify;
+            _app.Documents.DocumentActivated += OnDocumentActivatedAsync;
+            _app.Idle += OnIdle;
+
+            _logger.LogInformation("TaskPaneViewModel initialized");
+        }
+
+        private async void OnDocumentActivatedAsync(IXDocument doc)
+        {
+            // Отменяем предыдущую загрузку
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource = new CancellationTokenSource();
+            var cancellationToken = _cancellationTokenSource.Token;
+
+            try
+            {
+                _logger.LogInformation($"Document activated: {doc?.Title}");
+
+                if (doc == null)
+                {
+                    ActiveView = null;
+                    return;
+                }
+
+                // Показываем индикатор загрузки
+                IsLoading = true;
+                LoadingMessage = "Загрузка документа...";
+
+                // Отписываемся от старых событий выделения
+                if (ActiveComponent != null)
+                {
+                    ActiveComponent.Selections.NewSelection -= OnSelectionChangedAsync;
+                    ActiveComponent.Selections.ClearSelection -= OnSelectionClearedAsync;
+                }
+
+                // Подписываемся на события выделения нового документа
+                doc.Selections.NewSelection += OnSelectionChangedAsync;
+                doc.Selections.ClearSelection += OnSelectionClearedAsync;
+
+                // Асинхронно загружаем ViewModel для документа
+                if (doc is ISwDocument3D swDoc)
+                {
+                    ActiveComponent = swDoc;
+
+                    // Начинаем асинхронную загрузку
+                    await LoadDocumentViewModelAsync(swDoc, cancellationToken);
+                }
             }
-
-            doc.Selections.NewSelection += Selections_NewSelection;
-            doc.Selections.ClearSelection += Selections_ClearSelection;
-
-            BaseComponent = (doc as ISwDocument3D).AGR_BaseComponent();
-            ActiveView = BaseComponent;
-
-            if (doc is ISwAssembly assembly)
+            catch (OperationCanceledException)
             {
-                ActiveComponent = assembly;
-                //BaseComponent = new AGR_AssemblyComponentVM(assembly);
-                return;
+                _logger.LogDebug("Document loading cancelled");
             }
-            if (doc is ISwPart part)
+            catch (Exception ex)
             {
-                ActiveComponent = part;
-                //BaseComponent = new AGR_PartComponentVM(part);
-                return;
+                _logger.LogError(ex, $"Error activating document: {doc?.Title}");
+                IsLoading = false;
             }
         }
 
-        private void Selections_NewSelection(IXDocument doc, Xarial.XCad.IXSelObject selObject)
+        private async Task LoadDocumentViewModelAsync(ISwDocument3D document, CancellationToken cancellationToken)
         {
-            if (selObject is IXFace face)
+            try
             {
-                if (doc is ISwAssembly assembly)
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (document == null)
                 {
-                    if (face.Component.ReferencedDocument is ISwPart part)
-                    {
-                        Selection = new AGR_PartComponentVM(part);
-                        ActiveView = Selection;
-                        return;
-                    }
+                    IsLoading = false;
+                    return;
                 }
-                else if (doc is ISwPart part)
-                {
-                    Selection = new AGR_PartComponentVM(part);
-                    ActiveView = Selection;
-                }
+
+                _logger.LogDebug($"Loading ViewModel for: {document.Title}");
+
+                // В зависимости от типа документа меняем сообщение
+                LoadingMessage = document is ISwAssembly
+                    ? "Загрузка сборки..."
+                    : "Загрузка детали...";
+
+                // Асинхронно создаем ViewModel
+                var viewModel = await _viewModelFactory.CreateComponentAsync(document);
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Обновляем UI
+                BaseComponent = viewModel;
+                ActiveView = viewModel;
+
+                _logger.LogInformation($"ViewModel loaded for: {document.Title}");
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogDebug($"Loading cancelled for: {document?.Title}");
+                // Не обновляем UI если загрузка отменена
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error loading ViewModel for: {document?.Title}");
+                // Можно показать ошибку пользователю
+            }
+            finally
+            {
+                IsLoading = false;
+                LoadingMessage = string.Empty;
             }
         }
-        private void Selections_ClearSelection(IXDocument doc)
+
+        private async void OnSelectionChangedAsync(IXDocument doc, Xarial.XCad.IXSelObject selObject)
         {
-            if (doc is ISwAssembly assembly)
+            try
             {
-                ActiveComponent = assembly;
-                ActiveView = BaseComponent;
-                return;
+                if (selObject is IXFace face && face.Component?.ReferencedDocument is ISwDocument3D swDoc)
+                {
+                    _logger.LogDebug($"Selection changed to: {swDoc.Title}");
+
+                    // Асинхронно загружаем ViewModel для выбранного компонента
+                    var viewModel = await _viewModelFactory.CreateComponentAsync(swDoc);
+
+                    Selection = viewModel;
+                    ActiveView = viewModel;
+                }
             }
-            if (doc is ISwPart part)
+            catch (Exception ex)
             {
-                ActiveComponent = part;
-                BaseComponent = new AGR_PartComponentVM(part);
-                return;
+                _logger.LogError(ex, "Error handling selection change");
+            }
+        }
+
+        private void OnSelectionClearedAsync(IXDocument doc)
+        {
+            try
+            {
+                _logger.LogDebug("Selection cleared");
+
+                if (doc is ISwDocument3D swDoc)
+                {
+                    // Возвращаемся к основному виду документа
+                    ActiveComponent = swDoc;
+                    ActiveView = BaseComponent;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error handling selection clear");
+            }
+        }
+
+        private void OnIdle(Xarial.XCad.IXApplication app)
+        {
+            try
+            {
+                // Проверяем, если документы закрыты, очищаем кэш
+                if (_app.Documents.Count == 0 && ActiveComponent != null)
+                {
+                    _logger.LogDebug("All documents closed, cleaning up");
+
+                    ActiveView = null;
+                    BaseComponent = null;
+                    ActiveComponent = null;
+                    Selection = null;
+
+                    // Можно очистить кэш если нужно
+                    // _viewModelCache.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in idle handler");
+            }
+        }
+
+        #region Команды для управления кэшем
+        public void ClearViewModelCache()
+        {
+            try
+            {
+                _viewModelCache.Clear();
+                _logger.LogInformation("ViewModel cache cleared by user");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error clearing view model cache");
+            }
+        }
+
+        public (int Total, int Part, int Assembly) GetCacheStatistics()
+        {
+            return _viewModelCache.GetCacheStatistics();
+        }
+        #endregion
+
+        public void Dispose()
+        {
+            try
+            {
+                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource?.Dispose();
+
+                if (_app != null)
+                {
+                    _app.Documents.DocumentActivated -= OnDocumentActivatedAsync;
+                    _app.Idle -= OnIdle;
+                }
+
+                _logger.LogInformation("TaskPaneViewModel disposed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disposing TaskPaneViewModel");
             }
         }
     }
+
+    #region MyRegion
+    //private readonly ISwApplication _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
+
+    //#region Property - ISwAssembly ActiveComponent
+    //private ISwDocument3D _ActiveComponent;
+    //public ISwDocument3D ActiveComponent
+    //{
+    //    get => _ActiveComponent;
+    //    set => Set(ref _ActiveComponent, value);
+    //}
+    //#endregion
+
+    //#region Property - 
+    //private IAGR_PageView? _ActiveView;
+    //public IAGR_PageView? ActiveView
+    //{
+    //    get => _ActiveView;
+    //    set => Set(ref _ActiveView, value);
+    //}
+    //#endregion
+
+    //#region Property - 
+    //private IAGR_PageView? _BaseComponent;
+    //public IAGR_PageView? BaseComponent
+    //{
+    //    get => _BaseComponent;
+    //    set => Set(ref _BaseComponent, value);
+    //}
+    //#endregion
+
+    //#region Property - 
+    //private IAGR_PageView? _Selection;
+    //public IAGR_PageView? Selection
+    //{
+    //    get => _Selection;
+    //    set => Set(ref _Selection, value);
+    //}
+    //#endregion 
+
+    //#region CTOR
+    //public AGR_TaskPaneViewModel()
+    //{
+    //    BaseComponent = new AGR_HomePageVM();
+    //    _app.Documents.DocumentActivated += Documents_DocumentActivated;
+    //    _app.Idle += _app_Idle;
+
+    //}
+
+    //private void _app_Idle(Xarial.XCad.IXApplication app)
+    //{
+    //    if (_app.Documents.Count == 0 && ActiveComponent != null)
+    //    {
+    //        ActiveView = null;
+    //    }
+    //}
+
+
+    //#endregion
+
+    //private void Documents_DocumentActivated(IXDocument doc)
+    //{
+    //    if (ActiveComponent != null)
+    //    {
+    //        ActiveComponent.Selections.NewSelection -= Selections_NewSelection;
+    //        ActiveComponent.Selections.ClearSelection -= Selections_ClearSelection;
+
+    //        //(ActiveComponent.Assembly as AssemblyDoc).ComponentVisibleChangeNotify -= TaskPaneVM_ComponentVisibleChangeNotify;
+    //    }
+
+    //    doc.Selections.NewSelection += Selections_NewSelection;
+    //    doc.Selections.ClearSelection += Selections_ClearSelection;
+
+    //    BaseComponent = (doc as ISwDocument3D).AGR_BaseComponent();
+    //    ActiveView = BaseComponent;
+
+    //    if (doc is ISwAssembly assembly)
+    //    {
+    //        ActiveComponent = assembly;
+    //        //BaseComponent = new AGR_AssemblyComponentVM(assembly);
+    //        return;
+    //    }
+    //    if (doc is ISwPart part)
+    //    {
+    //        ActiveComponent = part;
+    //        //BaseComponent = new AGR_PartComponentVM(part);
+    //        return;
+    //    }
+    //}
+
+    //private void Selections_NewSelection(IXDocument doc, Xarial.XCad.IXSelObject selObject)
+    //{
+    //    if (selObject is IXFace face)
+    //    {
+    //        if (doc is ISwAssembly assembly)
+    //        {
+    //            if (face.Component.ReferencedDocument is ISwPart part)
+    //            {
+    //                Selection = new AGR_PartComponentVM(part);
+    //                ActiveView = Selection;
+    //                return;
+    //            }
+    //        }
+    //        else if (doc is ISwPart part)
+    //        {
+    //            Selection = new AGR_PartComponentVM(part);
+    //            ActiveView = Selection;
+    //        }
+    //    }
+    //}
+    //private void Selections_ClearSelection(IXDocument doc)
+    //{
+    //    if (doc is ISwAssembly assembly)
+    //    {
+    //        ActiveComponent = assembly;
+    //        ActiveView = BaseComponent;
+    //        return;
+    //    }
+    //    if (doc is ISwPart part)
+    //    {
+    //        ActiveComponent = part;
+    //        BaseComponent = new AGR_PartComponentVM(part);
+    //        return;
+    //    }
+    //} 
+    #endregion
 }
+

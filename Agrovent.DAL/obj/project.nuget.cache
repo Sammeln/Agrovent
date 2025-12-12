@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "slvjPkahk30=",
+  "dgSpecHash": "AF/vMR3TE8k=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.DAL\\Agrovent.DAL.csproj",
+  "projectFilePath": "C:\\Users\\Usr\\Source\\Repos\\Agrovent2\\Agrovent.DAL\\Agrovent.DAL.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Usr\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\Usr\\.nuget\\packages\\microsoft.entityframeworkcore\\7.0.20\\microsoft.entityframeworkcore.7.0.20.nupkg.sha512",
