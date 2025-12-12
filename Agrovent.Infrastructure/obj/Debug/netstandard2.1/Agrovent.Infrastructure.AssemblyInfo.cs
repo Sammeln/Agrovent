@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3eb6e17a229388df0031430689ae739db9707f8e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
 [assembly: System.Reflection.AssemblyProductAttribute("Agrovent.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Agrovent.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,22 +1,33 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Agrovent.DAL.Entities;
 using Agrovent.DAL.Entities.Components;
+using Microsoft.Extensions.Configuration;
+using Agrovent.Infrastructure.Interfaces;
 
 namespace Agrovent.DAL
 {
     public class DataContext : DbContext
     {
+        private readonly IConfiguration _configuration;
+        
+        #region DataSet
         public DbSet<Component> Components { get; set; }
         public DbSet<ComponentVersion> ComponentVersions { get; set; }
         public DbSet<ComponentProperty> ComponentProperties { get; set; }
         public DbSet<ComponentMaterial> ComponentMaterials { get; set; }
         public DbSet<AssemblyStructure> AssemblyStructures { get; set; }
         public DbSet<ComponentFile> ComponentFiles { get; set; }
-        public DbSet<AvaArticleModel> AvaArticles { get; set; }
+        public DbSet<AvaArticleModel> AvaArticles { get; set; } 
+        #endregion
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseNpgsql($"Host=localhost;Database=PRPMDB;Username=user;Password=sauser#1;");
+            if (!optionsBuilder.IsConfigured)
+            {
+                var connectionString = _configuration?.GetConnectionString("DefaultConnection") ?? "Host=192.168.15.200;Port=5432;Database=PRPMDB2;Username=user;Password=sauser#1;";
+                optionsBuilder.UseNpgsql(connectionString);
+            }
+            //optionsBuilder.UseNpgsql($"Host=localhost;Database=PRPMDB;Username=user;Password=sauser#1;");
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -63,23 +74,31 @@ namespace Agrovent.DAL
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Структура сборки - самореференциальная связь
-            modelBuilder.Entity<AssemblyStructure>()
-                .HasOne(a => a.AssemblyVersion)
-                .WithMany()
-                .HasForeignKey(a => a.AssemblyVersionId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<AssemblyStructure>(entity =>
+            {
+                // Связь с версией сборки
+                entity.HasOne(a => a.AssemblyVersion)
+                    .WithMany()
+                    .HasForeignKey(a => a.AssemblyVersionId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<AssemblyStructure>()
-                .HasOne(a => a.ComponentVersion)
-                .WithMany()
-                .HasForeignKey(a => a.ComponentVersionId)
-                .OnDelete(DeleteBehavior.Cascade);
+                // Связь с версией компонента
+                entity.HasOne(a => a.ComponentVersion)
+                    .WithMany()
+                    .HasForeignKey(a => a.ComponentVersionId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<AssemblyStructure>()
-                .HasOne(a => a.ParentStructure)
-                .WithMany(a => a.ChildStructures)
-                .HasForeignKey(a => a.ParentStructureId)
-                .OnDelete(DeleteBehavior.Cascade);
+                // Связь с родительской структурой
+                entity.HasOne(a => a.ParentStructure)
+                    .WithMany(a => a.ChildStructures)
+                    .HasForeignKey(a => a.ParentStructureId)
+                    .OnDelete(DeleteBehavior.Restrict); // Изменяем на Restrict или SetNull
+
+                // Индексы
+                entity.HasIndex(a => a.AssemblyVersionId);
+                entity.HasIndex(a => a.ComponentVersionId);
+                entity.HasIndex(a => a.ParentStructureId);
+            });
 
             // Индекс для быстрого поиска структуры по сборке
             modelBuilder.Entity<AssemblyStructure>()
@@ -93,5 +112,15 @@ namespace Agrovent.DAL
                 .HasKey(a => a.Article);
         }
 
+
+        public DataContext()
+        {
+                
+        }
+
+        public DataContext(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
     }
 }

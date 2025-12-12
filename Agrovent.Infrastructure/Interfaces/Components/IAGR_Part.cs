@@ -10,6 +10,5 @@ namespace Agrovent.Infrastructure.Interfaces.Components
         abstract decimal BaseMaterialCount { get; set; }
         abstract IAGR_Material? Paint { get; set; }
         abstract decimal? PaintCount { get; set; }
-        abstract IAGR_BasePropertiesCollection PropertiesCollection { get; set; }
     }
 }

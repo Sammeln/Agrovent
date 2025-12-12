@@ -4,7 +4,7 @@ using Agrovent.Infrastructure.Interfaces;
 using Xarial.XCad.Data;
 using Xarial.XCad.SolidWorks.Documents;
 
-namespace Agrovent.ViewModels
+namespace Agrovent.ViewModels.Components
 {
     internal class AGR_Paint : IAGR_Material
     {

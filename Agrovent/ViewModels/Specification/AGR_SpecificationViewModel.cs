@@ -40,12 +40,7 @@ namespace Agrovent.ViewModels.Specification
         public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent)
         {
             _baseComponent = baseComponent;
-            Components = new ObservableCollection<AGR_SpecificationItemVM>(
-            _baseComponent.AGR_FlatComponents
-               //.Where(x => x.ComponentType == AGR_ComponentType_e.Part)
-               .GroupBy(x => x.Name + x.ConfigName)
-               .Select(x => new AGR_SpecificationItemVM(x.First().Component, x.Count()))
-            );
+            Components = baseComponent.AGR_FlatComponents;
             Components.Add(new AGR_SpecificationItemVM(baseComponent,1));
 
             _componentsCVS.Source = Components;

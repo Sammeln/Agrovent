@@ -2,12 +2,12 @@
     "profiles": {
         "Agrovent": {
             "commandName": "Executable",
-            "executablePath": "D:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\SLDWORKS.exe"
-            //"executablePath": "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS (3)\\SLDWORKS.exe"
+            //"executablePath": "D:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\SLDWORKS.exe"
+            "executablePath": "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS (3)\\SLDWORKS.exe"
         }
     },
   "ConnectionStrings": {
-    //"DefaultConnection": "Host=192.168.15.200;Port=5432;Database=PRPMDB;Username=KN;Password=11111;",
-    "DefaultConnection": "Host=localhost;Port=5432;Database=PRPMDB;Username=user;Password=sauser#1;"
+    "DefaultConnection": "Host=192.168.15.200;Port=5432;Database=PRPMDB2;Username=user;Password=sauser#1;",
+    //"DefaultConnection": "Host=localhost;Port=5432;Database=PRPMDB;Username=user;Password=sauser#1;"
   }
 }

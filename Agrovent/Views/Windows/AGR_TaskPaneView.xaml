@@ -38,6 +38,6 @@
         <Binding Path="TaskPaneVM" Source="{StaticResource VMLocator}"/>
     </UserControl.DataContext>
 
-    <ContentControl Content="{Binding BaseComponent, UpdateSourceTrigger=PropertyChanged, NotifyOnSourceUpdated=True}"/>
+    <ContentControl Content="{Binding ActiveView, UpdateSourceTrigger=PropertyChanged, NotifyOnSourceUpdated=True}"/>
 
 </UserControl>

@@ -94,7 +94,7 @@
                                       Style="{StaticResource ComponentsDataGrid}" IsReadOnly="False">
                         <DataGrid.Columns>
 
-                            <DataGridTemplateColumn Header="Название" Width="*" SortMemberPath="Name">
+                            <DataGridTemplateColumn Header="Название" Width="4*" SortMemberPath="Name">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Style="{StaticResource ReadOnlyValueStyle}" Text="{Binding Name, Mode=OneWay}"/>
@@ -107,16 +107,21 @@
                                     <DataGridTextColumn Header="Тип" 
                                                        Binding="{Binding ComponentType}" 
                                                        Width="120"/>-->
-                            <DataGridTemplateColumn Header="PartNumber" Width="*" SortMemberPath="PartNumber">
+                            <DataGridTemplateColumn Header="PartNumber" Width="2*" SortMemberPath="PartNumber">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding PartNumber, Mode=OneWay}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <!--<DataGridTextColumn Header="Версия" 
-                                                       Binding="{Binding Version}" 
-                                                       Width="80"/>-->
+                            
+                            <DataGridTemplateColumn Header="Кол-во" Width="*" SortMemberPath="PartNumber">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Quantity, Mode=OneWay}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                     <!-- Статистика по компонентам -->

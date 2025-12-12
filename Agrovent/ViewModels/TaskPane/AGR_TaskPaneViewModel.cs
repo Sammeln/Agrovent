@@ -23,6 +23,14 @@ namespace Agrovent.ViewModels.TaskPane
         }
         #endregion
 
+        #region Property - 
+        private IAGR_PageView? _ActiveView;
+        public IAGR_PageView? ActiveView
+        {
+            get => _ActiveView;
+            set => Set(ref _ActiveView, value);
+        }
+        #endregion
 
         #region Property - 
         private IAGR_PageView? _BaseComponent;
@@ -30,6 +38,15 @@ namespace Agrovent.ViewModels.TaskPane
         {
             get => _BaseComponent;
             set => Set(ref _BaseComponent, value);
+        }
+        #endregion
+
+        #region Property - 
+        private IAGR_PageView? _Selection;
+        public IAGR_PageView? Selection
+        {
+            get => _Selection;
+            set => Set(ref _Selection, value);
         }
         #endregion 
 
@@ -46,7 +63,7 @@ namespace Agrovent.ViewModels.TaskPane
         {
             if (_app.Documents.Count == 0 && ActiveComponent != null)
             {
-                BaseComponent = null;
+                ActiveView = null;
             }
         }
 
@@ -67,6 +84,7 @@ namespace Agrovent.ViewModels.TaskPane
             doc.Selections.ClearSelection += Selections_ClearSelection;
 
             BaseComponent = (doc as ISwDocument3D).AGR_BaseComponent();
+            ActiveView = BaseComponent;
 
             if (doc is ISwAssembly assembly)
             {
@@ -90,14 +108,15 @@ namespace Agrovent.ViewModels.TaskPane
                 {
                     if (face.Component.ReferencedDocument is ISwPart part)
                     {
-                        BaseComponent = new AGR_PartComponentVM(part);
+                        Selection = new AGR_PartComponentVM(part);
+                        ActiveView = Selection;
                         return;
                     }
-                    BaseComponent = new AGR_AssemblyComponentVM(face.Component.ReferencedDocument as ISwDocument3D);
                 }
                 else if (doc is ISwPart part)
                 {
-                    BaseComponent = new AGR_PartComponentVM(part);
+                    Selection = new AGR_PartComponentVM(part);
+                    ActiveView = Selection;
                 }
             }
         }
@@ -106,12 +125,14 @@ namespace Agrovent.ViewModels.TaskPane
             if (doc is ISwAssembly assembly)
             {
                 ActiveComponent = assembly;
-                BaseComponent = new AGR_AssemblyComponentVM(assembly);
+                ActiveView = BaseComponent;
+                return;
             }
             if (doc is ISwPart part)
             {
                 ActiveComponent = part;
                 BaseComponent = new AGR_PartComponentVM(part);
+                return;
             }
         }
     }

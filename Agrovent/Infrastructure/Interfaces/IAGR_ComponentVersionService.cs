@@ -8,11 +8,15 @@ using Agrovent.DAL.Entities.Components;
 
 namespace Agrovent.Infrastructure.Interfaces
 {
-    internal interface IAGR_ComponentVersionService
+    public interface IAGR_ComponentVersionService
     {
         Task<bool> CheckAndSaveComponentAsync(IAGR_BaseComponent component);
         Task<bool> CheckAndSaveAssemblyAsync(AGR_AssemblyComponentVM assembly);
         Task<ComponentVersion?> GetComponentVersionAsync(string partNumber, int version);
         Task<bool> HasComponentChangedAsync(IAGR_BaseComponent component);
+
+        // Дополнительные методы (опционально)
+        Task<ComponentVersion?> GetLatestComponentVersionAsync(string partNumber);
+        Task<List<AssemblyStructure>> GetAssemblyStructureAsync(string assemblyPartNumber, int version);
     }
 }

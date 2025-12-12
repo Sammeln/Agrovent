@@ -1,4 +1,6 @@
-﻿using Agrovent.DAL.Entities.Base;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using Agrovent.DAL.Entities.Base;
+using Agrovent.DAL.Entities.Components;
 
 namespace Agrovent.DAL.Entities.Components
 {
@@ -6,10 +8,14 @@ namespace Agrovent.DAL.Entities.Components
     {
         // Сборка (родитель)
         public int AssemblyVersionId { get; set; }
+        
+        // Навигационное свойство для сборки
+        [ForeignKey("AssemblyVersionId")]
         public ComponentVersion AssemblyVersion { get; set; }
 
         // Компонент в составе (ребенок)
         public int ComponentVersionId { get; set; }
+        [ForeignKey("ComponentVersionId")]
         public ComponentVersion ComponentVersion { get; set; }
 
         // Количество
@@ -20,6 +26,7 @@ namespace Agrovent.DAL.Entities.Components
 
         // Родительская структура (для вложенности)
         public int? ParentStructureId { get; set; }
+        [ForeignKey("ParentStructureId")]
         public AssemblyStructure? ParentStructure { get; set; }
 
         // Дочерние структуры

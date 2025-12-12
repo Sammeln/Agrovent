@@ -1,4 +1,5 @@
-﻿using Agrovent.DAL.Entities.Base;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using Agrovent.DAL.Entities.Base;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces;
 
@@ -9,6 +10,7 @@ namespace Agrovent.DAL.Entities.Components
     {
         // Связь с компонентом
         public int ComponentId { get; set; }
+        [ForeignKey("ComponentId")]
         public Component Component { get; set; }
 
         // Версия (начинается с 1)
@@ -22,7 +24,7 @@ namespace Agrovent.DAL.Entities.Components
         public string ConfigName { get; set; }
 
         // Ссылка на статью Ava
-        public IAGR_AvaArticleModel? AvaArticle { get; set; }
+        public AvaArticleModel? AvaArticle { get; set; }
 
         // Типы
         public AGR_ComponentType_e ComponentType { get; set; }

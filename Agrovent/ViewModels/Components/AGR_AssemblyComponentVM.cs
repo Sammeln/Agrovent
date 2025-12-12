@@ -9,6 +9,8 @@ using Agrovent.Infrastructure.Interfaces.Components;
 using Agrovent.Infrastructure.Interfaces.Specification;
 using Agrovent.Services;
 using Agrovent.Infrastructure.Interfaces;
+using Agrovent.ViewModels.Properties;
+using Agrovent.Infrastructure.Interfaces.Properties;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -47,6 +49,7 @@ namespace Agrovent.ViewModels.Components
         public int AssembliesCount => AGR_TopComponents?.Count(c => c.ComponentType == AGR_ComponentType_e.Assembly) ?? 0;
         public int PurchasedCount => AGR_TopComponents?.Count(c => c.ComponentType == AGR_ComponentType_e.Purchased) ?? 0;
         public int SheetMetalPartsCount => AGR_TopComponents?.Count(c => c.ComponentType == AGR_ComponentType_e.SheetMetallPart) ?? 0;
+        //public IAGR_BasePropertiesCollection PropertiesCollection { get; set; }
 
         public IEnumerable<IAGR_SpecificationItem> GetChildComponents()
         {
@@ -76,6 +79,53 @@ namespace Agrovent.ViewModels.Components
                 .GroupBy(c => new { c.Name, c.ConfigName })
                 .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
             AGR_FlatComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedFlat);
+
+            //switch (ComponentType)
+            //{
+            //    case AGR_ComponentType_e.Assembly:
+            //        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
+            //        break;
+            //    case AGR_ComponentType_e.Part:
+            //        PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
+            //        break;
+            //    case AGR_ComponentType_e.SheetMetallPart:
+            //        PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
+            //        break;
+            //    case AGR_ComponentType_e.Purchased:
+            //        PropertiesCollection?.Properties.Clear();
+            //        break;
+            //    case AGR_ComponentType_e.NA:
+            //        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
+            //        break;
+            //    default:
+            //        break;
+            //}
+            //ComponentTypeChanged += AGR_AssemblyComponentVM_ComponentTypeChanged; ;
+
+        }
+
+        private void AGR_AssemblyComponentVM_ComponentTypeChanged(AGR_ComponentType_e type)
+        {
+            switch (type)
+            {
+                case AGR_ComponentType_e.Assembly:
+                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
+                    break;
+                case AGR_ComponentType_e.Part:
+                    PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
+                    break;
+                case AGR_ComponentType_e.SheetMetallPart:
+                    PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
+                    break;
+                case AGR_ComponentType_e.Purchased:
+                    PropertiesCollection?.Properties.Clear();
+                    break;
+                case AGR_ComponentType_e.NA:
+                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
+                    break;
+                default:
+                    break;
+            }
         }
     }
 }

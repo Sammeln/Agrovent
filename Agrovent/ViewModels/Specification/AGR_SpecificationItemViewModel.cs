@@ -14,7 +14,7 @@ namespace Agrovent.ViewModels.Specification
         public IAGR_BaseComponent Component => _component;
         public string Name => _component.Name;
         public string ConfigName => _component.ConfigName;
-        public string PartNumber => _component.PartNumber;
+        public string PartNumber => Component.ComponentType==AGR_ComponentType_e.Purchased ? "" : _component.PartNumber;
         public int Quantity => _quantity;
 
         public AGR_ComponentType_e ComponentType => _component.ComponentType;

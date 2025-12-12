@@ -1,4 +1,5 @@
-﻿using Agrovent.DAL.Entities.Base;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using Agrovent.DAL.Entities.Base;
 
 
 namespace Agrovent.DAL.Entities.Components
@@ -7,6 +8,7 @@ namespace Agrovent.DAL.Entities.Components
     {
         // Связь с версией компонента
         public int ComponentVersionId { get; set; }
+        [ForeignKey("ComponentVersionId")]
         public ComponentVersion ComponentVersion { get; set; }
 
         // Материал

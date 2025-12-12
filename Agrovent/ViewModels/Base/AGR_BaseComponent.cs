@@ -17,6 +17,8 @@ namespace Agrovent.ViewModels.Base
         internal ISwConfiguration mConfiguration;
         internal ISwCustomPropertiesCollection mProperties;
 
+        //public delegate void AGR_ComponentTypeChangedEventHandler(AGR_ComponentType_e type);
+        //public event AGR_ComponentTypeChangedEventHandler? ComponentTypeChanged;
 
         public string Name { get => Path.GetFileNameWithoutExtension(mDocument.Title); }
         public string ConfigName { get => mConfiguration.Name; }
@@ -48,6 +50,7 @@ namespace Agrovent.ViewModels.Base
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
         public IAGR_AvaArticleModel AvaArticle { get; set; }
+        public IAGR_PropertiesCollection PropertiesCollection { get; set; }
 
         public AGR_ComponentType_e ComponentType
         {
@@ -55,6 +58,7 @@ namespace Agrovent.ViewModels.Base
             set
             {
                 OnPropertyChanged(nameof(ComponentType));
+                //ComponentTypeChanged?.Invoke(value);
                 switch (value)
                 {
                     case AGR_ComponentType_e.Assembly:
@@ -104,12 +108,12 @@ namespace Agrovent.ViewModels.Base
             }
         }
 
-        private IAGR_PropertiesCollection? _PropertiesCollection;
-        public IAGR_PropertiesCollection? PropertiesCollection
-        {
-            get => _PropertiesCollection;
-            set => Set(ref _PropertiesCollection, value);
-        }
+        //private IAGR_PropertiesCollection? _PropertiesCollection;
+        //public IAGR_PropertiesCollection? PropertiesCollection
+        //{
+        //    get => _PropertiesCollection;
+        //    set => Set(ref _PropertiesCollection, value);
+        //}
 
         public AGR_BaseComponent(ISwDocument3D swDocument3D)
         {
