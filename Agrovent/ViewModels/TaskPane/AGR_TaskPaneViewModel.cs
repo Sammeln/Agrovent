@@ -19,8 +19,6 @@ namespace Agrovent.ViewModels.TaskPane
         private readonly IAGR_ComponentViewModelCache _viewModelCache;
         private readonly ILogger<AGR_TaskPaneViewModel> _logger;
         
-        //123
-
         private CancellationTokenSource _cancellationTokenSource;
 
         #region Properties

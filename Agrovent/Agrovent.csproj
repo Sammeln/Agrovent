@@ -25,6 +25,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.10" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
     <PackageReference Include="Xarial.XCad" Version="0.8.2" />
     <PackageReference Include="Xarial.XCad.SolidWorks" Version="0.8.2" />
   </ItemGroup>

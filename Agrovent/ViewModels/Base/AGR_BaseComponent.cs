@@ -17,9 +17,6 @@ namespace Agrovent.ViewModels.Base
         internal ISwConfiguration mConfiguration;
         internal ISwCustomPropertiesCollection mProperties;
 
-        //public delegate void AGR_ComponentTypeChangedEventHandler(AGR_ComponentType_e type);
-        //public event AGR_ComponentTypeChangedEventHandler? ComponentTypeChanged;
-
         public string Name { get => Path.GetFileNameWithoutExtension(mDocument.Title); }
         public string ConfigName { get => mConfiguration.Name; }
         public string PartNumber
@@ -29,12 +26,21 @@ namespace Agrovent.ViewModels.Base
         }
         public int Version
         {
-            get;
-            set;
-            //get => Convert.ToInt32(mProperties.AGR_TryGetProp(AGR_PropertyNames.Version).Value);
-            //set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
+            get
+            {
+                var propValue = mProperties.AGR_TryGetProp(AGR_PropertyNames.Version).Value;
+                try
+                {
+                    return Convert.ToInt32(propValue);
+                }
+                catch (Exception)
+                {
+
+                    return 0;
+                }
+            }
+            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
-        //public int HashSum { get => Convert.ToInt32(mProperties[AGR_PropertyNames.HashSum].Value); set => mProperties[AGR_PropertyNames.HashSum].Value = value; }
         public int HashSum
         {
             get
@@ -107,13 +113,6 @@ namespace Agrovent.ViewModels.Base
                 }
             }
         }
-
-        //private IAGR_PropertiesCollection? _PropertiesCollection;
-        //public IAGR_PropertiesCollection? PropertiesCollection
-        //{
-        //    get => _PropertiesCollection;
-        //    set => Set(ref _PropertiesCollection, value);
-        //}
 
         public AGR_BaseComponent(ISwDocument3D swDocument3D)
         {

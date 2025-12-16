@@ -6,6 +6,5 @@ C:\Users\Usr\Source\Repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard
 C:\Users\Usr\Source\Repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.AssemblyInfoInputs.cache
 C:\Users\Usr\Source\Repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.AssemblyInfo.cs
 C:\Users\Usr\Source\Repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.csproj.CoreCompileInputs.cache
-C:\Users\Usr\Source\Repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.sourcelink.json
 C:\Users\Usr\Source\Repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.dll
 C:\Users\Usr\Source\Repos\Agrovent\Agrovent.Infrastructure\obj\Debug\netstandard2.1\Agrovent.Infrastructure.pdb

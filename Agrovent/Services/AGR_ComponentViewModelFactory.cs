@@ -1,4 +1,5 @@
 ﻿// ComponentViewModelFactory.cs (если нужно создавать ViewModel с зависимостями)
+using System.Collections.ObjectModel;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components;
@@ -159,7 +160,7 @@ namespace Agrovent.Services
                 // Обновляем коллекцию в UI потоке
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    viewModel.AGR_TopComponents = new System.Collections.ObjectModel.ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
+                    viewModel.AGR_TopComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
                     _logger.LogDebug($"Assembly components loaded: {groupedTop.Count} items");
                 });
             }

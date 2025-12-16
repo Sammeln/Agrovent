@@ -40,7 +40,6 @@
             <DataGrid.ItemsSource>
                 <Binding Source="{StaticResource CVS_Components}"/>
             </DataGrid.ItemsSource>
-
             <DataGrid.GroupStyle>
                 <GroupStyle>
                     <GroupStyle.ContainerStyle>
@@ -52,7 +51,7 @@
                                             <Expander.Header>
                                                 <DockPanel>
                                                     <TextBlock FontWeight="Bold" Text="{Binding Path=Name}" Margin="0 0 5 0"/>
-                                                    <!--<TextBlock FontWeight="Bold" Text="{Binding Path=ItemCount}"/>-->
+                                                    <TextBlock FontWeight="Bold" Text="{Binding Path=ItemCount}"/>
                                                 </DockPanel>
                                             </Expander.Header>
                                             <Expander.Content>
@@ -82,29 +81,6 @@
             </DataGrid.GroupStyle>
             <DataGrid.Columns>
                 
-                <!--<DataGridTextColumn Header="Наименование" Binding="{Binding Item1.Name}" IsReadOnly="True"/>
-                
-                <DataGridTemplateColumn Header="Тип">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Item1.AvaType, Converter={StaticResource AvaTypeConverter}}"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                    <DataGridTemplateColumn.CellEditingTemplate>
-                        <DataTemplate>
-                            <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}" SelectedItem="{Binding Item1.AvaType, Mode=TwoWay}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Path=., Converter={StaticResource AvaTypeConverter}}"/>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellEditingTemplate>
-                </DataGridTemplateColumn>
-
-
-                <DataGridTextColumn Header="Количество" Binding="{Binding Item2}"/>-->
             </DataGrid.Columns>
         </DataGrid>
 

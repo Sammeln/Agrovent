@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Windows.Data;
 using Agrovent.Infrastructure.Interfaces;
+using Agrovent.Infrastructure.Interfaces.Specification;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 
@@ -14,33 +15,17 @@ namespace Agrovent.ViewModels.Specification
         public ICollectionView ComponentsView => _componentsCVS.View;
 
         #region Property - ObservableCollection<SpecificationItemVM> Components
-        private ObservableCollection<AGR_SpecificationItemVM> _Components;
-        public ObservableCollection<AGR_SpecificationItemVM> Components
+        private ObservableCollection<IAGR_SpecificationItem> _Components;
+        public ObservableCollection<IAGR_SpecificationItem> Components
         {
             get => _Components;
             set => Set(ref _Components, value);
         }
         #endregion
-
-        #region Property - 
-        private ObservableCollection<Tuple<IAGR_Material, decimal>> _Materials;
-        public ObservableCollection<Tuple<IAGR_Material, decimal>> Materials
-        {
-            get => new(_baseComponent.AGR_FlatComponents
-                        .Where(x => x.Component is AGR_PartComponentVM)
-                        .GroupBy(x => (x.Component as AGR_PartComponentVM).BaseMaterial.Name)
-                        .Select(x => new Tuple<IAGR_Material, decimal>
-                            ((x.First().Component as AGR_PartComponentVM).BaseMaterial,
-                            x.Sum(d => (d.Component as AGR_PartComponentVM).BaseMaterialCount)
-                            ))
-                        );
-            //set => Set(ref _Materials, value);
-        }
-        #endregion 
         public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent)
         {
             _baseComponent = baseComponent;
-            Components = baseComponent.AGR_FlatComponents;
+            Components = new ObservableCollection<IAGR_SpecificationItem>(baseComponent.GetFlatComponents());
             Components.Add(new AGR_SpecificationItemVM(baseComponent,1));
 
             _componentsCVS.Source = Components;

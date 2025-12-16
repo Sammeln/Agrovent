@@ -552,12 +552,184 @@ namespace Agrovent.Infrastructure
 
 
 
+--- Файл: AGR_ComponentViewModelCache.cs ---
+==============================================================
+// AGR_ComponentViewModelCache.cs
+using System.Collections.Concurrent;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Services;
+using Agrovent.ViewModels.Components;
+using Xarial.XCad.Documents;
+using Xarial.XCad.SolidWorks.Documents;
+using System.IO;
+using Microsoft.Extensions.Logging;
+
+namespace Agrovent.Services
+{
+    public class AGR_ComponentViewModelCache : IAGR_ComponentViewModelCache
+    {
+        private readonly ConcurrentDictionary<string, WeakReference<IAGR_BaseComponent>> _viewModelCache;
+        private readonly ILogger<AGR_ComponentViewModelCache> _logger;
+        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+
+        public AGR_ComponentViewModelCache(ILogger<AGR_ComponentViewModelCache> logger)
+        {
+            _viewModelCache = new ConcurrentDictionary<string, WeakReference<IAGR_BaseComponent>>();
+            _logger = logger;
+        }
+
+        public async Task<IAGR_BaseComponent> GetOrCreateViewModelAsync(IXDocument document)
+        {
+            if (document == null)
+                throw new ArgumentNullException(nameof(document));
+
+            var swDoc = document as ISwDocument3D;
+            if (swDoc == null)
+                throw new InvalidOperationException("Document must be a SolidWorks 3D document");
+
+            var cacheKey = GetCacheKey(swDoc);
+
+            try
+            {
+                // Пытаемся получить из кэша
+                if (_viewModelCache.TryGetValue(cacheKey, out var weakRef) &&
+                    weakRef.TryGetTarget(out var cachedViewModel))
+                {
+                    _logger.LogDebug($"ViewModel found in cache: {cacheKey}");
+                    return cachedViewModel;
+                }
+
+                // Если не нашли в кэше, создаем новую
+                await _semaphore.WaitAsync();
+                try
+                {
+                    // Двойная проверка под блокировкой
+                    if (_viewModelCache.TryGetValue(cacheKey, out weakRef) &&
+                        weakRef.TryGetTarget(out cachedViewModel))
+                    {
+                        _logger.LogDebug($"ViewModel found in cache after lock: {cacheKey}");
+                        return cachedViewModel;
+                    }
+
+                    _logger.LogInformation($"Creating new ViewModel for: {cacheKey}");
+
+                    IAGR_BaseComponent viewModel = swDoc switch
+                    {
+                        ISwPart part => new AGR_PartComponentVM(part),
+                        ISwAssembly assembly => new AGR_AssemblyComponentVM(assembly),
+                        _ => throw new NotSupportedException($"Document type not supported: {swDoc.GetType()}")
+                    };
+
+                    // Добавляем в кэш с WeakReference
+                    _viewModelCache[cacheKey] = new WeakReference<IAGR_BaseComponent>(viewModel);
+
+                    // Очищаем кэш от "мертвых" ссылок
+                    CleanupDeadReferences();
+
+                    return viewModel;
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting or creating ViewModel for {cacheKey}");
+                throw;
+            }
+        }
+
+        public async Task<IAGR_BaseComponent> GetViewModelByPathAsync(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath))
+                return null;
+
+            var cacheKey = Path.GetFullPath(filePath).ToLowerInvariant();
+
+            if (_viewModelCache.TryGetValue(cacheKey, out var weakRef) &&
+                weakRef.TryGetTarget(out var viewModel))
+            {
+                return viewModel;
+            }
+
+            return null;
+        }
+
+        public void Clear()
+        {
+            _viewModelCache.Clear();
+            _logger.LogInformation("ViewModel cache cleared");
+        }
+
+        public bool RemoveViewModel(string key)
+        {
+            return _viewModelCache.TryRemove(key, out _);
+        }
+
+        public (int Total, int Part, int Assembly) GetCacheStatistics()
+        {
+            int aliveCount = 0, partCount = 0, assemblyCount = 0;
+
+            foreach (var kvp in _viewModelCache)
+            {
+                if (kvp.Value.TryGetTarget(out var vm))
+                {
+                    aliveCount++;
+                    if (vm is AGR_PartComponentVM)
+                        partCount++;
+                    else if (vm is AGR_AssemblyComponentVM)
+                        assemblyCount++;
+                }
+            }
+
+            return (aliveCount, partCount, assemblyCount);
+        }
+
+        private string GetCacheKey(ISwDocument3D document)
+        {
+            // Используем полный путь к файлу как ключ
+            // Также можно добавить хеш содержимого для учета изменений
+            return Path.GetFullPath(document.Path).ToLowerInvariant();
+        }
+
+        private void CleanupDeadReferences()
+        {
+            // Очищаем кэш только если он стал слишком большим
+            if (_viewModelCache.Count > 100)
+            {
+                var deadKeys = _viewModelCache
+                    .Where(kvp => !kvp.Value.TryGetTarget(out _))
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+
+                foreach (var key in deadKeys)
+                {
+                    _viewModelCache.TryRemove(key, out _);
+                }
+
+                if (deadKeys.Count > 0)
+                {
+                    _logger.LogDebug($"Cleaned up {deadKeys.Count} dead references from cache");
+                }
+            }
+        }
+    }
+}
+
+
+
 --- Файл: AGR_ComponentViewModelFactory.cs ---
 ==============================================================
 // ComponentViewModelFactory.cs (если нужно создавать ViewModel с зависимостями)
+using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Services;
 using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.Specification;
+using Microsoft.Extensions.Logging;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.Services
@@ -565,26 +737,160 @@ namespace Agrovent.Services
     public interface IAGR_ComponentViewModelFactory
     {
         AGR_AssemblyComponentVM CreateAssemblyComponent(ISwDocument3D document);
+        Task<AGR_AssemblyComponentVM> CreateAssemblyComponentAsync(ISwDocument3D document);
+        Task<IAGR_BaseComponent> CreateComponentAsync(ISwDocument3D document);
         AGR_PartComponentVM CreatePartComponent(ISwDocument3D document);
+        Task<AGR_PartComponentVM> CreatePartComponentAsync(ISwDocument3D document);
     }
 
     public class AGR_ComponentViewModelFactory : IAGR_ComponentViewModelFactory
     {
-        private readonly IAGR_ComponentVersionService _versionService;
+        private readonly IAGR_ComponentViewModelCache _cache;
+        private readonly ILogger<AGR_ComponentViewModelFactory> _logger;
 
-        public AGR_ComponentViewModelFactory(IAGR_ComponentVersionService versionService)
+        public AGR_ComponentViewModelFactory(
+            IAGR_ComponentViewModelCache cache,
+            ILogger<AGR_ComponentViewModelFactory> logger)
         {
-            _versionService = versionService;
+            _cache = cache;
+            _logger = logger;
         }
 
+        public async Task<AGR_AssemblyComponentVM> CreateAssemblyComponentAsync(ISwDocument3D document)
+        {
+            _logger.LogDebug($"Creating assembly component async: {document.Title}");
+
+            try
+            {
+                // Используем кэш
+                var viewModel = await _cache.GetOrCreateViewModelAsync(document) as AGR_AssemblyComponentVM;
+
+                // Если это новая ViewModel, асинхронно загружаем компоненты
+                if (viewModel?.AGR_TopComponents?.Count == 0)
+                {
+                    await Task.Run(() => LoadAssemblyComponents(viewModel, document));
+                }
+
+                return viewModel;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating assembly component: {document.Title}");
+                throw;
+            }
+        }
+
+        public async Task<AGR_PartComponentVM> CreatePartComponentAsync(ISwDocument3D document)
+        {
+            _logger.LogDebug($"Creating part component async: {document.Title}");
+
+            try
+            {
+                // Используем кэш
+                return await _cache.GetOrCreateViewModelAsync(document) as AGR_PartComponentVM;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating part component: {document.Title}");
+                throw;
+            }
+        }
+
+        public async Task<IAGR_BaseComponent> CreateComponentAsync(ISwDocument3D document)
+        {
+            _logger.LogDebug($"Creating component async: {document.Title}");
+
+            return document switch
+            {
+                ISwPart part => await CreatePartComponentAsync(part),
+                ISwAssembly assembly => await CreateAssemblyComponentAsync(assembly),
+                _ => throw new NotSupportedException($"Document type not supported: {document.GetType()}")
+            };
+        }
+
+        // Синхронные методы для обратной совместимости
         public AGR_AssemblyComponentVM CreateAssemblyComponent(ISwDocument3D document)
         {
-            return new AGR_AssemblyComponentVM(document);
+            _logger.LogDebug($"Creating assembly component sync: {document.Title}");
+
+            try
+            {
+                var viewModel = new AGR_AssemblyComponentVM(document as ISwAssembly);
+                return viewModel;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating assembly component sync: {document.Title}");
+                throw;
+            }
         }
 
         public AGR_PartComponentVM CreatePartComponent(ISwDocument3D document)
         {
-            return new AGR_PartComponentVM(document);
+            _logger.LogDebug($"Creating part component sync: {document.Title}");
+
+            try
+            {
+                return new AGR_PartComponentVM(document as ISwPart);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating part component sync: {document.Title}");
+                throw;
+            }
+        }
+
+        private void LoadAssemblyComponents(AGR_AssemblyComponentVM viewModel, ISwDocument3D document)
+        {
+            try
+            {
+                _logger.LogDebug($"Loading assembly components for: {document.Title}");
+
+                var assembly = document as ISwAssembly;
+                if (assembly == null) return;
+
+                // Оптимизация: получаем компоненты только верхнего уровня
+                var topComponents = assembly.Configurations.Active.Components.AGR_ActiveComponents();
+
+                // Группируем и создаем SpecificationItemVM для верхнего уровня
+                var groupedTop = topComponents
+                    .GroupBy(c => new { c.ReferencedDocument?.Title, c.ReferencedConfiguration?.Name })
+                    .Select(g =>
+                    {
+                        try
+                        {
+                            var firstComp = g.First();
+                            if (firstComp.ReferencedDocument is ISwDocument3D swDoc)
+                            {
+                                // Создаем или получаем ViewModel для компонента
+                                var componentViewModel = Task.Run(async () =>
+                                    await CreateComponentAsync(swDoc)).Result;
+
+                                return new AGR_SpecificationItemVM(componentViewModel, g.Count());
+                            }
+                            return null;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Error creating specification item");
+                            return null;
+                        }
+                    })
+                    .Where(item => item != null)
+                    .ToList();
+
+                // Обновляем коллекцию в UI потоке
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    viewModel.AGR_TopComponents = new System.Collections.ObjectModel.ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
+                    _logger.LogDebug($"Assembly components loaded: {groupedTop.Count} items");
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error loading assembly components: {document.Title}");
+                throw;
+            }
         }
     }
 }
@@ -853,6 +1159,8 @@ using Agrovent.Infrastructure.Interfaces;
 using System.Reflection;
 using System.IO;
 using Xarial.XCad.Documents;
+using Agrovent.Infrastructure.Interfaces.Services;
+using Agrovent.ViewModels.TaskPane;
 
 namespace Agrovent
 {
@@ -892,8 +1200,11 @@ namespace Agrovent
 
             // 5. Сервисы
             services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
+            services.AddSingleton<IAGR_ComponentViewModelCache, AGR_ComponentViewModelCache>();
+            services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
 
             // 6. ViewModels (если нужно)
+            services.AddScoped<AGR_TaskPaneViewModel>();
             // services.AddTransient<AGR_AssemblyComponentVM>();
             // services.AddTransient<AGR_PartComponentVM>();
 
@@ -912,6 +1223,7 @@ using System.ComponentModel.Design;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Agrovent.Infrastructure.Interfaces.Services;
 using Agrovent.Services;
 using Agrovent.ViewModels.TaskPane;
 
@@ -920,6 +1232,12 @@ namespace Agrovent.ViewModels
     public class ViewModelLocator
     {
         public AGR_TaskPaneViewModel TaskPaneVM => AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
+
+        public void RefreshViewModelCache()
+        {
+            var cache = AGR_ServiceContainer.GetService<IAGR_ComponentViewModelCache>();
+            cache.Clear();
+        }
     }
 }
 
@@ -3747,6 +4065,14 @@ namespace Agrovent.Infrastructure.Interfaces
         <Setter Property="Margin" Value="0,5,0,0"/>
         <Setter Property="Padding" Value="15 5"/>
     </Style>
+    
+    <!-- Общие стили для карточек -->
+    <Style x:Key="CardStyleExpander" TargetType="Expander">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="#E0E0E0"/>
+        <Setter Property="Margin" Value="0,5,0,0"/>
+        <Setter Property="Padding" Value="15 5"/>
+    </Style>
 
     <!-- Стиль для заголовков разделов -->
     <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
@@ -3771,16 +4097,17 @@ namespace Agrovent.Infrastructure.Interfaces
 
     <!-- Стиль для заголовка таблицы свойств -->
     <Style x:Key="PropertiesDataGridHeader" TargetType="DataGridColumnHeader">
-        <Setter Property="Background" Value="White"/>
+        <Setter Property="Background" Value="#c4b5fd"/>
         <Setter Property="Foreground" Value="#616161"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Height" Value="25"/>
     </Style>
 
     <!-- Стиль для значений таблицы значений свойств -->
     <Style x:Key="PropertiesDataGrid" TargetType="DataGrid">
         <Setter Property="HeadersVisibility" Value="Column"/>
-        <Setter Property="AlternatingRowBackground" Value="AliceBlue"/>
+        <Setter Property="AlternatingRowBackground" Value="#d2f9e6"/>
         <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="HorizontalGridLinesBrush" Value="#BDBDBD"/>
         <Setter Property="AutoGenerateColumns" Value="False"/>
@@ -3889,6 +4216,7 @@ namespace Agrovent.Infrastructure.Interfaces
         <Setter Property="Margin" Value="0,8,0,0"/>
         <Setter Property="MaxHeight" Value="300"/>
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ColumnHeaderStyle" Value="{StaticResource PropertiesDataGridHeader}"/>
     </Style>
 
     <!-- Стиль для статистических блоков -->
@@ -4284,52 +4612,6 @@ namespace Agrovent.ViewModels.Components
                 .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
             AGR_FlatComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedFlat);
 
-            //switch (ComponentType)
-            //{
-            //    case AGR_ComponentType_e.Assembly:
-            //        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-            //        break;
-            //    case AGR_ComponentType_e.Part:
-            //        PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
-            //        break;
-            //    case AGR_ComponentType_e.SheetMetallPart:
-            //        PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
-            //        break;
-            //    case AGR_ComponentType_e.Purchased:
-            //        PropertiesCollection?.Properties.Clear();
-            //        break;
-            //    case AGR_ComponentType_e.NA:
-            //        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-            //        break;
-            //    default:
-            //        break;
-            //}
-            //ComponentTypeChanged += AGR_AssemblyComponentVM_ComponentTypeChanged; ;
-
-        }
-
-        private void AGR_AssemblyComponentVM_ComponentTypeChanged(AGR_ComponentType_e type)
-        {
-            switch (type)
-            {
-                case AGR_ComponentType_e.Assembly:
-                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.Part:
-                    PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.SheetMetallPart:
-                    PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.Purchased:
-                    PropertiesCollection?.Properties.Clear();
-                    break;
-                case AGR_ComponentType_e.NA:
-                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-                    break;
-                default:
-                    break;
-            }
         }
     }
 }
@@ -4753,136 +5035,415 @@ using Xarial.XCad.Geometry;
 using Agrovent.Infrastructure.Extensions;
 using Xarial.XCad.SolidWorks;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Agrovent.ViewModels.TaskPane
 {
     public class AGR_TaskPaneViewModel : BaseViewModel
     {
-        private readonly ISwApplication _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
+        private readonly ISwApplication _app;
+        private readonly IAGR_ComponentViewModelFactory _viewModelFactory;
+        private readonly IAGR_ComponentViewModelCache _viewModelCache;
+        private readonly ILogger<AGR_TaskPaneViewModel> _logger;
+        
+        //123
 
-        #region Property - ISwAssembly ActiveComponent
+        private CancellationTokenSource _cancellationTokenSource;
+
+        #region Properties
         private ISwDocument3D _ActiveComponent;
         public ISwDocument3D ActiveComponent
         {
             get => _ActiveComponent;
             set => Set(ref _ActiveComponent, value);
         }
-        #endregion
 
-        #region Property - 
-        private IAGR_PageView? _ActiveView;
-        public IAGR_PageView? ActiveView
+        private IAGR_PageView _ActiveView;
+        public IAGR_PageView ActiveView
         {
             get => _ActiveView;
             set => Set(ref _ActiveView, value);
         }
-        #endregion
 
-        #region Property - 
-        private IAGR_PageView? _BaseComponent;
-        public IAGR_PageView? BaseComponent
+        private IAGR_PageView _BaseComponent;
+        public IAGR_PageView BaseComponent
         {
             get => _BaseComponent;
             set => Set(ref _BaseComponent, value);
         }
-        #endregion
 
-        #region Property - 
-        private IAGR_PageView? _Selection;
-        public IAGR_PageView? Selection
+        private IAGR_PageView _Selection;
+        public IAGR_PageView Selection
         {
             get => _Selection;
             set => Set(ref _Selection, value);
         }
-        #endregion 
 
-        #region CTOR
-        public AGR_TaskPaneViewModel()
+        private bool _IsLoading;
+        public bool IsLoading
         {
-            BaseComponent = new AGR_HomePageVM();
-            _app.Documents.DocumentActivated += Documents_DocumentActivated;
-            _app.Idle += _app_Idle;
-
+            get => _IsLoading;
+            set => Set(ref _IsLoading, value);
         }
 
-        private void _app_Idle(Xarial.XCad.IXApplication app)
+        private string _LoadingMessage;
+        public string LoadingMessage
         {
-            if (_app.Documents.Count == 0 && ActiveComponent != null)
-            {
-                ActiveView = null;
-            }
+            get => _LoadingMessage;
+            set => Set(ref _LoadingMessage, value);
         }
-
-
         #endregion
 
-        private void Documents_DocumentActivated(IXDocument doc)
+        public AGR_TaskPaneViewModel(
+            IAGR_ComponentViewModelFactory viewModelFactory,
+            IAGR_ComponentViewModelCache viewModelCache,
+            ILogger<AGR_TaskPaneViewModel> logger)
         {
-            if (ActiveComponent != null)
-            {
-                ActiveComponent.Selections.NewSelection -= Selections_NewSelection;
-                ActiveComponent.Selections.ClearSelection -= Selections_ClearSelection;
+            _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
+            _viewModelFactory = viewModelFactory;
+            _viewModelCache = viewModelCache;
+            _logger = logger;
+            _cancellationTokenSource = new CancellationTokenSource();
 
-                //(ActiveComponent.Assembly as AssemblyDoc).ComponentVisibleChangeNotify -= TaskPaneVM_ComponentVisibleChangeNotify;
+            _app.Documents.DocumentActivated += OnDocumentActivatedAsync;
+            _app.Idle += OnIdle;
+
+            _logger.LogInformation("TaskPaneViewModel initialized");
+        }
+
+        private async void OnDocumentActivatedAsync(IXDocument doc)
+        {
+            // Отменяем предыдущую загрузку
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource = new CancellationTokenSource();
+            var cancellationToken = _cancellationTokenSource.Token;
+
+            try
+            {
+                _logger.LogInformation($"Document activated: {doc?.Title}");
+
+                if (doc == null)
+                {
+                    ActiveView = null;
+                    return;
+                }
+
+                // Показываем индикатор загрузки
+                IsLoading = true;
+                LoadingMessage = "Загрузка документа...";
+
+                // Отписываемся от старых событий выделения
+                if (ActiveComponent != null)
+                {
+                    ActiveComponent.Selections.NewSelection -= OnSelectionChangedAsync;
+                    ActiveComponent.Selections.ClearSelection -= OnSelectionClearedAsync;
+                }
+
+                // Подписываемся на события выделения нового документа
+                doc.Selections.NewSelection += OnSelectionChangedAsync;
+                doc.Selections.ClearSelection += OnSelectionClearedAsync;
+
+                // Асинхронно загружаем ViewModel для документа
+                if (doc is ISwDocument3D swDoc)
+                {
+                    ActiveComponent = swDoc;
+
+                    // Начинаем асинхронную загрузку
+                    await LoadDocumentViewModelAsync(swDoc, cancellationToken);
+                }
             }
-
-            doc.Selections.NewSelection += Selections_NewSelection;
-            doc.Selections.ClearSelection += Selections_ClearSelection;
-
-            BaseComponent = (doc as ISwDocument3D).AGR_BaseComponent();
-            ActiveView = BaseComponent;
-
-            if (doc is ISwAssembly assembly)
+            catch (OperationCanceledException)
             {
-                ActiveComponent = assembly;
-                //BaseComponent = new AGR_AssemblyComponentVM(assembly);
-                return;
+                _logger.LogDebug("Document loading cancelled");
             }
-            if (doc is ISwPart part)
+            catch (Exception ex)
             {
-                ActiveComponent = part;
-                //BaseComponent = new AGR_PartComponentVM(part);
-                return;
+                _logger.LogError(ex, $"Error activating document: {doc?.Title}");
+                IsLoading = false;
             }
         }
 
-        private void Selections_NewSelection(IXDocument doc, Xarial.XCad.IXSelObject selObject)
+        private async Task LoadDocumentViewModelAsync(ISwDocument3D document, CancellationToken cancellationToken)
         {
-            if (selObject is IXFace face)
+            try
             {
-                if (doc is ISwAssembly assembly)
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (document == null)
                 {
-                    if (face.Component.ReferencedDocument is ISwPart part)
-                    {
-                        Selection = new AGR_PartComponentVM(part);
-                        ActiveView = Selection;
-                        return;
-                    }
+                    IsLoading = false;
+                    return;
                 }
-                else if (doc is ISwPart part)
-                {
-                    Selection = new AGR_PartComponentVM(part);
-                    ActiveView = Selection;
-                }
+
+                _logger.LogDebug($"Loading ViewModel for: {document.Title}");
+
+                // В зависимости от типа документа меняем сообщение
+                LoadingMessage = document is ISwAssembly
+                    ? "Загрузка сборки..."
+                    : "Загрузка детали...";
+
+                // Асинхронно создаем ViewModel
+                var viewModel = await _viewModelFactory.CreateComponentAsync(document);
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Обновляем UI
+                BaseComponent = viewModel;
+                ActiveView = viewModel;
+
+                _logger.LogInformation($"ViewModel loaded for: {document.Title}");
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogDebug($"Loading cancelled for: {document?.Title}");
+                // Не обновляем UI если загрузка отменена
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error loading ViewModel for: {document?.Title}");
+                // Можно показать ошибку пользователю
+            }
+            finally
+            {
+                IsLoading = false;
+                LoadingMessage = string.Empty;
             }
         }
-        private void Selections_ClearSelection(IXDocument doc)
+
+        private async void OnSelectionChangedAsync(IXDocument doc, Xarial.XCad.IXSelObject selObject)
         {
-            if (doc is ISwAssembly assembly)
+            try
             {
-                ActiveComponent = assembly;
-                ActiveView = BaseComponent;
-                return;
+                if (selObject is IXFace face && face.Component?.ReferencedDocument is ISwDocument3D swDoc)
+                {
+                    _logger.LogDebug($"Selection changed to: {swDoc.Title}");
+
+                    // Асинхронно загружаем ViewModel для выбранного компонента
+                    var viewModel = await _viewModelFactory.CreateComponentAsync(swDoc);
+
+                    Selection = viewModel;
+                    ActiveView = viewModel;
+                }
             }
-            if (doc is ISwPart part)
+            catch (Exception ex)
             {
-                ActiveComponent = part;
-                BaseComponent = new AGR_PartComponentVM(part);
-                return;
+                _logger.LogError(ex, "Error handling selection change");
+            }
+        }
+
+        private void OnSelectionClearedAsync(IXDocument doc)
+        {
+            try
+            {
+                _logger.LogDebug("Selection cleared");
+
+                if (doc is ISwDocument3D swDoc)
+                {
+                    // Возвращаемся к основному виду документа
+                    ActiveComponent = swDoc;
+                    ActiveView = BaseComponent;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error handling selection clear");
+            }
+        }
+
+        private void OnIdle(Xarial.XCad.IXApplication app)
+        {
+            try
+            {
+                // Проверяем, если документы закрыты, очищаем кэш
+                if (_app.Documents.Count == 0 && ActiveComponent != null)
+                {
+                    _logger.LogDebug("All documents closed, cleaning up");
+
+                    ActiveView = null;
+                    BaseComponent = null;
+                    ActiveComponent = null;
+                    Selection = null;
+
+                    // Можно очистить кэш если нужно
+                    // _viewModelCache.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in idle handler");
+            }
+        }
+
+        #region Команды для управления кэшем
+        public void ClearViewModelCache()
+        {
+            try
+            {
+                _viewModelCache.Clear();
+                _logger.LogInformation("ViewModel cache cleared by user");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error clearing view model cache");
+            }
+        }
+
+        public (int Total, int Part, int Assembly) GetCacheStatistics()
+        {
+            return _viewModelCache.GetCacheStatistics();
+        }
+        #endregion
+
+        public void Dispose()
+        {
+            try
+            {
+                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource?.Dispose();
+
+                if (_app != null)
+                {
+                    _app.Documents.DocumentActivated -= OnDocumentActivatedAsync;
+                    _app.Idle -= OnIdle;
+                }
+
+                _logger.LogInformation("TaskPaneViewModel disposed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disposing TaskPaneViewModel");
             }
         }
     }
+
+    #region MyRegion
+    //private readonly ISwApplication _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
+
+    //#region Property - ISwAssembly ActiveComponent
+    //private ISwDocument3D _ActiveComponent;
+    //public ISwDocument3D ActiveComponent
+    //{
+    //    get => _ActiveComponent;
+    //    set => Set(ref _ActiveComponent, value);
+    //}
+    //#endregion
+
+    //#region Property - 
+    //private IAGR_PageView? _ActiveView;
+    //public IAGR_PageView? ActiveView
+    //{
+    //    get => _ActiveView;
+    //    set => Set(ref _ActiveView, value);
+    //}
+    //#endregion
+
+    //#region Property - 
+    //private IAGR_PageView? _BaseComponent;
+    //public IAGR_PageView? BaseComponent
+    //{
+    //    get => _BaseComponent;
+    //    set => Set(ref _BaseComponent, value);
+    //}
+    //#endregion
+
+    //#region Property - 
+    //private IAGR_PageView? _Selection;
+    //public IAGR_PageView? Selection
+    //{
+    //    get => _Selection;
+    //    set => Set(ref _Selection, value);
+    //}
+    //#endregion 
+
+    //#region CTOR
+    //public AGR_TaskPaneViewModel()
+    //{
+    //    BaseComponent = new AGR_HomePageVM();
+    //    _app.Documents.DocumentActivated += Documents_DocumentActivated;
+    //    _app.Idle += _app_Idle;
+
+    //}
+
+    //private void _app_Idle(Xarial.XCad.IXApplication app)
+    //{
+    //    if (_app.Documents.Count == 0 && ActiveComponent != null)
+    //    {
+    //        ActiveView = null;
+    //    }
+    //}
+
+
+    //#endregion
+
+    //private void Documents_DocumentActivated(IXDocument doc)
+    //{
+    //    if (ActiveComponent != null)
+    //    {
+    //        ActiveComponent.Selections.NewSelection -= Selections_NewSelection;
+    //        ActiveComponent.Selections.ClearSelection -= Selections_ClearSelection;
+
+    //        //(ActiveComponent.Assembly as AssemblyDoc).ComponentVisibleChangeNotify -= TaskPaneVM_ComponentVisibleChangeNotify;
+    //    }
+
+    //    doc.Selections.NewSelection += Selections_NewSelection;
+    //    doc.Selections.ClearSelection += Selections_ClearSelection;
+
+    //    BaseComponent = (doc as ISwDocument3D).AGR_BaseComponent();
+    //    ActiveView = BaseComponent;
+
+    //    if (doc is ISwAssembly assembly)
+    //    {
+    //        ActiveComponent = assembly;
+    //        //BaseComponent = new AGR_AssemblyComponentVM(assembly);
+    //        return;
+    //    }
+    //    if (doc is ISwPart part)
+    //    {
+    //        ActiveComponent = part;
+    //        //BaseComponent = new AGR_PartComponentVM(part);
+    //        return;
+    //    }
+    //}
+
+    //private void Selections_NewSelection(IXDocument doc, Xarial.XCad.IXSelObject selObject)
+    //{
+    //    if (selObject is IXFace face)
+    //    {
+    //        if (doc is ISwAssembly assembly)
+    //        {
+    //            if (face.Component.ReferencedDocument is ISwPart part)
+    //            {
+    //                Selection = new AGR_PartComponentVM(part);
+    //                ActiveView = Selection;
+    //                return;
+    //            }
+    //        }
+    //        else if (doc is ISwPart part)
+    //        {
+    //            Selection = new AGR_PartComponentVM(part);
+    //            ActiveView = Selection;
+    //        }
+    //    }
+    //}
+    //private void Selections_ClearSelection(IXDocument doc)
+    //{
+    //    if (doc is ISwAssembly assembly)
+    //    {
+    //        ActiveComponent = assembly;
+    //        ActiveView = BaseComponent;
+    //        return;
+    //    }
+    //    if (doc is ISwPart part)
+    //    {
+    //        ActiveComponent = part;
+    //        BaseComponent = new AGR_PartComponentVM(part);
+    //        return;
+    //    }
+    //} 
+    #endregion
 }
+
 
 
 
@@ -4928,9 +5489,11 @@ namespace Agrovent.ViewModels.TaskPane
         <StackPanel Margin="16" Orientation="Vertical">
 
             <!-- Секция: Основная информация -->
-            <Border Style="{StaticResource CardStyle}">
-                <StackPanel Orientation="Vertical">
+            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True">
+                <Expander.Header>
                     <TextBlock Text="Основная информация" Style="{StaticResource SectionHeaderStyle}"/>
+                </Expander.Header>
+                <StackPanel Orientation="Vertical">
 
                     <!-- Наименование -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}">
@@ -4973,12 +5536,14 @@ namespace Agrovent.ViewModels.TaskPane
                                  Style="{StaticResource ReadOnlyTextBox}"/>
                     </DockPanel>
                 </StackPanel>
-            </Border>
+            </Expander>
 
             <!-- Секция: Компоненты сборки -->
-            <Border Style="{StaticResource CardStyle}">
-                <StackPanel>
+            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True">
+                <Expander.Header>
                     <TextBlock Text="Компоненты сборки" Style="{StaticResource SectionHeaderStyle}"/>
+                </Expander.Header>
+                <StackPanel>
 
                     <!-- Вкладки для разных типов компонентов -->
                     <DataGrid ItemsSource="{Binding AGR_TopComponents}" 
@@ -5005,7 +5570,7 @@ namespace Agrovent.ViewModels.TaskPane
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            
+
                             <DataGridTemplateColumn Header="Кол-во" Width="*" SortMemberPath="PartNumber">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -5074,13 +5639,14 @@ namespace Agrovent.ViewModels.TaskPane
                         </WrapPanel>
                     </StackPanel>-->
                 </StackPanel>
-            </Border>
+            </Expander>
 
             <!-- Секция: Пользовательские свойства -->
-            <Border Style="{StaticResource CardStyle}">
-                <StackPanel>
+            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="False">
+                <Expander.Header>
                     <TextBlock Text="Свойства" Style="{StaticResource SectionHeaderStyle}"/>
-
+                </Expander.Header>     
+                <StackPanel>
                     <DataGrid ItemsSource="{Binding PropertiesCollection.Properties}"  
                               Style="{StaticResource PropertiesDataGrid}">
                         <DataGrid.Columns>
@@ -5089,13 +5655,14 @@ namespace Agrovent.ViewModels.TaskPane
                         </DataGrid.Columns>
                     </DataGrid>
                 </StackPanel>
-            </Border>
+            </Expander>
 
             <!-- Секция: Файлы -->
-            <Border Style="{StaticResource CardStyle}">
-                <StackPanel>
+            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="False">
+                <Expander.Header>
                     <TextBlock Text="Файлы" Style="{StaticResource SectionHeaderStyle}"/>
-
+                </Expander.Header>
+                <StackPanel>
                     <!-- Текущий файл модели -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}">
                         <TextBlock Text="Модель (текущая):" Style="{StaticResource PropertyLabelStyle}"/>
@@ -5131,7 +5698,7 @@ namespace Agrovent.ViewModels.TaskPane
                                    TextWrapping="NoWrap"/>
                     </DockPanel>
                 </StackPanel>
-            </Border>
+            </Expander>
 
         </StackPanel>
     </ScrollViewer>
@@ -5632,16 +6199,47 @@ namespace Agrovent.Views.Windows
             <DataTemplate DataType="{x:Type VM:AGR_HomePageVM}">
                 <page:AGR_EmptyPage/>
             </DataTemplate>
-
+            
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            
         </ResourceDictionary>
     </UserControl.Resources>
-    
+
     <UserControl.DataContext>
         <Binding Path="TaskPaneVM" Source="{StaticResource VMLocator}"/>
     </UserControl.DataContext>
 
-    <ContentControl Content="{Binding ActiveView, UpdateSourceTrigger=PropertyChanged, NotifyOnSourceUpdated=True}"/>
-
+    <Grid>
+        <Border Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+                Background="#CCFFFFFF"
+                Panel.ZIndex="1000">
+            <Grid>
+                <Border Background="#FFFFFFFF" 
+                        BorderBrush="#FF007ACC" 
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Width="300"
+                        Height="150"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Vertical"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Margin="20">
+                        <ProgressBar IsIndeterminate="True"
+                                     Height="20"
+                                     Margin="0,0,0,10"/>
+                        <TextBlock Text="{Binding LoadingMessage}"
+                                   HorizontalAlignment="Center"
+                                   FontSize="14"
+                                   Foreground="#FF333333"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+        <ContentControl Content="{Binding ActiveView, UpdateSourceTrigger=PropertyChanged}"/>
+    </Grid>
+    
 </UserControl>
 
 
@@ -6762,6 +7360,46 @@ namespace Agrovent.Infrastructure.Interfaces.Properties
 
 
 
+--- Файл: IAGR_ComponentViewModelCache.cs ---
+==============================================================
+// IAGR_ComponentViewModelCache.cs
+using System.Threading.Tasks;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Xarial.XCad.Documents;
+
+namespace Agrovent.Infrastructure.Interfaces.Services
+{
+    public interface IAGR_ComponentViewModelCache
+    {
+        /// <summary>
+        /// Получить ViewModel по документу или создать новую
+        /// </summary>
+        Task<IAGR_BaseComponent> GetOrCreateViewModelAsync(IXDocument document);
+
+        /// <summary>
+        /// Получить ViewModel по пути к файлу
+        /// </summary>
+        Task<IAGR_BaseComponent> GetViewModelByPathAsync(string filePath);
+
+        /// <summary>
+        /// Очистить кэш
+        /// </summary>
+        void Clear();
+
+        /// <summary>
+        /// Удалить ViewModel из кэша
+        /// </summary>
+        bool RemoveViewModel(string key);
+
+        /// <summary>
+        /// Статистика кэша
+        /// </summary>
+        (int Total, int Part, int Assembly) GetCacheStatistics();
+    }
+}
+
+
+
 --- Файл: IAGR_SpecificationItem.cs ---
 ==============================================================
 using Agrovent.Infrastructure.Enums;
@@ -6844,7 +7482,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
 [assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -6869,7 +7507,7 @@ global using global::System.Threading.Tasks;
 
 
 
---- Файл: Agrovent_0ckg2lbi_wpftmp.AssemblyInfo.cs ---
+--- Файл: Agrovent_z5vh1jeq_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
 // <auto-generated>
@@ -6887,7 +7525,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
 [assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -6900,1340 +7538,7 @@ using System.Reflection;
 
 
 
---- Файл: Agrovent_0ckg2lbi_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_2swjlihe_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_2swjlihe_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_3bm0nuqs_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_3bm0nuqs_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_4fmeqqri_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_4fmeqqri_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_4gymngdq_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_4gymngdq_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_52uztubi_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_52uztubi_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_a2wgx34i_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_a2wgx34i_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_b4oprl0j_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_b4oprl0j_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_bnyaa5l0_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_bnyaa5l0_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_ch1ulzmx_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_ch1ulzmx_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_dhocm5ka_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_dhocm5ka_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_ekx1synl_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_ekx1synl_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_es4mogtc_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_es4mogtc_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_gav4pieu_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_gav4pieu_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_gffhuiwo_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_gffhuiwo_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_gumn4i0l_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_gumn4i0l_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_hx4zt40e_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_hx4zt40e_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_kbx0xgjd_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_kbx0xgjd_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_mrqxydaf_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_mrqxydaf_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_n1mwhvjk_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_n1mwhvjk_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_r0ppb2lt_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_r0ppb2lt_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_siyujyrj_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_siyujyrj_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_sxpooqm1_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_sxpooqm1_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_tsrj1hfg_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_tsrj1hfg_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_ufqfngxm_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_ufqfngxm_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_w25bysbn_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_w25bysbn_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_whdovxyg_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_whdovxyg_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_wvtn3hgg_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_wvtn3hgg_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_xxr43aew_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_xxr43aew_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_yexvchel_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_yexvchel_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_ygyxgpnw_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_ygyxgpnw_wpftmp.GlobalUsings.g.cs ---
-==============================================================
-// <auto-generated/>
-global using global::System;
-global using global::System.Collections.Generic;
-global using global::System.Linq;
-global using global::System.Threading;
-global using global::System.Threading.Tasks;
-
-
-
-
---- Файл: Agrovent_zy1bhc1o_wpftmp.AssemblyInfo.cs ---
-==============================================================
-//------------------------------------------------------------------------------
-// <auto-generated>
-//     Этот код создан программой.
-//     Исполняемая версия:4.0.30319.42000
-//
-//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
-//     повторной генерации кода.
-// </auto-generated>
-//------------------------------------------------------------------------------
-
-using System;
-using System.Reflection;
-
-[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
-[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
-
-// Создано классом WriteCodeFragment MSBuild.
-
-
-
-
-
---- Файл: Agrovent_zy1bhc1o_wpftmp.GlobalUsings.g.cs ---
+--- Файл: Agrovent_z5vh1jeq_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -8409,7 +7714,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent.DAL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
 [assembly: System.Reflection.AssemblyProductAttribute("Agrovent.DAL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Agrovent.DAL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -8510,7 +7815,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbaef7a19d3094c66281d20a82fde4fe47af9bbc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
 [assembly: System.Reflection.AssemblyProductAttribute("Agrovent.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Agrovent.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -8523,7 +7828,7 @@ using System.Reflection;
 
 --- Файл: AGR_AssemblyPageView.g.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Pages\AGR_AssemblyPageView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "E0D998F4AFAE379675DB391915E577C85C71FA19"
+#pragma checksum "..\..\..\..\..\Views\Pages\AGR_AssemblyPageView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "FE23443B8F3FEF59C941B149F2A6D410DF24D673"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -8609,7 +7914,7 @@ namespace Agrovent.Views.Pages {
 
 --- Файл: AGR_AssemblyPageView.g.i.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Pages\AGR_AssemblyPageView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "E0D998F4AFAE379675DB391915E577C85C71FA19"
+#pragma checksum "..\..\..\..\..\Views\Pages\AGR_AssemblyPageView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "FE23443B8F3FEF59C941B149F2A6D410DF24D673"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -8668,7 +7973,7 @@ namespace Agrovent.Views.Pages {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/Agrovent;component/views/pages/agr_assemblypageview.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/Agrovent;V1.0.0.0;component/views/pages/agr_assemblypageview.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Pages\AGR_AssemblyPageView.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);
@@ -8695,7 +8000,7 @@ namespace Agrovent.Views.Pages {
 
 --- Файл: AGR_EmptyPage.g.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Pages\AGR_EmptyPage.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "207B9B8E806C4B78515E365F87FA0D60C518053A"
+#pragma checksum "..\..\..\..\..\Views\Pages\AGR_EmptyPage.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "7C0294A781C9CBFA89B805315EEE01099A3D91DC"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -8778,7 +8083,7 @@ namespace Agrovent.Views.Pages {
 
 --- Файл: AGR_EmptyPage.g.i.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Pages\AGR_EmptyPage.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "207B9B8E806C4B78515E365F87FA0D60C518053A"
+#pragma checksum "..\..\..\..\..\Views\Pages\AGR_EmptyPage.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "7C0294A781C9CBFA89B805315EEE01099A3D91DC"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -8834,7 +8139,7 @@ namespace Agrovent.Views.Pages {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/Agrovent;component/views/pages/agr_emptypage.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/Agrovent;V1.0.0.0;component/views/pages/agr_emptypage.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Pages\AGR_EmptyPage.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);
@@ -8861,7 +8166,7 @@ namespace Agrovent.Views.Pages {
 
 --- Файл: AGR_PartPageView.g.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Pages\AGR_PartPageView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "AD456326EA57D1B279D5A5E8895550E0F47E4C8C"
+#pragma checksum "..\..\..\..\..\Views\Pages\AGR_PartPageView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "926FB282A9C61EB13A13F6FEBABEBA4809C60731"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -8947,7 +8252,7 @@ namespace Agrovent.Views.Pages {
 
 --- Файл: AGR_PartPageView.g.i.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Pages\AGR_PartPageView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "AD456326EA57D1B279D5A5E8895550E0F47E4C8C"
+#pragma checksum "..\..\..\..\..\Views\Pages\AGR_PartPageView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "926FB282A9C61EB13A13F6FEBABEBA4809C60731"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -9006,7 +8311,7 @@ namespace Agrovent.Views.Pages {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/Agrovent;component/views/pages/agr_partpageview.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/Agrovent;V1.0.0.0;component/views/pages/agr_partpageview.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Pages\AGR_PartPageView.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);
@@ -9033,7 +8338,7 @@ namespace Agrovent.Views.Pages {
 
 --- Файл: AGR_SpecificationWindow.g.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "F2EF5E92FCB6D184F7A5B7E771C70FD512BB7C72"
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "816223AA5DA9D30562D56CD8A8D59F5BD1E8F182"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -9119,7 +8424,7 @@ namespace Agrovent.Views.Windows {
 
 --- Файл: AGR_SpecificationWindow.g.i.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "F2EF5E92FCB6D184F7A5B7E771C70FD512BB7C72"
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "816223AA5DA9D30562D56CD8A8D59F5BD1E8F182"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -9178,7 +8483,7 @@ namespace Agrovent.Views.Windows {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/Agrovent;component/views/windows/agr_specificationwindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/Agrovent;V1.0.0.0;component/views/windows/agr_specificationwindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);
@@ -9205,7 +8510,7 @@ namespace Agrovent.Views.Windows {
 
 --- Файл: AGR_TaskPaneView.g.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\AGR_TaskPaneView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "3C12AFAB888BDA6E29D72E6B4877B9C41D85CCF3"
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_TaskPaneView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "623C6ADEAD321895D3B4E75B5485708430D195CD"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -9292,7 +8597,7 @@ namespace Agrovent.Views.Windows {
 
 --- Файл: AGR_TaskPaneView.g.i.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\AGR_TaskPaneView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "3C12AFAB888BDA6E29D72E6B4877B9C41D85CCF3"
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_TaskPaneView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "623C6ADEAD321895D3B4E75B5485708430D195CD"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -9352,7 +8657,7 @@ namespace Agrovent.Views.Windows {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/Agrovent;component/views/windows/agr_taskpaneview.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/Agrovent;V1.0.0.0;component/views/windows/agr_taskpaneview.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Windows\AGR_TaskPaneView.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

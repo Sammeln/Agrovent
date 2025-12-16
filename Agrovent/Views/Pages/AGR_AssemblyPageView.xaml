@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:local="clr-namespace:Agrovent.Views.Pages"
              xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
              xmlns:system="clr-namespace:System;assembly=mscorlib"
@@ -212,39 +213,57 @@
                 </Expander.Header>
                 <StackPanel>
                     <!-- Текущий файл модели -->
+
                     <DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Модель (текущая):" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBlock Text="Модель (текущая):" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
                         <TextBox Text="{Binding CurrentModelFilePath, Mode=OneWay}" 
                                  Style="{StaticResource ReadOnlyTextBox}"
-                                 TextWrapping="NoWrap"/>
+                                 TextWrapping="NoWrap">         
+                            <i:Interaction.Triggers>
+                                <i:EventTrigger EventName="MouseDoubleClick">
+                                    <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
+                                       CommandParameter="{Binding CurrentModelFilePath}"/>
+                                </i:EventTrigger>
+                            </i:Interaction.Triggers>
+                        </TextBox>
                     </DockPanel>
 
-                    <!-- Файл чертежа -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
-                              Visibility="{Binding CurrentDrawFilePath, Converter={StaticResource NullToVisibilityConverter}}">
-                        <TextBlock Text="Чертеж:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding CurrentDrawFilePath, Mode=OneWay}" 
-                                   Style="{StaticResource ReadOnlyTextBox}"
-                                   TextWrapping="NoWrap"/>
-                    </DockPanel>
 
                     <!-- Хранилище модели -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}" 
                               Visibility="{Binding StorageModelFilePath, Converter={StaticResource NullToVisibilityConverter}}">
-                        <TextBlock Text="Модель (хранилище):" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBlock Text="Модель (хранилище):" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
                         <TextBox Text="{Binding StorageModelFilePath, Mode=OneWay}" 
                                    Style="{StaticResource ReadOnlyTextBox}"
-                                   TextWrapping="NoWrap"/>
+                                   TextWrapping="NoWrap">
+                            <i:Interaction.Triggers>
+                                <i:EventTrigger EventName="MouseDoubleClick">
+                                    <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
+                                       CommandParameter="{Binding StorageModelFilePath}"/>
+                                </i:EventTrigger>
+                            </i:Interaction.Triggers>
+                        </TextBox>
                     </DockPanel>
 
-                    <!-- Хранилище чертежа -->
+
+                    <!-- Хранилище модели -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}" 
-                              Visibility="{Binding StorageDrawFilePath, Converter={StaticResource NullToVisibilityConverter}}">
-                        <TextBlock Text="Чертеж (хранилище):" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding StorageDrawFilePath, Mode=OneWay}" 
+                              Visibility="{Binding ProductionModelFilePath, Converter={StaticResource NullToVisibilityConverter}}">
+                        <TextBlock Text="Модель (Производство):" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
+                        <TextBox Text="{Binding StorageModelFilePath, Mode=OneWay}" 
                                    Style="{StaticResource ReadOnlyTextBox}"
-                                   TextWrapping="NoWrap"/>
+                                   TextWrapping="NoWrap">
+                            <i:Interaction.Triggers>
+                                <i:EventTrigger EventName="MouseDoubleClick">
+                                    <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
+                                       CommandParameter="{Binding ProductionModelFilePath}"/>
+                                </i:EventTrigger>
+                            </i:Interaction.Triggers>
+                        </TextBox>
                     </DockPanel>
+
+                  
+
                 </StackPanel>
             </Expander>
 

@@ -1,6 +1,6 @@
 is_global = true
 build_property.RootNamespace = Agrovent.Infrastructure
-build_property.ProjectDir = C:\Users\Usr\Source\Repos\Agrovent2\Agrovent.Infrastructure\
+build_property.ProjectDir = C:\Users\Usr\source\repos\Agrovent\Agrovent.Infrastructure\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false
