@@ -4,7 +4,6 @@ using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Infrastructure.Interfaces.Services;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Specification;
 using Microsoft.Extensions.Logging;
@@ -17,63 +16,63 @@ namespace Agrovent.Services
         AGR_AssemblyComponentVM CreateAssemblyComponent(ISwDocument3D document);
         Task<AGR_AssemblyComponentVM> CreateAssemblyComponentAsync(ISwDocument3D document);
         Task<IAGR_BaseComponent> CreateComponentAsync(ISwDocument3D document);
+        IAGR_BaseComponent CreateComponent(ISwDocument3D document);
         AGR_PartComponentVM CreatePartComponent(ISwDocument3D document);
         Task<AGR_PartComponentVM> CreatePartComponentAsync(ISwDocument3D document);
     }
 
     public class AGR_ComponentViewModelFactory : IAGR_ComponentViewModelFactory
     {
-        private readonly IAGR_ComponentViewModelCache _cache;
         private readonly ILogger<AGR_ComponentViewModelFactory> _logger;
 
-        public AGR_ComponentViewModelFactory(
-            IAGR_ComponentViewModelCache cache,
-            ILogger<AGR_ComponentViewModelFactory> logger)
+        public AGR_ComponentViewModelFactory(ILogger<AGR_ComponentViewModelFactory> logger)
         {
-            _cache = cache;
             _logger = logger;
         }
 
         public async Task<AGR_AssemblyComponentVM> CreateAssemblyComponentAsync(ISwDocument3D document)
         {
-            _logger.LogDebug($"Creating assembly component async: {document.Title}");
+            throw new NotImplementedException();
 
-            try
-            {
-                // Используем кэш
-                var viewModel = await _cache.GetOrCreateViewModelAsync(document) as AGR_AssemblyComponentVM;
+            //_logger.LogDebug($"Creating assembly component async: {document.Title}");
 
-                // Если это новая ViewModel, асинхронно загружаем компоненты
-                if (viewModel?.AGR_TopComponents?.Count == 0)
-                {
-                    await Task.Run(() => LoadAssemblyComponents(viewModel, document));
-                }
+            //try
+            //{
+            //    // Используем кэш
+            //    var viewModel = await _cache.GetOrCreateViewModelAsync(document) as AGR_AssemblyComponentVM;
 
-                return viewModel;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error creating assembly component: {document.Title}");
-                throw;
-            }
+            //    // Если это новая ViewModel, асинхронно загружаем компоненты
+            //    if (viewModel?.AGR_TopComponents?.Count == 0)
+            //    {
+            //        await Task.Run(() => LoadAssemblyComponents(viewModel, document));
+            //    }
+
+            //    return viewModel;
+            //}
+            //catch (Exception ex)
+            //{
+            //    _logger.LogError(ex, $"Error creating assembly component: {document.Title}");
+            //    throw;
+            //}
         }
 
         public async Task<AGR_PartComponentVM> CreatePartComponentAsync(ISwDocument3D document)
         {
-            _logger.LogDebug($"Creating part component async: {document.Title}");
+            throw new NotImplementedException();
 
-            try
-            {
-                // Используем кэш
-                return await _cache.GetOrCreateViewModelAsync(document) as AGR_PartComponentVM;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error creating part component: {document.Title}");
-                throw;
-            }
+            //_logger.LogDebug($"Creating part component async: {document.Title}");
+
+            //try
+            //{
+            //    // Используем кэш
+            //    return await _cache.GetOrCreateViewModelAsync(document) as AGR_PartComponentVM;
+            //}
+            //catch (Exception ex)
+            //{
+            //    _logger.LogError(ex, $"Error creating part component: {document.Title}");
+            //    throw;
+            //}
         }
-
         public async Task<IAGR_BaseComponent> CreateComponentAsync(ISwDocument3D document)
         {
             _logger.LogDebug($"Creating component async: {document.Title}");
@@ -82,6 +81,17 @@ namespace Agrovent.Services
             {
                 ISwPart part => await CreatePartComponentAsync(part),
                 ISwAssembly assembly => await CreateAssemblyComponentAsync(assembly),
+                _ => throw new NotSupportedException($"Document type not supported: {document.GetType()}")
+            };
+        }
+        public IAGR_BaseComponent CreateComponent(ISwDocument3D document)
+        {
+            _logger.LogDebug($"Creating component async: {document.Title}");
+
+            return document switch
+            {
+                ISwPart part => CreatePartComponent(part),
+                ISwAssembly assembly => CreateAssemblyComponent(assembly),
                 _ => throw new NotSupportedException($"Document type not supported: {document.GetType()}")
             };
         }

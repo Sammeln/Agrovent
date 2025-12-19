@@ -19,7 +19,7 @@ namespace Agrovent.Infrastructure.Interfaces.Specification
 
         // Свойства для краски
         public string? PaintName { get; }
-        public decimal? PaintCount { get; }
+        //public decimal? PaintCount { get; }
 
     }
 }

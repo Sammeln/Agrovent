@@ -24,6 +24,7 @@ namespace Agrovent.ViewModels.Base
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
+        
         public int Version
         {
             get
@@ -41,6 +42,7 @@ namespace Agrovent.ViewModels.Base
             }
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
+
         public int HashSum
         {
             get
@@ -55,6 +57,7 @@ namespace Agrovent.ViewModels.Base
 
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
+
         public IAGR_AvaArticleModel AvaArticle { get; set; }
         public IAGR_PropertiesCollection PropertiesCollection { get; set; }
 
@@ -64,7 +67,6 @@ namespace Agrovent.ViewModels.Base
             set
             {
                 OnPropertyChanged(nameof(ComponentType));
-                //ComponentTypeChanged?.Invoke(value);
                 switch (value)
                 {
                     case AGR_ComponentType_e.Assembly:
@@ -87,6 +89,7 @@ namespace Agrovent.ViewModels.Base
                 }
             }
         }
+
         public AGR_AvaType_e AvaType
         {
             get
@@ -113,6 +116,7 @@ namespace Agrovent.ViewModels.Base
                 }
             }
         }
+
 
         public AGR_BaseComponent(ISwDocument3D swDocument3D)
         {

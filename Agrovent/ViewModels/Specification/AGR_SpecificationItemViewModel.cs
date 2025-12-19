@@ -14,17 +14,81 @@ namespace Agrovent.ViewModels.Specification
         public IAGR_BaseComponent Component => _component;
         public string Name => _component.Name;
         public string ConfigName => _component.ConfigName;
-        public string PartNumber => Component.ComponentType==AGR_ComponentType_e.Purchased ? "" : _component.PartNumber;
+        public string PartNumber => _component.PartNumber;
         public int Quantity => _quantity;
-
         public AGR_ComponentType_e ComponentType => _component.ComponentType;
-        // Свойства для материалов (только для деталей)
-        public string? MaterialName => (_component as AGR_PartComponentVM)?.BaseMaterial?.Name;
-        public decimal? MaterialCount => (_component as AGR_PartComponentVM)?.BaseMaterialCount;
 
-        // Свойства для краски
-        public string? PaintName => (_component as AGR_PartComponentVM)?.Paint?.Name;
-        public decimal? PaintCount => (_component as AGR_PartComponentVM)?.PaintCount;
+        // Общие свойства для деталей
+        public string MaterialName
+        {
+            get
+            {
+                if (_component is AGR_PartComponentVM part)
+                    return part.BaseMaterial?.Name;
+                return null;
+            }
+        }
+
+        public decimal? MaterialCount
+        {
+            get
+            {
+                if (_component is AGR_PartComponentVM part)
+                    return part.BaseMaterialCount;
+                return null;
+            }
+        }
+
+        public string PaintName
+        {
+            get
+            {
+                if (_component is AGR_PartComponentVM part)
+                    return part.Paint?.Name;
+                if (_component is AGR_AssemblyComponentVM assembly)
+                {
+                    // Для сборки можно попробовать получить покраску
+                    // Или вернуть null, если не применимо
+                    return null;
+                }
+                return null;
+            }
+        }
+
+        // Свойство для толщины (только для листовых деталей)
+        public string SheetMetalThickness
+        {
+            get
+            {
+                if (_component.ComponentType == AGR_ComponentType_e.SheetMetallPart)
+                {
+                    // Получаем свойство толщины из коллекции свойств
+                    var thicknessProp = _component.PropertiesCollection?.Properties?
+                        .FirstOrDefault(p => p.Name.Contains("толщина", StringComparison.OrdinalIgnoreCase) ||
+                                            p.Name.Contains("толщин", StringComparison.OrdinalIgnoreCase));
+
+                    return thicknessProp?.Value?.ToString() ?? "N/A";
+                }
+                return null;
+            }
+        }
+
+        // Свойство для артикула (только для покупных)
+        public string Article
+        {
+            get
+            {
+                if (_component.ComponentType == AGR_ComponentType_e.Purchased)
+                {
+                    return _component.AvaArticle?.Article.ToString() ?? "N/A";
+                }
+                return null;
+            }
+        }
+
+        // Свойства для форматированного отображения
+        public string MaterialInfo => MaterialName != null ? $"{MaterialName} ({MaterialCount:F2})" : null;
+        public string QuantityString => Quantity.ToString();
 
         public AGR_SpecificationItemVM(IAGR_BaseComponent component, int quantity)
         {

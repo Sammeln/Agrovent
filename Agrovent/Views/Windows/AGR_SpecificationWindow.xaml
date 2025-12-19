@@ -5,86 +5,181 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Agrovent.Views.Windows"
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Specification"
-        xmlns:system="clr-namespace:System;assembly=mscorlib"
         xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
-        xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
         d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_SpecificationViewModel}}"
         mc:Ignorable="d"
-        Title="AGR_SpecificationWindow" Height="450" Width="800">
+        Title="{Binding WindowTitle}" 
+        Height="700" 
+        Width="1200"
+        WindowStartupLocation="CenterOwner">
 
     <Window.Resources>
         <ResourceDictionary>
-            <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
-                    ObjectType="{x:Type system:Enum}">
-                <ObjectDataProvider.MethodParameters>
-                    <x:Type TypeName="enum:AGR_AvaType_e"/>
-                </ObjectDataProvider.MethodParameters>
-            </ObjectDataProvider>
-            <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
-            <converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Подключаем стили из PartComponentStyles.xaml -->
+                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
+                <!-- Подключаем стили спецификации -->
+                <ResourceDictionary Source="../../Resources/Styles/SpecificationStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Конвертеры -->
+            <converter:GroupHeaderColorConverter x:Key="GroupHeaderColorConverter"/>
+            <!--<converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>-->
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
+            <!-- Конвертеры видимости для разных типов компонентов -->
+            <!--<converter:ComponentTypeToVisibilityConverter x:Key="MaterialVisibilityConverter" 
+                Parameter="Part,SheetMetallPart"/>
+            <converter:ComponentTypeToVisibilityConverter x:Key="PaintVisibilityConverter" 
+                Parameter="Assembly,Part,SheetMetallPart"/>
+            <converter:ComponentTypeToVisibilityConverter x:Key="ThicknessVisibilityConverter" 
+                Parameter="SheetMetallPart"/>-->
+
         </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
-        <DataGrid AutoGenerateColumns="True" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizingWhenGrouping="True"
-                  CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="None" HeadersVisibility="Column"
-                  >
-            <DataGrid.Resources>
-                <CollectionViewSource x:Key="CVS_Components" Source="{Binding Components}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок окна -->
+        <Border Grid.Row="0" Style="{StaticResource WindowHeaderStyle}">
+            <StackPanel Orientation="Horizontal">
+
+                <TextBlock Text="{Binding WindowTitle}" 
+                           Foreground="White" 
+                           FontSize="16" 
+                           FontWeight="Bold"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Основной контент - DataGrid с группировкой -->
+        <Grid Grid.Row="2" Margin="16">
+            <Grid.Resources>
+                <!-- CollectionViewSource для группировки компонентов -->
+                <CollectionViewSource x:Key="GroupedComponents" 
+                                      Source="{Binding Components}">
                     <CollectionViewSource.GroupDescriptions>
                         <PropertyGroupDescription PropertyName="ComponentType"/>
                     </CollectionViewSource.GroupDescriptions>
+                    <CollectionViewSource.SortDescriptions>
+                        <scm:SortDescription PropertyName="ComponentType" Direction="Ascending"/>
+                        <scm:SortDescription PropertyName="Name" Direction="Ascending"/>
+                    </CollectionViewSource.SortDescriptions>
                 </CollectionViewSource>
-            </DataGrid.Resources>
+            </Grid.Resources>
 
-            <DataGrid.ItemsSource>
-                <Binding Source="{StaticResource CVS_Components}"/>
-            </DataGrid.ItemsSource>
-            <DataGrid.GroupStyle>
-                <GroupStyle>
-                    <GroupStyle.ContainerStyle>
-                        <Style TargetType="{x:Type GroupItem}">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="{x:Type GroupItem}">
-                                        <Expander IsExpanded="True">
-                                            <Expander.Header>
-                                                <DockPanel>
-                                                    <TextBlock FontWeight="Bold" Text="{Binding Path=Name}" Margin="0 0 5 0"/>
-                                                    <TextBlock FontWeight="Bold" Text="{Binding Path=ItemCount}"/>
-                                                </DockPanel>
-                                            </Expander.Header>
-                                            <Expander.Content>
-                                                <ItemsPresenter />
-                                            </Expander.Content>
-                                        </Expander>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </GroupStyle.ContainerStyle>
-                </GroupStyle>
-                <GroupStyle>
-                    <GroupStyle.ContainerStyle>
-                        <Style TargetType="{x:Type GroupItem}">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="{x:Type GroupItem}">
-                                        <ItemsPresenter />
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </GroupStyle.ContainerStyle>
-                </GroupStyle>
+            <!-- DataGrid с группировкой -->
+            <DataGrid ItemsSource="{Binding Source={StaticResource GroupedComponents}}"
+                      Style="{StaticResource SpecificationDataGrid}"
+                      AutoGenerateColumns="False"
+                      CanUserSortColumns="True"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto">
 
-            </DataGrid.GroupStyle>
-            <DataGrid.Columns>
-                
-            </DataGrid.Columns>
-        </DataGrid>
+                <!-- Настройка группировки -->
+                <DataGrid.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.ContainerStyle>
+                            <Style TargetType="{x:Type GroupItem}" BasedOn="{StaticResource GroupHeaderStyle}"/>
+                        </GroupStyle.ContainerStyle>
+                    </GroupStyle>
+                </DataGrid.GroupStyle>
 
+                <!-- Колонки DataGrid -->
+                <DataGrid.Columns>
+                    <!-- Наименование -->
+                    <DataGridTextColumn Header="Наименование" 
+                                        Binding="{Binding Name}" 
+                                        Width="3*"
+                                        CanUserSort="True"
+                                        ElementStyle="{StaticResource VerticalAlignedTextStyle}"
+                                        >
+                    </DataGridTextColumn>
 
+                    <!-- PartNumber/Артикул -->
+                    <DataGridTextColumn Header="PartNumber / Артикул" 
+                                        Width="2*"
+                                        CanUserSort="True"
+                                        ElementStyle="{StaticResource CenterAlignedTextStyle}">
+                        <DataGridTextColumn.Binding>
+                            <MultiBinding StringFormat="{}{0}">
+                                <Binding Path="PartNumber"/>
+                                <Binding Path="Article"/>
+                            </MultiBinding>
+                        </DataGridTextColumn.Binding>
+                    </DataGridTextColumn>
+
+                    <!-- Количество -->
+                    <DataGridTextColumn Header="Количество" 
+                                        Binding="{Binding Quantity}" 
+                                        Width="*"
+                                        CanUserSort="True"
+                                        ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+
+                    <!-- Толщина -->
+                    <DataGridTextColumn Header="Толщина" 
+                                        Binding="{Binding SheetMetalThickness}" 
+                                        Width="*"
+                                        ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+
+                    <!-- Материал -->
+                    <DataGridTextColumn Header="Материал" 
+                                        Binding="{Binding MaterialInfo}" 
+                                        Width="2*"
+                                        ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+
+                    <!-- Краска -->
+                    <DataGridTextColumn Header="Краска" 
+                                        Binding="{Binding PaintName}" 
+                                        Width="2*"
+                                        ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Сообщение при отсутствии компонентов -->
+            <TextBlock Text="Нет компонентов для отображения" 
+                       Style="{StaticResource EmptySpecificationStyle}"
+                       Visibility="{Binding HasComponents, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=true}"/>
+        </Grid>
+
+        <!-- Панель действий -->
+        <Border Grid.Row="3" 
+                Background="White" 
+                Padding="16,12" 
+                BorderBrush="#E0E0E0" 
+                BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Обновить" 
+                        Style="{StaticResource ActionButtonStyle}"
+                        Command="{Binding RefreshCommand}"/>
+
+                <Button Content="Экспорт в Excel" 
+                        Style="{StaticResource ActionButtonStyle}"
+                        Margin="12,0,0,0"
+                        Background="#4CAF50" 
+                        Foreground="White"/>
+
+                <Button Content="Печать" 
+                        Style="{StaticResource ActionButtonStyle}"
+                        Margin="12,0,0,0"
+                        Background="#2196F3" 
+                        Foreground="White"/>
+
+                <Button Content="Закрыть" 
+                        Style="{StaticResource ActionButtonStyle}"
+                        Margin="12,0,0,0"
+                        Command="{Binding CloseCommand}"
+                        Background="#F44336" 
+                        Foreground="White"/>
+            </StackPanel>
+        </Border>
 
     </Grid>
 </Window>
