@@ -11,12 +11,21 @@ namespace Agrovent.ViewModels.Properties
         public IXProperty Length
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankLen);
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankLen).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankLen).Value = value;
+                OnPropertyChanged(nameof(Length));
+            }
+
         }
         public IXProperty Width
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankWid);
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankWid).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankWid).Value = value;
+                OnPropertyChanged(nameof(Width));
+            }
         }
         public AGR_PartPropertiesCollection(ISwDocument3D document3D) : base(document3D)
         {

@@ -23,7 +23,11 @@ namespace Agrovent.DAL.Entities.Components
         public string Name { get; set; }
         public string ConfigName { get; set; }
 
-        // Ссылка на статью Ava
+
+        // Ссылка на артикул Ava
+        public int? AvaArticleArticle { get; set; }
+
+        [ForeignKey("AvaArticleArticle")]
         public AvaArticleModel? AvaArticle { get; set; }
 
         // Типы

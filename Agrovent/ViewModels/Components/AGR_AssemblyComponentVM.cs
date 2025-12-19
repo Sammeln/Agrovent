@@ -41,6 +41,13 @@ namespace Agrovent.ViewModels.Components
         #region METHODS
         public IEnumerable<IAGR_SpecificationItem> GetChildComponents()
         {
+            // Получаем компоненты верхнего уровня
+            var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_ActiveComponents().AGR_BaseComponents();
+            // Группируем и создаем SpecificationItemVM для верхнего уровня
+            var groupedTop = topComponents
+                .GroupBy(c => new { c.Name, c.ConfigName })
+                .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
+            AGR_TopComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
             return AGR_TopComponents;
         }
         public async Task SaveToDatabaseAsync()
@@ -91,13 +98,7 @@ namespace Agrovent.ViewModels.Components
         {
             var assem = swDocument3D as ISwAssembly;
 
-            // Получаем компоненты верхнего уровня
-            var topComponents = assem.Configurations.Active.Components.AGR_ActiveComponents().AGR_BaseComponents();
-            // Группируем и создаем SpecificationItemVM для верхнего уровня
-            var groupedTop = topComponents
-                .GroupBy(c => new { c.Name, c.ConfigName })
-                .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
-            AGR_TopComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
+
 
 
         } 

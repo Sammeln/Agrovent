@@ -2,32 +2,45 @@
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces.Properties;
+using Agrovent.ViewModels.Base;
 using Xarial.XCad.Data;
 using Xarial.XCad.SolidWorks.Data;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Properties
 {
-    internal class AGR_BasePropertiesCollection : IAGR_BasePropertiesCollection
+    internal class AGR_BasePropertiesCollection : BaseViewModel, IAGR_BasePropertiesCollection
     {
         private ISwDocument3D mDocument;
         private ISwConfiguration mConfiguration;
         internal ISwCustomPropertiesCollection mProperties;
 
-        public IXProperty Volume 
+        public IXProperty Volume
         {
-            get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankVolume); 
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankVolume).Value = value; 
+            get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankVolume);
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankVolume).Value = value;
+                OnPropertyChanged(nameof(Volume));
+            }
         }
-        public IXProperty Mass 
+        public IXProperty Mass
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankMass);
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankMass).Value = value; 
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankMass).Value = value;
+                OnPropertyChanged(nameof(Mass));
+            }
         }
-        public IXProperty SurfaceArea 
+        public IXProperty SurfaceArea
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankArea);
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankArea).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankArea).Value = value;
+                OnPropertyChanged(nameof(SurfaceArea));
+            }
         }
         public ICollection<IXProperty> Properties { get; set; }
 

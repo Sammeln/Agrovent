@@ -3,6 +3,7 @@ using System;
 using Agrovent.DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Agrovent.DAL.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20251219144310_AddMatchModelAndUpdateComponentVersion")]
+    partial class AddMatchModelAndUpdateComponentVersion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -251,9 +254,6 @@ namespace Agrovent.DAL.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AvaArticleArticle")
-                        .HasColumnType("integer");
-
                     b.Property<int>("AvaType")
                         .HasColumnType("integer");
 
@@ -273,6 +273,10 @@ namespace Agrovent.DAL.Migrations
                     b.Property<int>("HashSum")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("MatchModelId")
+                        .HasColumnType("integer")
+                        .HasColumnName("match_model_id");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
@@ -285,15 +289,55 @@ namespace Agrovent.DAL.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AvaArticleArticle");
-
                     b.HasIndex("HashSum")
                         .IsUnique();
+
+                    b.HasIndex("MatchModelId");
 
                     b.HasIndex("ComponentId", "Version")
                         .IsUnique();
 
                     b.ToTable("ComponentVersions");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.Components.MatchModel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ArticleModelId")
+                        .HasColumnType("integer")
+                        .HasColumnName("article_model_id");
+
+                    b.Property<string>("ConfigName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("config_name");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PartName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("part_name");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleModelId");
+
+                    b.HasIndex("PartName", "ConfigName")
+                        .IsUnique();
+
+                    b.ToTable("match_models");
                 });
 
             modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.Operation", b =>
@@ -433,20 +477,30 @@ namespace Agrovent.DAL.Migrations
 
             modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentVersion", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.Components.AvaArticleModel", "AvaArticle")
-                        .WithMany()
-                        .HasForeignKey("AvaArticleArticle")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("Agrovent.DAL.Entities.Components.Component", "Component")
                         .WithMany("Versions")
                         .HasForeignKey("ComponentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("AvaArticle");
+                    b.HasOne("Agrovent.DAL.Entities.Components.MatchModel", "MatchModel")
+                        .WithMany()
+                        .HasForeignKey("MatchModelId");
 
                     b.Navigation("Component");
+
+                    b.Navigation("MatchModel");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.Components.MatchModel", b =>
+                {
+                    b.HasOne("Agrovent.DAL.Entities.Components.AvaArticleModel", "ArticleModel")
+                        .WithMany()
+                        .HasForeignKey("ArticleModelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ArticleModel");
                 });
 
             modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.Operation", b =>

@@ -557,20 +557,30 @@ namespace Agrovent.DAL.Repositories
 
         private int CalculateComponentHash(IAGR_BaseComponent component)
         {
-            // Используем HashSum из компонента, если он задан
-            if (component.HashSum != 0)
-                return component.HashSum;
-
-            // Иначе вычисляем хеш на основе важных свойств
+            // Вычисляем хеш на основе важных свойств
             unchecked
             {
                 int hash = 17;
-                hash = hash * 23 + (component.Name?.GetHashCode(StringComparison.Ordinal) ?? 0);
-                hash = hash * 23 + (component.ConfigName?.GetHashCode(StringComparison.Ordinal) ?? 0);
-                hash = hash * 23 + (component.PartNumber?.GetHashCode(StringComparison.Ordinal) ?? 0);
-                hash = hash * 23 + component.ComponentType.GetHashCode();
-                hash = hash * 23 + component.AvaType.GetHashCode();
+
+                if (component is IAGR_Part part)
+                {
+                    hash = hash + (component.Name?.GetHashCode(StringComparison.Ordinal) ?? 0);
+                }
+                if (component is IAGR_Assembly assembly)
+                {
+
+                }
+
                 return hash;
+
+
+                //int hash = 17;
+                //hash = hash * 23 + (component.Name?.GetHashCode(StringComparison.Ordinal) ?? 0);
+                //hash = hash * 23 + (component.ConfigName?.GetHashCode(StringComparison.Ordinal) ?? 0);
+                //hash = hash * 23 + (component.PartNumber?.GetHashCode(StringComparison.Ordinal) ?? 0);
+                //hash = hash * 23 + component.ComponentType.GetHashCode();
+                //hash = hash * 23 + component.AvaType.GetHashCode();
+                //return hash;
             }
         }
 

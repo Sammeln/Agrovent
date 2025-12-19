@@ -14,6 +14,7 @@ namespace Agrovent.Infrastructure.Interfaces.Components.Base
         abstract AGR_ComponentType_e ComponentType { get; set; }
         abstract AGR_AvaType_e AvaType { get; set; }
         abstract IAGR_PropertiesCollection PropertiesCollection { get; set; }
+        abstract bool IsInDatabase { get; set; }
 
     }
 }
