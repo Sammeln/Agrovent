@@ -1,4 +1,5 @@
-﻿using Agrovent.Infrastructure.Enums;
+﻿using Agrovent.DAL.Infrastructure.Interfaces;
+using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces.Properties;
 
 namespace Agrovent.Infrastructure.Interfaces.Components.Base
@@ -10,7 +11,7 @@ namespace Agrovent.Infrastructure.Interfaces.Components.Base
         abstract string PartNumber { get; set; }
         abstract int Version { get; set; }
         abstract int HashSum { get; set; }
-        abstract IAGR_AvaArticleModel AvaArticle { get; set; }
+        abstract IAGR_MatchModel MatchModel { get; set; }
         abstract AGR_ComponentType_e ComponentType { get; set; }
         abstract AGR_AvaType_e AvaType { get; set; }
         abstract IAGR_PropertiesCollection PropertiesCollection { get; set; }

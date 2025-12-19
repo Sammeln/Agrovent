@@ -54,7 +54,6 @@ namespace Agrovent.Infrastructure.Extensions
             //SheetMetallPart,
             //Purchased
         }
-
         public static IAGR_BaseComponent AGR_BaseComponent(this IXComponent xComp)
         {
             var xDoc = xComp.ReferencedDocument as ISwDocument3D;

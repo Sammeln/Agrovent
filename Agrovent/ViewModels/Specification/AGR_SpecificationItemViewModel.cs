@@ -80,7 +80,7 @@ namespace Agrovent.ViewModels.Specification
             {
                 if (_component.ComponentType == AGR_ComponentType_e.Purchased)
                 {
-                    return _component.AvaArticle?.Article.ToString() ?? "N/A";
+                    return _component.MatchModel.ArticleModel?.Article.ToString() ?? "N/A";
                 }
                 return null;
             }

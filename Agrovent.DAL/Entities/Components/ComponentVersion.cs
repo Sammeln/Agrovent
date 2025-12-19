@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using Agrovent.DAL.Entities.Base;
+using Agrovent.DAL.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces;
 
@@ -24,7 +25,7 @@ namespace Agrovent.DAL.Entities.Components
         public string ConfigName { get; set; }
 
         // Ссылка на статью Ava
-        public AvaArticleModel? AvaArticle { get; set; }
+        public IAGR_MatchModel? MatchModel{ get; set; }
 
         // Типы
         public AGR_ComponentType_e ComponentType { get; set; }

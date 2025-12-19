@@ -9,6 +9,7 @@ using Agrovent.Infrastructure.Interfaces.Properties;
 using Agrovent.Infrastructure.Interfaces;
 using Microsoft.VisualBasic.FileIO;
 using Xarial.XCad.Documents;
+using Agrovent.DAL.Infrastructure.Interfaces;
 
 namespace Agrovent.DAL.Repositories
 {
@@ -154,7 +155,7 @@ namespace Agrovent.DAL.Repositories
                     HashSum = hashSum,
                     Name = component.Name,
                     ConfigName = component.ConfigName,
-                    AvaArticle = component.AvaArticle as AvaArticleModel,
+                    MatchModel = component.MatchModel,
                     ComponentType = component.ComponentType,
                     AvaType = component.AvaType,
                     CreatedAt = DateTime.UtcNow
@@ -562,14 +563,6 @@ namespace Agrovent.DAL.Repositories
             {
                 int hash = 17;
 
-                if (component is IAGR_Part part)
-                {
-                    hash = hash + (component.Name?.GetHashCode(StringComparison.Ordinal) ?? 0);
-                }
-                if (component is IAGR_Assembly assembly)
-                {
-
-                }
 
                 return hash;
 

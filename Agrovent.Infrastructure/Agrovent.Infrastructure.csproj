@@ -1,16 +1,14 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>net6.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Xarial.XCad" Version="0.8.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Interfaces\Services\" />
   </ItemGroup>
 
 </Project>

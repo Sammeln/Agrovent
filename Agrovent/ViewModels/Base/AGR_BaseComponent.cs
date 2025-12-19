@@ -8,15 +8,19 @@ using Agrovent.ViewModels.Properties;
 using Xarial.XCad.SolidWorks.Data;
 using Xarial.XCad.SolidWorks.Documents;
 using Agrovent.Infrastructure.Interfaces;
+using Agrovent.DAL.Infrastructure.Interfaces;
 
 namespace Agrovent.ViewModels.Base
 {
     public class AGR_BaseComponent : BaseViewModel, IAGR_BaseComponent
     {
+        #region FIELDS
         internal ISwDocument3D mDocument;
         internal ISwConfiguration mConfiguration;
-        internal ISwCustomPropertiesCollection mProperties;
+        internal ISwCustomPropertiesCollection mProperties; 
+        #endregion
 
+        #region PROPS
         public string Name { get => Path.GetFileNameWithoutExtension(mDocument.Title); }
         public string ConfigName { get => mConfiguration.Name; }
         public string PartNumber
@@ -24,7 +28,7 @@ namespace Agrovent.ViewModels.Base
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
-        
+
         public int Version
         {
             get
@@ -58,7 +62,7 @@ namespace Agrovent.ViewModels.Base
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
 
-        public IAGR_AvaArticleModel AvaArticle { get; set; }
+        public IAGR_MatchModel MatchModel { get; set; }
         public IAGR_PropertiesCollection PropertiesCollection { get; set; }
 
         public AGR_ComponentType_e ComponentType
@@ -116,7 +120,29 @@ namespace Agrovent.ViewModels.Base
                 }
             }
         }
+        #endregion
 
+        #region METHODS
+
+        public int GetHashSum()
+        {
+            int hash = 17;
+            if (mDocument is ISwPart part)
+            {
+                foreach (var feat in part.Features)
+                {
+                    hash += feat.Name.GetHashCode();
+                }
+                foreach (var dim in part.Dimensions)
+                {
+                    hash += dim.Value.GetHashCode();
+                }
+            }
+
+            return hash;
+        }
+
+        #endregion
 
         public AGR_BaseComponent(ISwDocument3D swDocument3D)
         {
