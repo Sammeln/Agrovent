@@ -486,6 +486,19 @@
             "related": ".xml"
           }
         }
+      },
+      "Agrovent.Infrastructure/1.0.0": {
+        "type": "project",
+        "framework": ".NETStandard,Version=v2.1",
+        "dependencies": {
+          "Xarial.XCad": "0.8.2"
+        },
+        "compile": {
+          "bin/placeholder/Agrovent.Infrastructure.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/Agrovent.Infrastructure.dll": {}
+        }
       }
     }
   },
@@ -1219,10 +1232,16 @@
         "xarial.xcad.0.8.2.nupkg.sha512",
         "xarial.xcad.nuspec"
       ]
+    },
+    "Agrovent.Infrastructure/1.0.0": {
+      "type": "project",
+      "path": "../Agrovent.Infrastructure/Agrovent.Infrastructure.csproj",
+      "msbuildProject": "../Agrovent.Infrastructure/Agrovent.Infrastructure.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net6.0": [
+      "Agrovent.Infrastructure >= 1.0.0",
       "Microsoft.EntityFrameworkCore >= 7.0.20",
       "Microsoft.EntityFrameworkCore.Tools >= 7.0.20",
       "Npgsql.EntityFrameworkCore.PostgreSQL >= 7.0.18",
@@ -1262,7 +1281,11 @@
       "frameworks": {
         "net6.0": {
           "targetAlias": "net6.0",
-          "projectReferences": {}
+          "projectReferences": {
+            "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj": {
+              "projectPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj"
+            }
+          }
         }
       },
       "warningProperties": {

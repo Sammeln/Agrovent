@@ -10,6 +10,7 @@ using System.Reflection;
 using System.IO;
 using Xarial.XCad.Documents;
 using Agrovent.ViewModels.TaskPane;
+using Agrovent.DAL.Services;
 
 namespace Agrovent
 {
@@ -49,7 +50,7 @@ namespace Agrovent
 
             // 5. Сервисы
             services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
-            services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
+            services.AddScoped<IComponentDataService, ComponentDataService>();
 
             // 6. ViewModels (если нужно)
             services.AddScoped<AGR_TaskPaneViewModel>();

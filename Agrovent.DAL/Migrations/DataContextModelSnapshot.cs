@@ -296,6 +296,82 @@ namespace Agrovent.DAL.Migrations
                     b.ToTable("ComponentVersions");
                 });
 
+            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.Operation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("LaborIntensityMinutes")
+                        .HasColumnType("numeric")
+                        .HasColumnName("labor_intensity_minutes");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Section")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("section");
+
+                    b.Property<int>("SequenceNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence_number");
+
+                    b.Property<int>("TechnologicalProcessId")
+                        .HasColumnType("integer")
+                        .HasColumnName("technological_process_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TechnologicalProcessId");
+
+                    b.HasIndex("TechnologicalProcessId", "SequenceNumber")
+                        .IsUnique();
+
+                    b.ToTable("operations");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PartNumber")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("part_number");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartNumber")
+                        .IsUnique();
+
+                    b.ToTable("technological_processes");
+                });
+
             modelBuilder.Entity("Agrovent.DAL.Entities.Components.AssemblyStructure", b =>
                 {
                     b.HasOne("Agrovent.DAL.Entities.Components.ComponentVersion", "AssemblyVersion")
@@ -359,7 +435,8 @@ namespace Agrovent.DAL.Migrations
                 {
                     b.HasOne("Agrovent.DAL.Entities.Components.AvaArticleModel", "AvaArticle")
                         .WithMany()
-                        .HasForeignKey("AvaArticleArticle");
+                        .HasForeignKey("AvaArticleArticle")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Agrovent.DAL.Entities.Components.Component", "Component")
                         .WithMany("Versions")
@@ -368,6 +445,29 @@ namespace Agrovent.DAL.Migrations
                         .IsRequired();
 
                     b.Navigation("AvaArticle");
+
+                    b.Navigation("Component");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.Operation", b =>
+                {
+                    b.HasOne("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", "TechnologicalProcess")
+                        .WithMany("Operations")
+                        .HasForeignKey("TechnologicalProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TechnologicalProcess");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", b =>
+                {
+                    b.HasOne("Agrovent.DAL.Entities.Components.Component", "Component")
+                        .WithMany()
+                        .HasForeignKey("PartNumber")
+                        .HasPrincipalKey("PartNumber")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Component");
                 });
@@ -389,6 +489,11 @@ namespace Agrovent.DAL.Migrations
                     b.Navigation("Material");
 
                     b.Navigation("Properties");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", b =>
+                {
+                    b.Navigation("Operations");
                 });
 #pragma warning restore 612, 618
         }

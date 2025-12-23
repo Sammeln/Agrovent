@@ -1,0 +1,60 @@
+{
+  "runtimeTarget": {
+    "name": ".NETStandard,Version=v2.1/",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETStandard,Version=v2.1": {},
+    ".NETStandard,Version=v2.1/": {
+      "Agrovent.Infrastructure/1.0.0": {
+        "dependencies": {
+          "Xarial.XCad": "0.8.2"
+        },
+        "runtime": {
+          "Agrovent.Infrastructure.dll": {}
+        }
+      },
+      "System.Drawing.Common/7.0.0": {
+        "runtime": {
+          "lib/netstandard2.0/System.Drawing.Common.dll": {
+            "assemblyVersion": "7.0.0.0",
+            "fileVersion": "7.0.22.51805"
+          }
+        }
+      },
+      "Xarial.XCad/0.8.2": {
+        "dependencies": {
+          "System.Drawing.Common": "7.0.0"
+        },
+        "runtime": {
+          "lib/netstandard2.1/Xarial.XCad.dll": {
+            "assemblyVersion": "0.8.2.5232",
+            "fileVersion": "0.8.2.5232"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Agrovent.Infrastructure/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.Drawing.Common/7.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-KIX+oBU38pxkKPxvLcLfIkOV5Ien8ReN78wro7OF5/erwcmortzeFx+iBswlh2Vz6gVne0khocQudGwaO1Ey6A==",
+      "path": "system.drawing.common/7.0.0",
+      "hashPath": "system.drawing.common.7.0.0.nupkg.sha512"
+    },
+    "Xarial.XCad/0.8.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-W7lk5n1lf6ELxbVIYOZbHmIqUJB6P/czb0hExm9L74xFhgNQFrkRcRotbyf7a5BScDFEPb9tNpqKh8LqhTKOUw==",
+      "path": "xarial.xcad/0.8.2",
+      "hashPath": "xarial.xcad.0.8.2.nupkg.sha512"
+    }
+  }
+}

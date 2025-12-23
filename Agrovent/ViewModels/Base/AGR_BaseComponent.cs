@@ -8,7 +8,6 @@ using Agrovent.ViewModels.Properties;
 using Xarial.XCad.SolidWorks.Data;
 using Xarial.XCad.SolidWorks.Documents;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.DAL.Infrastructure.Interfaces;
 
 namespace Agrovent.ViewModels.Base
 {
@@ -28,7 +27,6 @@ namespace Agrovent.ViewModels.Base
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
-
         public int Version
         {
             get
@@ -46,7 +44,6 @@ namespace Agrovent.ViewModels.Base
             }
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
-
         public int HashSum
         {
             get
@@ -62,9 +59,28 @@ namespace Agrovent.ViewModels.Base
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
 
-        public IAGR_MatchModel MatchModel { get; set; }
-        public IAGR_PropertiesCollection PropertiesCollection { get; set; }
+        #region Property - IAGR_AvaArticleModel _AvaArticle
+        private IAGR_AvaArticleModel _AvaArticle;
+        public IAGR_AvaArticleModel AvaArticle
+        {
+            get => _AvaArticle;
+            set
+            {
+                Set(ref _AvaArticle, value);
+            }
+        }
 
+        public bool HasAvaArticle => _AvaArticle != null;
+
+        private bool _isInDatabase;
+        public bool IsInDatabase
+        {
+            get => _isInDatabase;
+            set => Set(ref _isInDatabase, value);
+        }
+
+        #endregion 
+        public IAGR_PropertiesCollection PropertiesCollection { get; set; }
         public AGR_ComponentType_e ComponentType
         {
             get => mDocument.ComponentType();
@@ -93,7 +109,6 @@ namespace Agrovent.ViewModels.Base
                 }
             }
         }
-
         public AGR_AvaType_e AvaType
         {
             get
@@ -119,11 +134,10 @@ namespace Agrovent.ViewModels.Base
                     ComponentType = mDocument.ComponentType();
                 }
             }
-        }
+        } 
         #endregion
 
         #region METHODS
-
         public int GetHashSum()
         {
             int hash = 17;
@@ -138,11 +152,11 @@ namespace Agrovent.ViewModels.Base
                     hash += dim.Value.GetHashCode();
                 }
             }
-
             return hash;
         }
-
         #endregion
+
+        #region CTOR
 
         public AGR_BaseComponent(ISwDocument3D swDocument3D)
         {
@@ -152,6 +166,8 @@ namespace Agrovent.ViewModels.Base
 
             ComponentType = mDocument.ComponentType();
 
-        }
+        } 
+        #endregion
+
     }
 }

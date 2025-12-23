@@ -8,11 +8,11 @@
     ".NETCoreApp,Version=v6.0": {
       "Agrovent.DAL/1.0.0": {
         "dependencies": {
+          "Agrovent.Infrastructure": "1.0.0",
           "Microsoft.EntityFrameworkCore": "7.0.20",
           "Microsoft.EntityFrameworkCore.Tools": "7.0.20",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "7.0.18",
-          "Xarial.XCad": "0.8.2",
-          "Agrovent.Infrastructure": "1.0.0.0"
+          "Xarial.XCad": "0.8.2"
         },
         "runtime": {
           "Agrovent.DAL.dll": {}
@@ -317,10 +317,13 @@
           }
         }
       },
-      "Agrovent.Infrastructure/1.0.0.0": {
+      "Agrovent.Infrastructure/1.0.0": {
+        "dependencies": {
+          "Xarial.XCad": "0.8.2"
+        },
         "runtime": {
           "Agrovent.Infrastructure.dll": {
-            "assemblyVersion": "1.0.0.0",
+            "assemblyVersion": "1.0.0",
             "fileVersion": "1.0.0.0"
           }
         }
@@ -522,8 +525,8 @@
       "path": "xarial.xcad/0.8.2",
       "hashPath": "xarial.xcad.0.8.2.nupkg.sha512"
     },
-    "Agrovent.Infrastructure/1.0.0.0": {
-      "type": "reference",
+    "Agrovent.Infrastructure/1.0.0": {
+      "type": "project",
       "serviceable": false,
       "sha512": ""
     }

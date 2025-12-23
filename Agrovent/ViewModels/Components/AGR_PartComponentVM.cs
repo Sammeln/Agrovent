@@ -16,68 +16,13 @@ namespace Agrovent.ViewModels.Components
         public decimal BaseMaterialCount { get; set; }
         public IAGR_Material? Paint { get; set; }
         public decimal? PaintCount { get; set; }
-        //public IAGR_BasePropertiesCollection PropertiesCollection { get; set; }
-
-        public async Task SaveToDatabaseAsync()
-        {
-            var versionService = AGR_ServiceContainer.GetService<IAGR_ComponentVersionService>();
-            await versionService.CheckAndSaveComponentAsync(this);
-        }
         public AGR_PartComponentVM(ISwDocument3D swDocument3D) : base(swDocument3D)
         {
             if (ComponentType == AGR_ComponentType_e.Purchased) return;
          
             BaseMaterial = new AGR_Material(swDocument3D);
             Paint = new AGR_Paint(swDocument3D);
-
-            //switch (ComponentType)
-            //{
-            //    case AGR_ComponentType_e.Assembly:
-            //        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-            //        break;
-            //    case AGR_ComponentType_e.Part:
-            //        PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
-            //        break;
-            //    case AGR_ComponentType_e.SheetMetallPart:
-            //        PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
-            //        break;
-            //    case AGR_ComponentType_e.Purchased:
-            //        PropertiesCollection?.Properties.Clear();
-            //        break;
-            //    case AGR_ComponentType_e.NA:
-            //        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-            //        break;
-            //    default:
-            //        break;
-            //}
-
-            //ComponentTypeChanged += AGR_PartComponentVM_ComponentTypeChanged;
-
         }
 
-        private void AGR_PartComponentVM_ComponentTypeChanged(AGR_ComponentType_e type)
-        {
-            switch (type)
-            {
-                case AGR_ComponentType_e.Assembly:
-                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.Part:
-                    PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.SheetMetallPart:
-                    PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.Purchased:
-                    PropertiesCollection?.Properties.Clear();
-                    break;
-                case AGR_ComponentType_e.NA:
-                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-                    break;
-                default:
-                    break;
-            }
-
-        }
     }
 }

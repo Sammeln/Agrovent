@@ -17,9 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Agrovent.Infrastructure">
-      <HintPath>..\Agrovent.Infrastructure\bin\Debug\net6.0-windows\Agrovent.Infrastructure.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\Agrovent.Infrastructure\Agrovent.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

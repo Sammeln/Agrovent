@@ -3,6 +3,7 @@ using Agrovent.DAL.Entities;
 using Agrovent.DAL.Entities.Components;
 using Microsoft.Extensions.Configuration;
 using Agrovent.Infrastructure.Interfaces;
+using Agrovent.DAL.Entities.TechnologicalProcess;
 
 namespace Agrovent.DAL
 {
@@ -110,6 +111,39 @@ namespace Agrovent.DAL
 
             modelBuilder.Entity<AvaArticleModel>()
                 .HasKey(a => a.Article);
+
+            // Связь ComponentVersion с AvaArticle
+            modelBuilder.Entity<ComponentVersion>()
+                .HasOne(cv => cv.AvaArticle)
+                .WithMany()
+                .HasForeignKey(cv => cv.AvaArticleArticle)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // TechnologicalProcess конфигурация
+            modelBuilder.Entity<TechnologicalProcess>(entity =>
+            {
+                entity.HasIndex(tp => tp.PartNumber)
+                    .IsUnique();
+
+                entity.HasOne(tp => tp.Component)
+                    .WithMany()
+                    .HasForeignKey(tp => tp.PartNumber)
+                    .HasPrincipalKey(c => c.PartNumber)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(tp => tp.Operations)
+                    .WithOne(o => o.TechnologicalProcess)
+                    .HasForeignKey(o => o.TechnologicalProcessId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Operation>(entity =>
+            {
+                entity.HasIndex(o => o.TechnologicalProcessId);
+                entity.HasIndex(o => new { o.TechnologicalProcessId, o.SequenceNumber })
+                    .IsUnique();
+            });
+
         }
 
 

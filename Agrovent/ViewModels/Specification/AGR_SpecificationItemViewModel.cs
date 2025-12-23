@@ -9,9 +9,9 @@ namespace Agrovent.ViewModels.Specification
     public class AGR_SpecificationItemVM : BaseViewModel, IAGR_SpecificationItem
     {
         private readonly IAGR_BaseComponent _component;
+        public IAGR_BaseComponent Component => _component;
         private readonly int _quantity;
 
-        public IAGR_BaseComponent Component => _component;
         public string Name => _component.Name;
         public string ConfigName => _component.ConfigName;
         public string PartNumber => _component.PartNumber;
@@ -80,7 +80,7 @@ namespace Agrovent.ViewModels.Specification
             {
                 if (_component.ComponentType == AGR_ComponentType_e.Purchased)
                 {
-                    return _component.MatchModel.ArticleModel?.Article.ToString() ?? "N/A";
+                    return _component.AvaArticle?.Article.ToString() ?? "N/A";
                 }
                 return null;
             }

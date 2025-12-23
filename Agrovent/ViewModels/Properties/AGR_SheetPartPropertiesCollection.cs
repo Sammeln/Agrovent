@@ -12,33 +12,85 @@ namespace Agrovent.ViewModels.Properties
         public IXProperty SheetMetall_Length
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankLen);
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankLen).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankLen).Value = value;
+                OnPropertyChanged(nameof(SheetMetall_Length));
+            }
         }
         public IXProperty SheetMetall_Width
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankWid);
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankWid).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankWid).Value = value;
+                OnPropertyChanged(nameof(SheetMetall_Width));
+            }
         }
         public IXProperty SheetMetall_Thickness
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankThick);
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankThick).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankThick).Value = value;
+                OnPropertyChanged(nameof(SheetMetall_Thickness));
+            }
         }
         public IXProperty SheetMetall_SurfaceArea
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankArea);
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankArea).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankArea).Value = value;
+                OnPropertyChanged(nameof(SheetMetall_SurfaceArea));
+            }
         }
         public IXProperty SheetMetall_Bends
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankBends);
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankBends).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankBends).Value = value;
+                OnPropertyChanged(nameof(SheetMetall_Bends));
+            }
         }
 
-        //public IXProperty SheetMetall_Holes { get => mProperties[AGR_PropertyNames.BlankVolume]; set => throw new NotImplementedException(); }
-        //public IXProperty SheetMetall_PlateArea { get => mProperties[AGR_PropertyNames.BlankVolume]; set => throw new NotImplementedException(); }
-        //public IXProperty SheetMetall_OuterContour { get => mProperties[AGR_PropertyNames.BlankVolume]; set => throw new NotImplementedException(); }
-        //public IXProperty SheetMetall_InnerContour { get => mProperties[AGR_PropertyNames.BlankVolume]; set => throw new NotImplementedException(); }
+        public IXProperty SheetMetall_Holes 
+        {
+            get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankHoles);
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankHoles).Value = value;
+                OnPropertyChanged(nameof(SheetMetall_Holes));
+            }
+        }
+        public IXProperty SheetMetall_PlateArea 
+        {
+            get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankPlateArea);
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankPlateArea).Value = value;
+                OnPropertyChanged(nameof(SheetMetall_PlateArea));
+            }
+        }
+        public IXProperty SheetMetall_OuterContour 
+        {
+            get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankOuterContour);
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankOuterContour).Value = value;
+                OnPropertyChanged(nameof(SheetMetall_OuterContour));
+            }
+        }
+        public IXProperty SheetMetall_InnerContour 
+        {
+            get => mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankInnerContour);
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.BlankInnerContour).Value = value;
+                OnPropertyChanged(nameof(SheetMetall_InnerContour));
+            }
+        }
         public AGR_SheetPartPropertiesCollection(ISwDocument3D document3D) : base(document3D)
         {
             InitProperties();
