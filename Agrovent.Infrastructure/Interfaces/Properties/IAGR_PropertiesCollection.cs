@@ -7,5 +7,7 @@ namespace Agrovent.Infrastructure.Interfaces.Properties
     {
         abstract ICollection<IXProperty> Properties { get; set; }
 
+        abstract void UpdateProperties();
+
     }
 }

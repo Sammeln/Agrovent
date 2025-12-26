@@ -1,11 +1,15 @@
 using System.ComponentModel.Design;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
 using Agrovent.DAL;
 using Agrovent.DAL.Entities.Components;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Services;
+using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Specification;
 using Agrovent.ViewModels.TaskPane;
@@ -27,6 +31,7 @@ namespace Agrovent
         private ILogger<AgroventAddin> _logger;
         private IAGR_ComponentVersionService _versionService;
         private DataContext _dbContext;
+        private IAGR_CommandService _commandService;
         #endregion
 
         public override void OnConnect()
@@ -49,6 +54,9 @@ namespace Agrovent
 
                 // Инициализация группы команд в SolidWorks
                 CommandManager.AddCommandGroup<AGR_Commands_e>().CommandClick += OnCommandClickExecute;
+
+                //Инициализация сервиса команд
+                _commandService = AGR_ServiceContainer.GetService<IAGR_CommandService>();
 
                 // Инициализация модели представления TaskPane
                 InitTaskPane();
@@ -94,6 +102,7 @@ namespace Agrovent
 
         private void OnCommandClickExecute(AGR_Commands_e command)
         {
+            AGR_BaseComponent activeComponent = Application.Documents.Active.AGR_BaseComponent() as AGR_BaseComponent;
             try
             {
                 switch (command)
@@ -109,9 +118,9 @@ namespace Agrovent
                     case AGR_Commands_e.SaveComponent:
                         SaveActiveComponent();
                         break;
-
-                    case AGR_Commands_e.SaveAssembly:
-                        SaveActiveAssembly();
+                    case AGR_Commands_e.UpdateProperties:
+                        //_commandService.UpdatePropertiesAsync(activeComponent);
+                        Test();
                         break;
 
                     default:
@@ -124,6 +133,19 @@ namespace Agrovent
                 Application.ShowMessageBox($"Ошибка: {ex.Message}",
                     Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
             }
+        }
+
+        private void Test()
+        {
+            var activeDoc = Application.Documents.Active as ISwDocument3D;
+            string filePath = activeDoc.Path;
+            string activeConfig = activeDoc.Configurations.Active.Name;
+
+
+            object com = Application.Sw.GetPreviewBitmap(filePath, activeConfig);
+            stdole.StdPicture pic = com as stdole.StdPicture;
+            Bitmap bmp = Bitmap.FromHbitmap((IntPtr)pic.Handle);
+            bmp.Save(@"D:\Part1_1.bmp");
         }
 
         private void ShowSpecificationWindow()
@@ -274,14 +296,6 @@ namespace Agrovent
                 _logger.LogError(ex, "Ошибка при инициализации TaskPane");
             }
         }
-    }
-
-    public enum AGR_Commands_e
-    {
-        Command1,     // Показать спецификацию
-        Command2,     // Показать информацию о статье
-        SaveComponent, // Сохранить деталь
-        SaveAssembly   // Сохранить сборку
     }
 }
 

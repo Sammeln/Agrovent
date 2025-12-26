@@ -58,6 +58,7 @@ namespace Agrovent.ViewModels.Base
 
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
         }
+        public string FilePath => mDocument.Path;
 
         #region Property - IAGR_AvaArticleModel _AvaArticle
         private IAGR_AvaArticleModel _AvaArticle;

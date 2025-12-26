@@ -29,6 +29,14 @@
             <!--<converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>-->
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
+            <DataTemplate DataType="{x:Type ImageSource}">
+                <Image Source="{Binding}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
+            </DataTemplate>
+            
+            <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
+                <Image Source="{Binding Preview}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
+            </DataTemplate>
+            
             <!-- Конвертеры видимости для разных типов компонентов -->
             <!--<converter:ComponentTypeToVisibilityConverter x:Key="MaterialVisibilityConverter" 
                 Parameter="Part,SheetMetallPart"/>
@@ -82,7 +90,7 @@
                       CanUserSortColumns="True"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Auto">
-
+               
                 <!-- Настройка группировки -->
                 <DataGrid.GroupStyle>
                     <GroupStyle>
@@ -94,6 +102,28 @@
 
                 <!-- Колонки DataGrid -->
                 <DataGrid.Columns>
+
+                    <!-- Preview Column -->
+                    <DataGridTemplateColumn>
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="ToolTip">
+                                    <Setter.Value>
+                                        <Image Source="{Binding Preview}" Width="450"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+                                <Setter Property="ToolTipService.ShowDuration" Value="2500" />
+                            </Style>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
+                                <!-- Контейнер для основного отображения в ячейке -->
+                                    <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
                     <!-- Наименование -->
                     <DataGridTextColumn Header="Наименование" 
                                         Binding="{Binding Name}" 

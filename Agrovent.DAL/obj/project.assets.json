@@ -1,7 +1,7 @@
 {
   "version": 3,
   "targets": {
-    "net6.0": {
+    "net6.0-windows7.0": {
       "Humanizer.Core/2.14.1": {
         "type": "package",
         "compile": {
@@ -487,11 +487,55 @@
           }
         }
       },
+      "Xarial.XCad.SolidWorks/0.8.2": {
+        "type": "package",
+        "dependencies": {
+          "Xarial.XCad": "0.8.2",
+          "Xarial.XCad.Toolkit": "0.8.2"
+        },
+        "compile": {
+          "lib/net6.0-windows7.0/SolidWorks.Interop.sldworks.dll": {},
+          "lib/net6.0-windows7.0/SolidWorks.Interop.swconst.dll": {},
+          "lib/net6.0-windows7.0/SolidWorks.Interop.swpublished.dll": {},
+          "lib/net6.0-windows7.0/Xarial.XCad.SolidWorks.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0-windows7.0/SolidWorks.Interop.sldworks.dll": {},
+          "lib/net6.0-windows7.0/SolidWorks.Interop.swconst.dll": {},
+          "lib/net6.0-windows7.0/SolidWorks.Interop.swpublished.dll": {},
+          "lib/net6.0-windows7.0/Xarial.XCad.SolidWorks.dll": {
+            "related": ".xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.WindowsDesktop.App"
+        ]
+      },
+      "Xarial.XCad.Toolkit/0.8.2": {
+        "type": "package",
+        "dependencies": {
+          "System.Drawing.Common": "7.0.0",
+          "Xarial.XCad": "0.8.2"
+        },
+        "compile": {
+          "lib/net6.0/Xarial.XCad.Toolkit.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Xarial.XCad.Toolkit.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Agrovent.Infrastructure/1.0.0": {
         "type": "project",
         "framework": ".NETStandard,Version=v2.1",
         "dependencies": {
-          "Xarial.XCad": "0.8.2"
+          "Xarial.XCad": "0.8.2",
+          "Xarial.XCad.SolidWorks": "0.8.2"
         },
         "compile": {
           "bin/placeholder/Agrovent.Infrastructure.dll": {}
@@ -1233,6 +1277,66 @@
         "xarial.xcad.nuspec"
       ]
     },
+    "Xarial.XCad.SolidWorks/0.8.2": {
+      "sha512": "JJgV44RYOOyDQeTVH5nWKXfi0ZXcit53Im9rH2sDmwVyZl+4AbEAMaqdAmyOMVanRz1Zg6wpbtQZcBlew1tHRA==",
+      "type": "package",
+      "path": "xarial.xcad.solidworks/0.8.2",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.md",
+        "README.md",
+        "build/--Xarial.XCad.SolidWorks.targets",
+        "icon.png",
+        "lib/net461/SolidWorks.Interop.sldworks.dll",
+        "lib/net461/SolidWorks.Interop.swconst.dll",
+        "lib/net461/SolidWorks.Interop.swpublished.dll",
+        "lib/net461/Xarial.XCad.SolidWorks.dll",
+        "lib/net461/Xarial.XCad.SolidWorks.xml",
+        "lib/net6.0-windows7.0/SolidWorks.Interop.sldworks.dll",
+        "lib/net6.0-windows7.0/SolidWorks.Interop.swconst.dll",
+        "lib/net6.0-windows7.0/SolidWorks.Interop.swpublished.dll",
+        "lib/net6.0-windows7.0/Xarial.XCad.SolidWorks.dll",
+        "lib/net6.0-windows7.0/Xarial.XCad.SolidWorks.xml",
+        "lib/net7.0-windows7.0/SolidWorks.Interop.sldworks.dll",
+        "lib/net7.0-windows7.0/SolidWorks.Interop.swconst.dll",
+        "lib/net7.0-windows7.0/SolidWorks.Interop.swpublished.dll",
+        "lib/net7.0-windows7.0/Xarial.XCad.SolidWorks.dll",
+        "lib/net7.0-windows7.0/Xarial.XCad.SolidWorks.xml",
+        "lib/netcoreapp3.1/SolidWorks.Interop.sldworks.dll",
+        "lib/netcoreapp3.1/SolidWorks.Interop.swconst.dll",
+        "lib/netcoreapp3.1/SolidWorks.Interop.swpublished.dll",
+        "lib/netcoreapp3.1/Xarial.XCad.SolidWorks.dll",
+        "lib/netcoreapp3.1/Xarial.XCad.SolidWorks.xml",
+        "readme.txt",
+        "tools/init.ps1",
+        "xarial.xcad.solidworks.0.8.2.nupkg.sha512",
+        "xarial.xcad.solidworks.nuspec"
+      ]
+    },
+    "Xarial.XCad.Toolkit/0.8.2": {
+      "sha512": "u6LxPA0LxH+XGezz5h+hQ4iJsqQJ4/Hg0U+V2J1k5g5QjDRHfsjGSzgCF0rbTlZalYiOBo6X2rkGyQ8risY8gg==",
+      "type": "package",
+      "path": "xarial.xcad.toolkit/0.8.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.md",
+        "README.md",
+        "icon.png",
+        "lib/net461/Xarial.XCad.Toolkit.dll",
+        "lib/net461/Xarial.XCad.Toolkit.xml",
+        "lib/net6.0/Xarial.XCad.Toolkit.dll",
+        "lib/net6.0/Xarial.XCad.Toolkit.xml",
+        "lib/net7.0/Xarial.XCad.Toolkit.dll",
+        "lib/net7.0/Xarial.XCad.Toolkit.xml",
+        "lib/netstandard2.1/Xarial.XCad.Toolkit.dll",
+        "lib/netstandard2.1/Xarial.XCad.Toolkit.xml",
+        "xarial.xcad.toolkit.0.8.2.nupkg.sha512",
+        "xarial.xcad.toolkit.nuspec"
+      ]
+    },
     "Agrovent.Infrastructure/1.0.0": {
       "type": "project",
       "path": "../Agrovent.Infrastructure/Agrovent.Infrastructure.csproj",
@@ -1240,7 +1344,7 @@
     }
   },
   "projectFileDependencyGroups": {
-    "net6.0": [
+    "net6.0-windows7.0": [
       "Agrovent.Infrastructure >= 1.0.0",
       "Microsoft.EntityFrameworkCore >= 7.0.20",
       "Microsoft.EntityFrameworkCore.Tools >= 7.0.20",
@@ -1272,15 +1376,15 @@
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
-        "net6.0"
+        "net6.0-windows"
       ],
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
-        "net6.0": {
-          "targetAlias": "net6.0",
+        "net6.0-windows7.0": {
+          "targetAlias": "net6.0-windows",
           "projectReferences": {
             "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj": {
               "projectPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj"
@@ -1301,8 +1405,8 @@
       "SdkAnalysisLevel": "9.0.100"
     },
     "frameworks": {
-      "net6.0": {
-        "targetAlias": "net6.0",
+      "net6.0-windows7.0": {
+        "targetAlias": "net6.0-windows",
         "dependencies": {
           "Microsoft.EntityFrameworkCore": {
             "target": "Package",
@@ -1351,7 +1455,7 @@
       "message": "У пакета \"System.Text.Json\" 7.0.0 есть известная уязвимость https://github.com/advisories/GHSA-hh2w-p6rv-4g7w (уровень серьезности: высокий)",
       "libraryId": "System.Text.Json",
       "targetGraphs": [
-        "net6.0"
+        "net6.0-windows7.0"
       ]
     }
   ]

@@ -15,6 +15,12 @@ using System.Diagnostics;
 using System.Windows.Input;
 using Agrovent.Infrastructure.Commands;
 using System.IO;
+using Xarial.XCad.UI;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Drawing;
+using EModelView;
+using Xarial.XCad.SolidWorks;
+using System.Windows.Media.Imaging;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -96,11 +102,7 @@ namespace Agrovent.ViewModels.Components
         #region CTOR
         public AGR_AssemblyComponentVM(ISwDocument3D swDocument3D) : base(swDocument3D)
         {
-            var assem = swDocument3D as ISwAssembly;
-
-
-
-
+            
         } 
         #endregion
     }

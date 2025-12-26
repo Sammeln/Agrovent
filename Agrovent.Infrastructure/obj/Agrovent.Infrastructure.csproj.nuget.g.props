@@ -14,4 +14,7 @@
     <SourceRoot Include="D:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages\" />
     <SourceRoot Include="C:\Program Files\dotnet\sdk\NuGetFallbackFolder\" />
   </ItemGroup>
+  <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <PkgXarial_XCad_SolidWorks Condition=" '$(PkgXarial_XCad_SolidWorks)' == '' ">C:\Users\Usr\.nuget\packages\xarial.xcad.solidworks\0.8.2</PkgXarial_XCad_SolidWorks>
+  </PropertyGroup>
 </Project>

@@ -7,10 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="Xarial.XCad" Version="0.8.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Interfaces\Services\" />
+    <PackageReference Include="Xarial.XCad.SolidWorks" Version="0.8.2" />
   </ItemGroup>
 
 </Project>

@@ -9,7 +9,8 @@
     ".NETStandard,Version=v2.1/": {
       "Agrovent.Infrastructure/1.0.0": {
         "dependencies": {
-          "Xarial.XCad": "0.8.2"
+          "Xarial.XCad": "0.8.2",
+          "Xarial.XCad.SolidWorks": "0.8.2"
         },
         "runtime": {
           "Agrovent.Infrastructure.dll": {}
@@ -29,6 +30,42 @@
         },
         "runtime": {
           "lib/netstandard2.1/Xarial.XCad.dll": {
+            "assemblyVersion": "0.8.2.5232",
+            "fileVersion": "0.8.2.5232"
+          }
+        }
+      },
+      "Xarial.XCad.SolidWorks/0.8.2": {
+        "dependencies": {
+          "Xarial.XCad": "0.8.2",
+          "Xarial.XCad.Toolkit": "0.8.2"
+        },
+        "runtime": {
+          "lib/net461/SolidWorks.Interop.sldworks.dll": {
+            "assemblyVersion": "33.0.0.5050",
+            "fileVersion": "33.0.0.5050"
+          },
+          "lib/net461/SolidWorks.Interop.swconst.dll": {
+            "assemblyVersion": "33.0.0.5050",
+            "fileVersion": "33.0.0.5050"
+          },
+          "lib/net461/SolidWorks.Interop.swpublished.dll": {
+            "assemblyVersion": "33.0.0.5050",
+            "fileVersion": "33.0.0.5050"
+          },
+          "lib/net461/Xarial.XCad.SolidWorks.dll": {
+            "assemblyVersion": "0.8.2.5232",
+            "fileVersion": "0.8.2.5232"
+          }
+        }
+      },
+      "Xarial.XCad.Toolkit/0.8.2": {
+        "dependencies": {
+          "System.Drawing.Common": "7.0.0",
+          "Xarial.XCad": "0.8.2"
+        },
+        "runtime": {
+          "lib/netstandard2.1/Xarial.XCad.Toolkit.dll": {
             "assemblyVersion": "0.8.2.5232",
             "fileVersion": "0.8.2.5232"
           }
@@ -55,6 +92,20 @@
       "sha512": "sha512-W7lk5n1lf6ELxbVIYOZbHmIqUJB6P/czb0hExm9L74xFhgNQFrkRcRotbyf7a5BScDFEPb9tNpqKh8LqhTKOUw==",
       "path": "xarial.xcad/0.8.2",
       "hashPath": "xarial.xcad.0.8.2.nupkg.sha512"
+    },
+    "Xarial.XCad.SolidWorks/0.8.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-JJgV44RYOOyDQeTVH5nWKXfi0ZXcit53Im9rH2sDmwVyZl+4AbEAMaqdAmyOMVanRz1Zg6wpbtQZcBlew1tHRA==",
+      "path": "xarial.xcad.solidworks/0.8.2",
+      "hashPath": "xarial.xcad.solidworks.0.8.2.nupkg.sha512"
+    },
+    "Xarial.XCad.Toolkit/0.8.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-u6LxPA0LxH+XGezz5h+hQ4iJsqQJ4/Hg0U+V2J1k5g5QjDRHfsjGSzgCF0rbTlZalYiOBo6X2rkGyQ8risY8gg==",
+      "path": "xarial.xcad.toolkit/0.8.2",
+      "hashPath": "xarial.xcad.toolkit.0.8.2.nupkg.sha512"
     }
   }
 }

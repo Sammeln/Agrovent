@@ -54,6 +54,10 @@
             "Xarial.XCad": {
               "target": "Package",
               "version": "[0.8.2, )"
+            },
+            "Xarial.XCad.SolidWorks": {
+              "target": "Package",
+              "version": "[0.8.2, )"
             }
           },
           "imports": [

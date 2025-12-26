@@ -11,8 +11,8 @@ namespace Agrovent.ViewModels.Properties
 {
     internal class AGR_BasePropertiesCollection : BaseViewModel, IAGR_BasePropertiesCollection
     {
-        private ISwDocument3D mDocument;
-        private ISwConfiguration mConfiguration;
+        internal ISwDocument3D mDocument;
+        internal ISwConfiguration mConfiguration;
         internal ISwCustomPropertiesCollection mProperties;
 
         public IXProperty Volume
@@ -43,6 +43,32 @@ namespace Agrovent.ViewModels.Properties
             }
         }
         public ICollection<IXProperty> Properties { get; set; }
+
+        public void UpdateProperties()
+        {
+            try
+            {
+                    // Вычисление массы
+                    var evaluation = mDocument.Evaluation.PreCreateMassProperty();
+                    evaluation.Commit(CancellationToken.None);
+                    var mass = evaluation.Mass;
+                    Mass.Value = Math.Round(mass, 3, MidpointRounding.ToPositiveInfinity).ToString();
+
+                    // Вычисление объёма
+                    var _box = mDocument.Evaluation.PreCreateBoundingBox();
+                    _box.Commit(CancellationToken.None);
+                    var volume = _box.Box.Width * _box.Box.Height * _box.Box.Length;
+                    Volume.Value = Math.Round(volume, 3, MidpointRounding.ToPositiveInfinity).ToString();
+
+                    // Вычисление площади поверхности
+                    var surfaceArea = evaluation.SurfaceArea;
+                    SurfaceArea.Value = Math.Round(surfaceArea, 3, MidpointRounding.ToPositiveInfinity).ToString();
+            }
+            catch (Exception)
+            {
+
+            }
+        }
 
         internal void InitProperties()
         {

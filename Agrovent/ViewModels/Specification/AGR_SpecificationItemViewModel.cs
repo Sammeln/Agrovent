@@ -1,8 +1,11 @@
-﻿using Agrovent.Infrastructure.Enums;
+﻿using System.Drawing;
+using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Infrastructure.Interfaces.Specification;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
+using Xarial.XCad.SolidWorks.Documents;
+using Xarial.XCad.SolidWorks;
 
 namespace Agrovent.ViewModels.Specification
 {
@@ -90,6 +93,23 @@ namespace Agrovent.ViewModels.Specification
         public string MaterialInfo => MaterialName != null ? $"{MaterialName} ({MaterialCount:F2})" : null;
         public string QuantityString => Quantity.ToString();
 
+        public byte[] Preview
+        {
+            get
+            {
+                var app = AGR_ServiceContainer.GetService<ISwApplication>();
+
+                string filePath = Component.FilePath;
+                string activeConfig = Component.ConfigName;
+
+                object com = app.Sw.GetPreviewBitmap(filePath, activeConfig);
+                stdole.StdPicture pic = com as stdole.StdPicture;
+                var bmp = Bitmap.FromHbitmap((IntPtr)pic.Handle);
+
+                ImageConverter converter = new ImageConverter();
+                return (byte[])converter.ConvertTo(bmp, typeof(byte[]));
+            }
+        }
         public AGR_SpecificationItemVM(IAGR_BaseComponent component, int quantity)
         {
             _component = component;

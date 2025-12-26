@@ -27,6 +27,34 @@ namespace Agrovent.ViewModels.Properties
                 OnPropertyChanged(nameof(Width));
             }
         }
+
+        new public void UpdateProperties()
+        {
+            base.UpdateProperties();
+            // Вычисление габаритных размеров
+
+            try
+            {
+                var part = mDocument as ISwPart;
+
+                var body = part.Bodies.FirstOrDefault();
+                if (body != null)
+                {
+                    var longestEdge = body.Edges.Max(x => x.Length);
+                    Length.Value = Math.Round(longestEdge * 1000, 3, MidpointRounding.ToPositiveInfinity).ToString();
+                }
+
+            }
+            catch (Exception)
+            {
+
+            }
+            //var boundingBox = mDocument.Evaluation.PreCreateBoundingBox();
+            //boundingBox.Commit(CancellationToken.None);
+            //var box = boundingBox.Box;
+            //Length.Value = Math.Round(box.Length, 3, MidpointRounding.ToPositiveInfinity).ToString();
+            //Width.Value = Math.Round(box.Width, 3, MidpointRounding.ToPositiveInfinity).ToString();
+        }
         public AGR_PartPropertiesCollection(ISwDocument3D document3D) : base(document3D)
         {
             InitProperties();

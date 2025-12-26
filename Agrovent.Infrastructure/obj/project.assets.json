@@ -30,6 +30,46 @@
             "related": ".xml"
           }
         }
+      },
+      "Xarial.XCad.SolidWorks/0.8.2": {
+        "type": "package",
+        "dependencies": {
+          "Xarial.XCad": "0.8.2",
+          "Xarial.XCad.Toolkit": "0.8.2"
+        },
+        "compile": {
+          "lib/net461/SolidWorks.Interop.sldworks.dll": {},
+          "lib/net461/SolidWorks.Interop.swconst.dll": {},
+          "lib/net461/SolidWorks.Interop.swpublished.dll": {},
+          "lib/net461/Xarial.XCad.SolidWorks.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net461/SolidWorks.Interop.sldworks.dll": {},
+          "lib/net461/SolidWorks.Interop.swconst.dll": {},
+          "lib/net461/SolidWorks.Interop.swpublished.dll": {},
+          "lib/net461/Xarial.XCad.SolidWorks.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Xarial.XCad.Toolkit/0.8.2": {
+        "type": "package",
+        "dependencies": {
+          "System.Drawing.Common": "7.0.0",
+          "Xarial.XCad": "0.8.2"
+        },
+        "compile": {
+          "lib/netstandard2.1/Xarial.XCad.Toolkit.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/Xarial.XCad.Toolkit.dll": {
+            "related": ".xml"
+          }
+        }
       }
     }
   },
@@ -92,11 +132,72 @@
         "xarial.xcad.0.8.2.nupkg.sha512",
         "xarial.xcad.nuspec"
       ]
+    },
+    "Xarial.XCad.SolidWorks/0.8.2": {
+      "sha512": "JJgV44RYOOyDQeTVH5nWKXfi0ZXcit53Im9rH2sDmwVyZl+4AbEAMaqdAmyOMVanRz1Zg6wpbtQZcBlew1tHRA==",
+      "type": "package",
+      "path": "xarial.xcad.solidworks/0.8.2",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.md",
+        "README.md",
+        "build/--Xarial.XCad.SolidWorks.targets",
+        "icon.png",
+        "lib/net461/SolidWorks.Interop.sldworks.dll",
+        "lib/net461/SolidWorks.Interop.swconst.dll",
+        "lib/net461/SolidWorks.Interop.swpublished.dll",
+        "lib/net461/Xarial.XCad.SolidWorks.dll",
+        "lib/net461/Xarial.XCad.SolidWorks.xml",
+        "lib/net6.0-windows7.0/SolidWorks.Interop.sldworks.dll",
+        "lib/net6.0-windows7.0/SolidWorks.Interop.swconst.dll",
+        "lib/net6.0-windows7.0/SolidWorks.Interop.swpublished.dll",
+        "lib/net6.0-windows7.0/Xarial.XCad.SolidWorks.dll",
+        "lib/net6.0-windows7.0/Xarial.XCad.SolidWorks.xml",
+        "lib/net7.0-windows7.0/SolidWorks.Interop.sldworks.dll",
+        "lib/net7.0-windows7.0/SolidWorks.Interop.swconst.dll",
+        "lib/net7.0-windows7.0/SolidWorks.Interop.swpublished.dll",
+        "lib/net7.0-windows7.0/Xarial.XCad.SolidWorks.dll",
+        "lib/net7.0-windows7.0/Xarial.XCad.SolidWorks.xml",
+        "lib/netcoreapp3.1/SolidWorks.Interop.sldworks.dll",
+        "lib/netcoreapp3.1/SolidWorks.Interop.swconst.dll",
+        "lib/netcoreapp3.1/SolidWorks.Interop.swpublished.dll",
+        "lib/netcoreapp3.1/Xarial.XCad.SolidWorks.dll",
+        "lib/netcoreapp3.1/Xarial.XCad.SolidWorks.xml",
+        "readme.txt",
+        "tools/init.ps1",
+        "xarial.xcad.solidworks.0.8.2.nupkg.sha512",
+        "xarial.xcad.solidworks.nuspec"
+      ]
+    },
+    "Xarial.XCad.Toolkit/0.8.2": {
+      "sha512": "u6LxPA0LxH+XGezz5h+hQ4iJsqQJ4/Hg0U+V2J1k5g5QjDRHfsjGSzgCF0rbTlZalYiOBo6X2rkGyQ8risY8gg==",
+      "type": "package",
+      "path": "xarial.xcad.toolkit/0.8.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.md",
+        "README.md",
+        "icon.png",
+        "lib/net461/Xarial.XCad.Toolkit.dll",
+        "lib/net461/Xarial.XCad.Toolkit.xml",
+        "lib/net6.0/Xarial.XCad.Toolkit.dll",
+        "lib/net6.0/Xarial.XCad.Toolkit.xml",
+        "lib/net7.0/Xarial.XCad.Toolkit.dll",
+        "lib/net7.0/Xarial.XCad.Toolkit.xml",
+        "lib/netstandard2.1/Xarial.XCad.Toolkit.dll",
+        "lib/netstandard2.1/Xarial.XCad.Toolkit.xml",
+        "xarial.xcad.toolkit.0.8.2.nupkg.sha512",
+        "xarial.xcad.toolkit.nuspec"
+      ]
     }
   },
   "projectFileDependencyGroups": {
     ".NETStandard,Version=v2.1": [
-      "Xarial.XCad >= 0.8.2"
+      "Xarial.XCad >= 0.8.2",
+      "Xarial.XCad.SolidWorks >= 0.8.2"
     ]
   },
   "packageFolders": {
@@ -154,6 +255,10 @@
           "Xarial.XCad": {
             "target": "Package",
             "version": "[0.8.2, )"
+          },
+          "Xarial.XCad.SolidWorks": {
+            "target": "Package",
+            "version": "[0.8.2, )"
           }
         },
         "imports": [
@@ -175,5 +280,17 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100\\RuntimeIdentifierGraph.json"
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "NU1701",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Пакет \"Xarial.XCad.SolidWorks 0.8.2\" был восстановлен с помощью \".NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1\", а не целевой платформы проекта \".NETStandard,Version=v2.1\". Этот пакет может быть не полностью совместим с вашим проектом.",
+      "libraryId": "Xarial.XCad.SolidWorks",
+      "targetGraphs": [
+        ".NETStandard,Version=v2.1"
+      ]
+    }
+  ]
 }

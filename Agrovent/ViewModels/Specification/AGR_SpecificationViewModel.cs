@@ -114,7 +114,7 @@ namespace Agrovent.ViewModels.Specification
 
         private void LoadComponents()
         {
-            if (_baseComponent?.AGR_TopComponents == null)
+            if (_baseComponent.GetChildComponents() == null)
                 return;
 
             try

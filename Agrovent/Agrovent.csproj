@@ -13,6 +13,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <COMReference Include="EModelView">
+      <VersionMinor>0</VersionMinor>
+      <VersionMajor>17</VersionMajor>
+      <Guid>980c1529-399f-4f0a-8fb5-2b16e32efda9</Guid>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>false</Isolated>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -26,6 +38,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.10" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
+    <PackageReference Include="stdole" Version="17.14.40260" />
     <PackageReference Include="Xarial.XCad" Version="0.8.2" />
     <PackageReference Include="Xarial.XCad.SolidWorks" Version="0.8.2" />
   </ItemGroup>

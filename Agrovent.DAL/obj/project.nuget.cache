@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "slvjPkahk30=",
+  "dgSpecHash": "k9dMzbo6YsU=",
   "success": true,
   "projectFilePath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.DAL\\Agrovent.DAL.csproj",
   "expectedPackageFiles": [
@@ -30,7 +30,9 @@
     "C:\\Users\\Usr\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
     "C:\\Users\\Usr\\.nuget\\packages\\system.text.encodings.web\\7.0.0\\system.text.encodings.web.7.0.0.nupkg.sha512",
     "C:\\Users\\Usr\\.nuget\\packages\\system.text.json\\7.0.0\\system.text.json.7.0.0.nupkg.sha512",
-    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad\\0.8.2\\xarial.xcad.0.8.2.nupkg.sha512"
+    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad\\0.8.2\\xarial.xcad.0.8.2.nupkg.sha512",
+    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad.solidworks\\0.8.2\\xarial.xcad.solidworks.0.8.2.nupkg.sha512",
+    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad.toolkit\\0.8.2\\xarial.xcad.toolkit.0.8.2.nupkg.sha512"
   ],
   "logs": [
     {
@@ -40,7 +42,7 @@
       "message": "У пакета \"System.Text.Json\" 7.0.0 есть известная уязвимость https://github.com/advisories/GHSA-hh2w-p6rv-4g7w (уровень серьезности: высокий)",
       "libraryId": "System.Text.Json",
       "targetGraphs": [
-        "net6.0"
+        "net6.0-windows7.0"
       ]
     }
   ]
