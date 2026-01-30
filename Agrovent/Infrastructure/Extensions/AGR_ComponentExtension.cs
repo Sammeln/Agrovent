@@ -61,11 +61,13 @@ namespace Agrovent.Infrastructure.Extensions
             var componentType = xDoc.ComponentType();
             switch (componentType)
             {
+                case AGR_ComponentType_e.Purchased:
+                    if (xDoc.Path.EndsWith("asm",StringComparison.OrdinalIgnoreCase)) return new AGR_AssemblyComponentVM(xDoc);
+                    else return new AGR_PartComponentVM(xDoc);
                 case AGR_ComponentType_e.Assembly:
                     return new AGR_AssemblyComponentVM(xDoc);
                 case AGR_ComponentType_e.Part:
                 case AGR_ComponentType_e.SheetMetallPart:
-                case AGR_ComponentType_e.Purchased:
                     return new AGR_PartComponentVM(xDoc);
                 default:
                     throw new NotImplementedException($"Component type {componentType} is not implemented.");
@@ -88,6 +90,6 @@ namespace Agrovent.Infrastructure.Extensions
             }
         }
 
-
+       
     }
 }

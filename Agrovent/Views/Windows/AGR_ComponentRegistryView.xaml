@@ -1,0 +1,91 @@
+﻿<!-- File: Views/Windows/AGR_ComponentRegistryView.xaml -->
+<Window x:Class="Agrovent.Views.Windows.AGR_ComponentRegistryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
+             xmlns:local="clr-namespace:Agrovent.Views.Windows"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:AGR_ComponentRegistryItemVM, IsDesignTimeCreatable=True}"
+             d:DesignHeight="600" d:DesignWidth="1000">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Подключаем стили из PartComponentStyles.xaml -->
+                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
+                <!-- Подключаем стили спецификации -->
+                <ResourceDictionary Source="../../Resources/Styles/SpecificationStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <!-- DataTemplate для отображения изображения в ячейке -->
+            <DataTemplate x:Key="PreviewImageTemplate">
+                <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform" />
+            </DataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Панель поиска -->
+        <Border Grid.Row="0" Background="LightGray" Padding="10" Margin="5">
+            <StackPanel Orientation="Horizontal">
+                <Label Content="Поиск:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox x:Name="SearchTextBox"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         MinWidth="200" />
+            </StackPanel>
+        </Border>
+
+        <!-- DataGrid -->
+        <DataGrid Grid.Row="1"
+                  x:Name="RegistryDataGrid"
+                  ItemsSource="{Binding RegistryItemsView}" 
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  HeadersVisibility="Column"
+                  SelectionMode="Single"
+                  IsReadOnly="True">
+            <DataGrid.Columns>
+                <!-- Превью -->
+                <DataGridTemplateColumn>
+                    <DataGridTemplateColumn.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="ToolTip">
+                                <Setter.Value>
+                                    <Image Source="{Binding Preview}" Width="1000"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+                            <Setter Property="ToolTipService.Placement" Value="Right"/>
+                        </Style>
+                    </DataGridTemplateColumn.CellStyle>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="{x:Type vm:AGR_ComponentRegistryItemVM}">
+                            <!-- Контейнер для основного отображения в ячейке -->
+                            <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- Наименование -->
+                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="2*" />
+                <!-- PartNumber -->
+                <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="1.5*" />
+                <!-- Дата создания -->
+                <DataGridTextColumn Header="Дата сохранения" Binding="{Binding CreatedAt, StringFormat='dd.MM.yyyy HH:mm:ss'}" Width="*" />
+                <!-- ComponentType -->
+                <DataGridTextColumn Header="Тип компонента" Binding="{Binding ComponentTypeDisplay, Converter={StaticResource ComponentTypeConverter}}" Width="*" />
+                <!-- AvaType -->
+                <DataGridTextColumn Header="Тип Ava" Binding="{Binding AvaTypeDisplay, Converter={StaticResource AvaTypeConverter}}" Width="*" />
+                <!-- Версия -->
+                <DataGridTextColumn Header="Версия" Binding="{Binding Version}" Width="*" />
+                <!-- Путь к файлу -->
+                <DataGridTextColumn Header="Путь в хранилище" Binding="{Binding StoragePath}" Width="3*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Window>

@@ -1,10 +1,11 @@
-﻿using Agrovent.Infrastructure.Interfaces.Properties;
+﻿using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Properties;
 using System.Collections.Generic;
 using Xarial.XCad.Data;
 
 namespace Agrovent.Infrastructure.Interfaces.Components
 {
-    public interface IAGR_Part
+    public interface IAGR_Part : IAGR_BaseComponent
     {
         abstract IAGR_Material BaseMaterial { get; set; }
         abstract decimal BaseMaterialCount { get; set; }

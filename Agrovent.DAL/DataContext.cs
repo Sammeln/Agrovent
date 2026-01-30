@@ -4,6 +4,7 @@ using Agrovent.DAL.Entities.Components;
 using Microsoft.Extensions.Configuration;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.DAL.Entities.TechnologicalProcess;
+using Agrovent.DAL.Entities.Projects;
 
 namespace Agrovent.DAL
 {
@@ -18,7 +19,9 @@ namespace Agrovent.DAL
         public DbSet<ComponentMaterial> ComponentMaterials { get; set; }
         public DbSet<AssemblyStructure> AssemblyStructures { get; set; }
         public DbSet<ComponentFile> ComponentFiles { get; set; }
-        public DbSet<AvaArticleModel> AvaArticles { get; set; } 
+        public DbSet<AvaArticleModel> AvaArticles { get; set; }
+        public DbSet<Project> Projects { get; set; } 
+        public DbSet<ProjectComponent> ProjectComponents { get; set; } 
         #endregion
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -143,6 +146,31 @@ namespace Agrovent.DAL
                 entity.HasIndex(o => new { o.TechnologicalProcessId, o.SequenceNumber })
                     .IsUnique();
             });
+
+            // Конфигурация для Project и ProjectComponent
+            modelBuilder.Entity<Project>()
+                .HasMany(p => p.Children)
+                .WithOne(p => p.Parent)
+                .HasForeignKey(p => p.ParentId)
+                .OnDelete(DeleteBehavior.Cascade); // Удалять дочерние при удалении родителя
+
+            modelBuilder.Entity<ProjectComponent>()
+                .HasOne(pc => pc.Project)
+                .WithMany(p => p.ProjectComponents)
+                .HasForeignKey(pc => pc.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade); // Удалять связь при удалении проекта
+
+            modelBuilder.Entity<ProjectComponent>()
+                .HasOne(pc => pc.ComponentVersion)
+                .WithMany(cv => cv.ProjectComponents) // Предполагаем, что в ComponentVersion есть ProjectComponents
+                .HasForeignKey(pc => pc.ComponentVersionId)
+                .OnDelete(DeleteBehavior.Cascade); // Удалять связь при удалении компонента
+
+            // Если в ComponentVersion нет ProjectComponents, добавьте его:
+            modelBuilder.Entity<ComponentVersion>()
+                .HasMany(cv => cv.ProjectComponents) // Добавляем навигационное свойство
+                .WithOne(pc => pc.ComponentVersion)
+                .HasForeignKey(pc => pc.ComponentVersionId);
 
         }
 

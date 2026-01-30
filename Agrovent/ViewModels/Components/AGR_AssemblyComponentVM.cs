@@ -56,11 +56,6 @@ namespace Agrovent.ViewModels.Components
             AGR_TopComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
             return AGR_TopComponents;
         }
-        public async Task SaveToDatabaseAsync()
-        {
-            var versionService = AGR_ServiceContainer.GetService<IAGR_ComponentVersionService>();
-            await versionService.CheckAndSaveComponentAsync(this);
-        }
         public IEnumerable<IAGR_SpecificationItem> GetFlatComponents()
         {
             // Получаем все компоненты (плоский список)
@@ -70,6 +65,28 @@ namespace Agrovent.ViewModels.Components
                 .GroupBy(c => new { c.Name, c.ConfigName })
                 .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
             return groupedFlat;
+        }
+
+        public void Refresh()
+        {
+            OnPropertyChanged(nameof(CurrentModelFilePath));
+            OnPropertyChanged(nameof(CurrentDrawFilePath));
+            OnPropertyChanged(nameof(StorageModelFilePath));
+            OnPropertyChanged(nameof(StorageDrawFilePath));
+            OnPropertyChanged(nameof(ProductionModelFilePath));
+            OnPropertyChanged(nameof(ProductionDrawFilePath));
+
+            OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(ConfigName));
+            OnPropertyChanged(nameof(PartNumber));
+            OnPropertyChanged(nameof(Article));
+            OnPropertyChanged(nameof(FilePath));
+            OnPropertyChanged(nameof(Version));
+            OnPropertyChanged(nameof(HashSum));
+            OnPropertyChanged(nameof(Preview));
+            OnPropertyChanged(nameof(ComponentType));
+            OnPropertyChanged(nameof(AvaType));
+            OnPropertyChanged(nameof(PropertiesCollection));
         }
 
         #endregion

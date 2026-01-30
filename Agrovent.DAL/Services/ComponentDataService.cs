@@ -13,6 +13,7 @@ namespace Agrovent.DAL.Services
         public AvaArticleModel? GetAvaArticle(int article);
         Task<AvaArticleModel> GetAvaArticleAsync(int article);
         public bool ComponentExistsInDatabase(string partNumber);
+        Task<ComponentVersion?> ComponentExistsInDatabaseAsync(int hashSum, string name);
         Task<bool> ComponentExistsInDatabaseAsync(string partNumber);
     }
 
@@ -142,5 +143,21 @@ namespace Agrovent.DAL.Services
                 return false;
             }
         }
+        public async Task<ComponentVersion?> ComponentExistsInDatabaseAsync(int hashSum, string name)
+        {
+            try
+            {
+
+                return await _context.ComponentVersions.Where(c => c.HashSum == hashSum).FirstOrDefaultAsync();
+                
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при проверке существования компонента {name}. Хэш - {hashSum}");
+                return null;
+            }
+            return null;
+        }
+
     }
 }

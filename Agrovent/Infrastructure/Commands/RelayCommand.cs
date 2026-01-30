@@ -13,6 +13,7 @@ namespace Agrovent.Infrastructure.Commands
             _Execute = Execute ?? throw new ArgumentNullException(nameof(Execute));
             _CanExecute = CanExecute;
         }
+
         public override bool CanExecute(object? parameter) => _CanExecute?.Invoke(parameter) ?? true;
 
         public override void Execute(object? parameter)
@@ -21,4 +22,46 @@ namespace Agrovent.Infrastructure.Commands
             _Execute(parameter);
         }
     }
+    public class RelayCommand<T> : BaseCommand
+    {
+        private readonly Action<T> _execute;
+        private readonly Predicate<T> _canExecute;
+
+        public RelayCommand(Action<T> execute, Predicate<T> canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public override bool CanExecute(object? parameter)
+        {
+            // Проверяем, соответствует ли тип параметра типу T
+            if (parameter is T typedParam)
+            {
+                // Если параметр типа T, вызываем Predicate с ним
+                return _canExecute?.Invoke(typedParam) ?? true;
+            }
+            // Если тип не T или параметр null для типа-значения, возвращаем false
+            // Это стандартное поведение для команд, ожидающих конкретный тип.
+            return false;
+        }
+
+        public override void Execute(object? parameter)
+        {
+            if (!CanExecute(parameter)) return;
+
+            // Мы уже проверили тип в CanExecute, поэтому можем быть уверены, что это T
+            if (parameter is T typedParam)
+            {
+                _execute(typedParam);
+            }
+            // В теории, если CanExecute вернул true, то мы сюда не должны попасть без T
+            // Но для безопасности можно добавить else, если нужно.
+            // else
+            // {
+            //     throw new InvalidOperationException("Непредвиденное состояние: CanExecute вернул true, но параметр не является типом T.");
+            // }
+        }
+    }
+
 }

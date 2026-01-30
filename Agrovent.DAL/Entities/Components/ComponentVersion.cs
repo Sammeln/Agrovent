@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using Agrovent.DAL.Entities.Base;
+using Agrovent.DAL.Entities.Projects;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces;
 
@@ -22,7 +23,7 @@ namespace Agrovent.DAL.Entities.Components
         // Основные свойства
         public string Name { get; set; }
         public string ConfigName { get; set; }
-
+        public byte[] PreviewImage { get; set; }
 
         // Ссылка на артикул Ava
         public int? AvaArticleArticle { get; set; }
@@ -35,9 +36,10 @@ namespace Agrovent.DAL.Entities.Components
         public AGR_AvaType_e AvaType { get; set; }
 
         // Навигационные свойства
-        public ICollection<ComponentProperty> Properties { get; set; } = new List<ComponentProperty>();
         public ComponentMaterial? Material { get; set; }
+        public ICollection<ComponentProperty> Properties { get; set; } = new List<ComponentProperty>();
         public ICollection<ComponentFile> Files { get; set; } = new List<ComponentFile>();
+        public virtual ICollection<ProjectComponent> ProjectComponents { get; set; } = new List<ProjectComponent>(); 
 
         // Метод для проверки, является ли версия последней
         public bool IsLatestVersion()

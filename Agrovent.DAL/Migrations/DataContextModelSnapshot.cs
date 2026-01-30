@@ -74,33 +74,30 @@ namespace Agrovent.DAL.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Article"));
 
                     b.Property<string>("Brand")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Company")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<decimal?>("Count")
                         .HasColumnType("numeric");
 
                     b.Property<string>("Folder")
-                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MainUOM")
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("PartNumber")
                         .HasColumnType("text");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
+                    b.Property<string>("SecondaryUOM")
                         .HasColumnType("text");
 
-                    b.Property<string>("UOM")
-                        .IsRequired()
+                    b.Property<string>("Type")
                         .HasColumnType("text");
 
                     b.HasKey("Article");
@@ -277,6 +274,10 @@ namespace Agrovent.DAL.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<byte[]>("PreviewImage")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -294,6 +295,52 @@ namespace Agrovent.DAL.Migrations
                         .IsUnique();
 
                     b.ToTable("ComponentVersions");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.Project", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int?>("ParentId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("Projects");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.ProjectComponent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ComponentVersionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComponentVersionId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("ProjectComponents");
                 });
 
             modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.Operation", b =>
@@ -449,6 +496,35 @@ namespace Agrovent.DAL.Migrations
                     b.Navigation("Component");
                 });
 
+            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.Project", b =>
+                {
+                    b.HasOne("Agrovent.DAL.Entities.Projects.Project", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.ProjectComponent", b =>
+                {
+                    b.HasOne("Agrovent.DAL.Entities.Components.ComponentVersion", "ComponentVersion")
+                        .WithMany("ProjectComponents")
+                        .HasForeignKey("ComponentVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Agrovent.DAL.Entities.Projects.Project", "Project")
+                        .WithMany("ProjectComponents")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ComponentVersion");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.Operation", b =>
                 {
                     b.HasOne("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", "TechnologicalProcess")
@@ -488,7 +564,16 @@ namespace Agrovent.DAL.Migrations
 
                     b.Navigation("Material");
 
+                    b.Navigation("ProjectComponents");
+
                     b.Navigation("Properties");
+                });
+
+            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.Project", b =>
+                {
+                    b.Navigation("Children");
+
+                    b.Navigation("ProjectComponents");
                 });
 
             modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", b =>

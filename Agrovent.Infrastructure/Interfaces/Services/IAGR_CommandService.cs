@@ -8,7 +8,7 @@ namespace Agrovent.Infrastructure.Interfaces
     public interface IAGR_CommandService
     {
         Task<bool> UpdatePropertiesAsync();
-        // Добавьте сюда методы для других команд, когда они будут реализованы
-        // Task<bool> SomeOtherCommandAsync(ISwDocument3D document);
+        Task<bool> OpenComponentRegistryAsync();
+        Task<bool> OpenProjectExplorerWindowAsync();
     }
 }

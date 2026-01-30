@@ -1,5 +1,7 @@
 using System.ComponentModel.Design;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Agrovent.DAL;
@@ -17,6 +19,9 @@ using Agrovent.Views.Windows;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SolidWorks.Interop.sldworks;
+using SolidWorks.Interop.swconst;
+using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
 using Xarial.XCad.UI.Commands;
@@ -61,6 +66,9 @@ namespace Agrovent
                 // Инициализация модели представления TaskPane
                 InitTaskPane();
 
+                //
+                (Application.Sw as SldWorks).ReferenceNotFoundNotify += AgroventAddin_ReferenceNotFoundNotify;
+
                 _logger.LogInformation("AddIn успешно загружен.");
             }
             catch (Exception ex)
@@ -70,23 +78,6 @@ namespace Agrovent
                 throw;
             }
         }
-
-        private void EnsureDatabaseCreated()
-        {
-            try
-            {
-                _logger.LogInformation("Проверка базы данных...");
-                _dbContext.Database.EnsureCreated();
-                _logger.LogInformation("База данных готова к работе.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка при инициализации базы данных");
-                Application.ShowMessageBox($"Ошибка подключения к базе данных: {ex.Message}",
-                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
-            }
-        }
-
         public override void OnDisconnect()
         {
             try
@@ -100,9 +91,56 @@ namespace Agrovent
             }
         }
 
+        private void EnsureDatabaseCreated()
+        {
+            try
+            {
+                _logger.LogInformation("Проверка базы данных...");
+                //_dbContext.Database.EnsureDeleted();
+                _dbContext.Database.EnsureCreated();
+                _logger.LogInformation("База данных готова к работе.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при инициализации базы данных");
+                Application.ShowMessageBox($"Ошибка подключения к базе данных: {ex.Message}",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+            }
+        }
+        private void InitTaskPane()
+        {
+            try
+            {
+                var taskPaneVM = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
+                var taskPaneView = this.CreateTaskPaneWpf<AGR_TaskPaneView>();
+                taskPaneView.Control.DataContext = taskPaneVM;
+                taskPaneView.IsActive = true;
+                taskPaneView.Control.Focus();
+
+                _logger.LogInformation("TaskPane инициализирован");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при инициализации TaskPane");
+            }
+        }
+        private void InitDI()
+        {
+            AGR_ServiceContainer.Initialize(services =>
+            {
+                // Регистрация самого AddIn
+                services.AddSingleton<AgroventAddin>(this);
+
+                // Дополнительные сервисы, специфичные для SolidWorks
+                services.AddSingleton(Application);
+                services.AddSingleton(CommandManager);
+
+                // ViewModels
+                services.AddTransient<AGR_TaskPaneViewModel>();
+            });
+        }
         private void OnCommandClickExecute(AGR_Commands_e command)
         {
-            AGR_BaseComponent activeComponent = Application.Documents.Active.AGR_BaseComponent() as AGR_BaseComponent;
             try
             {
                 switch (command)
@@ -111,18 +149,29 @@ namespace Agrovent
                         ShowSpecificationWindow();
                         break;
 
-                    case AGR_Commands_e.Command2:
-                        ShowAvaArticleInfo();
+                    case AGR_Commands_e.ExportToIges:
+
+                        //CopyDocuments();
+                        //GetPackAndGO();
+                        //ShowAvaArticleInfo();
+                        ExportToIGES();
                         break;
 
                     case AGR_Commands_e.SaveComponent:
-                        SaveActiveComponent();
-                        break;
-                    case AGR_Commands_e.UpdateProperties:
-                        //_commandService.UpdatePropertiesAsync(activeComponent);
-                        Test();
+                        if (Application.Documents.Active is ISwAssembly) SaveActiveAssembly();
+                        else SaveActiveComponent();
+
                         break;
 
+                    case AGR_Commands_e.UpdateProperties:
+                        _commandService.UpdatePropertiesAsync();
+                        break;
+                    case AGR_Commands_e.ComponentRegistry:
+                        _commandService.OpenComponentRegistryAsync();
+                        break;
+                    case AGR_Commands_e.ProjectsExplorer:
+                        _commandService.OpenProjectExplorerWindowAsync();
+                        break;
                     default:
                         break;
                 }
@@ -135,18 +184,15 @@ namespace Agrovent
             }
         }
 
-        private void Test()
+        ///////////////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////
+        private int AgroventAddin_ReferenceNotFoundNotify(string FileName)
         {
-            var activeDoc = Application.Documents.Active as ISwDocument3D;
-            string filePath = activeDoc.Path;
-            string activeConfig = activeDoc.Configurations.Active.Name;
 
-
-            object com = Application.Sw.GetPreviewBitmap(filePath, activeConfig);
-            stdole.StdPicture pic = com as stdole.StdPicture;
-            Bitmap bmp = Bitmap.FromHbitmap((IntPtr)pic.Handle);
-            bmp.Save(@"D:\Part1_1.bmp");
+            return 0;
         }
+
 
         private void ShowSpecificationWindow()
         {
@@ -200,16 +246,17 @@ namespace Agrovent
                         _ => throw new InvalidOperationException("Неподдерживаемый тип документа")
                     };
 
+                    var componentName = component.Name;
                     var saved = await _versionService.CheckAndSaveComponentAsync(component);
 
                     if (saved)
                     {
-                        Application.ShowMessageBox($"Компонент {component.Name} успешно сохранен в базу данных",
+                        Application.ShowMessageBox($"Компонент {componentName} успешно сохранен в базу данных",
                             Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info);
                     }
                     else
                     {
-                        Application.ShowMessageBox($"Компонент {component.Name} не изменился или уже существует в базе данных",
+                        Application.ShowMessageBox($"Компонент {componentName} не изменился или уже существует в базе данных",
                             Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info);
                     }
                 }
@@ -236,16 +283,17 @@ namespace Agrovent
                     _logger.LogInformation($"Сохранение сборки: {swAssembly.Title}");
 
                     var assembly = new AGR_AssemblyComponentVM(swAssembly);
+                    var assemblyName = assembly.Name;
                     var saved = await _versionService.CheckAndSaveAssemblyAsync(assembly);
 
                     if (saved)
                     {
-                        Application.ShowMessageBox($"Сборка {assembly.Name} успешно сохранена в базу данных",
+                        Application.ShowMessageBox($"Сборка {assemblyName} успешно сохранена в базу данных",
                             Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info);
                     }
                     else
                     {
-                        Application.ShowMessageBox($"Сборка {assembly.Name} не изменилась или уже существует в базе данных",
+                        Application.ShowMessageBox($"Сборка {assemblyName} не изменилась или уже существует в базе данных",
                             Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info);
                     }
                 }
@@ -263,38 +311,28 @@ namespace Agrovent
             }
         }
 
-        private void InitDI()
+        private void ExportToIGES()
         {
-            AGR_ServiceContainer.Initialize(services =>
+            var doc = Application.Documents.Active;
+            var pn = (doc as ISwDocument3D)
+                .Configurations.Active
+                .Properties
+                .AGR_TryGetProp(AGR_PropertyNames.Partnumber)?.Value.ToString();
+            var folder = @"\\192.168.10.56\pdm";
+            var docName = Path.GetFileName(doc.Path);
+
+            if (string.IsNullOrEmpty(pn))
             {
-                // Регистрация самого AddIn
-                services.AddSingleton<AgroventAddin>(this);
+                Application.ShowMessageBox(
+                    "Обозначение не заполнено",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
 
-                // Дополнительные сервисы, специфичные для SolidWorks
-                services.AddSingleton(Application);
-                services.AddSingleton(CommandManager);
-
-                // ViewModels
-                services.AddTransient<AGR_TaskPaneViewModel>();
-            });
-        }
-
-        private void InitTaskPane()
-        {
-            try
-            {
-                var taskPaneVM = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
-                var taskPaneView = this.CreateTaskPaneWpf<AGR_TaskPaneView>();
-                taskPaneView.Control.DataContext = taskPaneVM;
-                taskPaneView.IsActive = true;
-                taskPaneView.Control.Focus();
-
-                _logger.LogInformation("TaskPane инициализирован");
+                return;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка при инициализации TaskPane");
-            }
+            var igesDoc = Path.Combine(
+                folder,
+                pn + "." + Path.ChangeExtension(docName, "IGS"));
+            Application.Documents.Active.SaveAs(igesDoc);
         }
     }
 }

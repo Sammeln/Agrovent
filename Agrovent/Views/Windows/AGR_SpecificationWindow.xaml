@@ -113,7 +113,7 @@
                                     </Setter.Value>
                                 </Setter>
                                 <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
-                                <Setter Property="ToolTipService.ShowDuration" Value="2500" />
+                                <Setter Property="ToolTipService.Placement" Value="Right"/>
                             </Style>
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
@@ -162,7 +162,7 @@
                     <!-- Материал -->
                     <DataGridTextColumn Header="Материал" 
                                         Binding="{Binding MaterialInfo}" 
-                                        Width="2*"
+                                        Width="4*"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                     <!-- Краска -->
@@ -170,6 +170,7 @@
                                         Binding="{Binding PaintName}" 
                                         Width="2*"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+
                 </DataGrid.Columns>
             </DataGrid>
 

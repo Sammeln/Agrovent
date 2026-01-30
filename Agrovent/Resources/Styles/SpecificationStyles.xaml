@@ -8,6 +8,7 @@
         <ResourceDictionary Source="PartComponentStyles.xaml"/>
     </ResourceDictionary.MergedDictionaries>
     <converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
+    <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
     <converter:GroupHeaderColorConverter x:Key="GroupHeaderColorConverter"/>
 
 

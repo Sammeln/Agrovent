@@ -30,5 +30,8 @@ namespace Agrovent.DAL.Repositories
         // Управление версиями
         Task<bool> HasComponentChanged(IAGR_BaseComponent component);
         Task<ComponentVersion?> GetExistingVersion(IAGR_BaseComponent component);
+
+        Task<IEnumerable<ComponentVersion>> GetAllLatestComponentVersionsAsync();
+        Task<IEnumerable<ComponentVersion>> GetTopLevelAssembliesNotInProjectsAsync();
     }
 }

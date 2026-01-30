@@ -9,6 +9,7 @@ using Agrovent.Infrastructure.Interfaces.Properties;
 using Agrovent.Infrastructure.Interfaces;
 using Microsoft.VisualBasic.FileIO;
 using Xarial.XCad.Documents;
+using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.DAL.Repositories
 {
@@ -99,7 +100,33 @@ namespace Agrovent.DAL.Repositories
         {
             try
             {
+                var pn = component.PartNumber;
                 _logger.LogInformation($"Подготовка к сохранению компонента: {component.PartNumber}, HashSum: {hashSum}");
+
+                // Генерация PartNumber, если он пуст 
+                if (string.IsNullOrWhiteSpace(component.PartNumber))
+                {
+                    _logger.LogDebug("PartNumber компонента пуст. Генерация нового...");
+                    component.PartNumber = await GenerateNewPartNumberAsync();
+                    _logger.LogInformation($"Сгенерирован PartNumber: {component.PartNumber}");
+                }
+                //else
+                //{
+                //    // Проверяем формат PartNumber, если он был задан
+                //    if (!IsValidPartNumberFormat(component.PartNumber))
+                //    {
+                //        _logger.LogWarning($"Предоставленный PartNumber '{component.PartNumber}' имеет неверный формат. Ожидается 7 цифр без точек.");
+                //        // В зависимости от требований, можно выбросить исключение или попытаться исправить
+                //        // throw new ArgumentException($"Invalid PartNumber format: {component.PartNumber}. Expected 7 digits without dots.");
+                //        // Или, например, попытаться очистить:
+                //        component.PartNumber = SanitizePartNumber(component.PartNumber);
+                //        if (!IsValidPartNumberFormat(component.PartNumber))
+                //        {
+                //            _logger.LogError($"Не удалось исправить формат PartNumber '{component.PartNumber}'.");
+                //            throw new ArgumentException($"Invalid or unfixable PartNumber format: {component.PartNumber}");
+                //        }
+                //    }
+                //}
 
                 // 1. Проверяем существование компонента по PartNumber
                 var existingComponent = await GetComponentByPartNumber(component.PartNumber);
@@ -144,7 +171,7 @@ namespace Agrovent.DAL.Repositories
                     ? existingComponent.Versions.Max(v => v.Version) + 1
                     : 1;
 
-                _logger.LogInformation($"Создание новой версии: {component.PartNumber} v{nextVersion}");
+                _logger.LogInformation($"Создание новой версии: {component.Name}_{component.PartNumber} v{nextVersion}");
 
                 // 4. Создаем новую версию компонента
                 var componentVersion = new ComponentVersion
@@ -152,6 +179,7 @@ namespace Agrovent.DAL.Repositories
                     Component = existingComponent,
                     Version = nextVersion,
                     HashSum = hashSum,
+                    PreviewImage = component.Preview,
                     Name = component.Name,
                     ConfigName = component.ConfigName,
                     AvaArticle = component.AvaArticle as AvaArticleModel,
@@ -181,6 +209,87 @@ namespace Agrovent.DAL.Repositories
             }
         }
 
+        #endregion
+
+        #region Генерация нового Partnumber
+
+        private async Task<string> GenerateNewPartNumberAsync()
+        {
+            const int maxNumber = 9999999;
+            const int minNumber = 1;
+
+            // Загружаем все занятые PartNumbers из таблицы Components и Article из AvaArticles
+            // Преобразуем их в числа
+            var usedComponentsQuery = _context.Components
+                .Select(c => c.PartNumber)
+                .AsQueryable();
+
+            var usedArticlesQuery = _context.AvaArticles
+                //.Where(a => a.Type == "Комплектующие" || a.Type == "Продукция")
+                //.Where(a => a.PartNumber.Count() == 7)
+                .Select(a => a.PartNumber)
+                .AsQueryable();
+
+            // Объединяем обе коллекии строк PartNumber/Article
+            var allUsedStringsQuery = usedComponentsQuery;//.Union(usedArticlesQuery);
+
+            // --- КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Выполняем ToListAsync() ПОСЛЕ Union ---
+            // Это загружает все строки в память
+            var allUsedStringList = await allUsedStringsQuery.ToListAsync();
+
+            // Теперь фильтруем и преобразуем в int на стороне .NET
+            var usedNumbers = new HashSet<int>(
+                allUsedStringList
+                    .Where(s => !string.IsNullOrEmpty(s) && s.Length == 7 && s.All(char.IsDigit)) // Фильтрация в .NET
+                    .Select(s => int.Parse(s)) // Преобразование в .NET
+            );
+
+            //// Преобразуем строки в числа и собираем в HashSet для быстрого поиска
+            //var usedNumbers = new HashSet<int>(
+            //    await allUsedStringsQuery
+            //        .Where(s => !string.IsNullOrEmpty(s) && s.All(char.IsDigit) && s.Length == 7) // Убедимся, что строка состоит из 7 цифр
+            //        .Select(s => int.Parse(s)) // Преобразуем в int
+            //        .ToListAsync()
+            //);
+
+            // Ищем первое неиспользованное число
+            for (int i = minNumber; i <= maxNumber; i++)
+            {
+                if (!usedNumbers.Contains(i))
+                {
+                    // Найдено! Форматируем как 7-значную строку
+                    return i.ToString("D7");
+                }
+            }
+
+            // Если все числа заняты (в теории невозможно при maxNumber = 9999999)
+            throw new InvalidOperationException("Не удалось сгенерировать уникальный PartNumber: достигнут максимальный лимит.");
+        }
+        #endregion
+
+        #region  ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Проверка формата PartNumber 
+        private static bool IsValidPartNumberFormat(string partNumber)
+        {
+            // Проверяем, что строка не пустая, состоит из 7 цифр и не содержит точек
+            return !string.IsNullOrEmpty(partNumber) &&
+                   partNumber.Length == 7 &&
+                   partNumber.All(char.IsDigit); // Все символы - цифры, точки нет
+        }
+        #endregion
+
+        #region ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Попытка очистки PartNumber (опционально)
+        private static string SanitizePartNumber(string partNumber)
+        {
+            // Убираем точки и пробелы, оставляем только цифры
+            var cleaned = new string(partNumber.Where(char.IsDigit).ToArray());
+            // Обрезаем до 7 символов, если больше
+            if (cleaned.Length > 7)
+            {
+                cleaned = cleaned.Substring(0, 7);
+            }
+            // Добавляем ведущие нули, если меньше 7
+            return cleaned.PadLeft(7, '0');
+        } 
         #endregion
 
         #region Поиск компонента по хешу
@@ -250,7 +359,7 @@ namespace Agrovent.DAL.Repositories
                 _logger.LogInformation($"Подготовка к сохранению структуры сборки: {assembly.PartNumber}");
 
                 // 1. Сохраняем сборку как компонент
-                var assemblyHash = CalculateComponentHash(assembly as IAGR_BaseComponent);
+                var assemblyHash = assembly.CalculateComponentHash(); //(assembly as IAGR_BaseComponent);
                 var assemblyVersion = await SaveComponent(assembly as IAGR_BaseComponent, assemblyHash);
 
                 // 2. Удаляем старую структуру
@@ -286,7 +395,7 @@ namespace Agrovent.DAL.Repositories
             foreach (var item in components)
             {
                 // Сохраняем компонент
-                var componentHash = CalculateComponentHash(item.Component);
+                var componentHash = item.Component.CalculateComponentHash();
                 var componentVersion = await SaveComponent(item.Component, componentHash);
 
                 // Создаем запись в структуре
@@ -353,7 +462,7 @@ namespace Agrovent.DAL.Repositories
             {
                 _logger.LogDebug($"Проверка изменений компонента: {component.PartNumber}");
 
-                var hash = CalculateComponentHash(component);
+                var hash = component.CalculateComponentHash();
                 var existingVersion = await FindComponentByHash(hash);
                 return existingVersion == null;
             }
@@ -370,7 +479,7 @@ namespace Agrovent.DAL.Repositories
             {
                 _logger.LogDebug($"Поиск существующей версии компонента: {component.PartNumber}");
 
-                var hash = CalculateComponentHash(component);
+                var hash = component.CalculateComponentHash();
                 return await FindComponentByHash(hash);
             }
             catch (Exception ex)
@@ -555,35 +664,59 @@ namespace Agrovent.DAL.Repositories
             };
         }
 
-        private int CalculateComponentHash(IAGR_BaseComponent component)
-        {
-            // Вычисляем хеш на основе важных свойств
-            unchecked
-            {
-                int hash = 17;
-
-                if (component is IAGR_Part part)
-                {
-                    hash = hash + (component.Name?.GetHashCode(StringComparison.Ordinal) ?? 0);
-                }
-                if (component is IAGR_Assembly assembly)
-                {
-
-                }
-
-                return hash;
-
-
-                //int hash = 17;
-                //hash = hash * 23 + (component.Name?.GetHashCode(StringComparison.Ordinal) ?? 0);
-                //hash = hash * 23 + (component.ConfigName?.GetHashCode(StringComparison.Ordinal) ?? 0);
-                //hash = hash * 23 + (component.PartNumber?.GetHashCode(StringComparison.Ordinal) ?? 0);
-                //hash = hash * 23 + component.ComponentType.GetHashCode();
-                //hash = hash * 23 + component.AvaType.GetHashCode();
-                //return hash;
-            }
-        }
 
         #endregion
+
+        public async Task<IEnumerable<ComponentVersion>> GetAllLatestComponentVersionsAsync()
+        {
+            try
+            {
+                _logger.LogDebug("Запрос всех последних версий компонентов");
+
+                // Запрос для получения последней версии для каждого компонента
+                // Группируем версии по ComponentId и выбираем версию с максимальным номером
+                var latestVersions = await _context.ComponentVersions
+                    .Include(v => v.Component) // Подгружаем связанный компонент
+                    .Include(v => v.Files)     // Подгружаем связанный файл
+                    .AsNoTracking() // Оптимизация для чтения
+                    .GroupBy(v => v.ComponentId)
+                    .Select(g => g.OrderByDescending(v => v.Version).First())
+                    .ToListAsync();
+
+                return latestVersions;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении всех последних версий компонентов");
+                throw;
+            }
+        }
+        public async Task<IEnumerable<ComponentVersion>> GetTopLevelAssembliesNotInProjectsAsync()
+        {
+            try
+            {
+                _logger.LogDebug("Запрос версий сборок верхнего уровня, не входящих в проекты");
+
+                // Предположим, ComponentType_e.Assembly соответствует 0 (или другому значению enum -> int)
+                // и что "верхний уровень" означает, что у компонента нет родителя в структуре сборки (что сложно определить без хранения этой связи)
+                // Вместо этого, будем искать сборки, которые НЕ находятся НИ в одном ProjectComponent
+                var assembliesInProjects = _context.ProjectComponents
+                    .Select(pc => pc.ComponentVersionId)
+                    .Distinct();
+
+                var topLevelAssemblies = await _context.ComponentVersions
+                    .Include(cv => cv.Component) // Подгружаем связанный компонент
+                    .Where(cv => cv.ComponentType == (int)AGR_ComponentType_e.Assembly 
+                                && !assembliesInProjects.Contains(cv.Id))
+                    .ToListAsync();
+
+                return topLevelAssemblies;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении версий сборок верхнего уровня, не входящих в проекты");
+                throw;
+            }
+        }
     }
 }

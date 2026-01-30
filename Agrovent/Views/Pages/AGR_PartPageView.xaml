@@ -96,6 +96,7 @@
                         <TextBlock Text="{Binding Version, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource ReadOnlyValueStyle}"/>
                     </DockPanel>
+                    
                 </StackPanel>
             </Expander>
 
@@ -105,15 +106,20 @@
                         NotifyOnSourceUpdated=True,
                         NotifyOnTargetUpdated=True, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
                 <Expander.Header>
-                    <TextBlock Text="Материал" Style="{StaticResource SectionHeaderStyle}"/>
+                    <TextBlock Text="Материал и покраска" Style="{StaticResource SectionHeaderStyle}"/>
                 </Expander.Header>
                 <StackPanel>
 
                     <!-- Название материала -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}">
                         <TextBlock Text="Материал:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding BaseMaterial.Name}" 
-                                   Style="{StaticResource ReadOnlyTextBox}"/>
+                        <TextBox Text="{Binding BaseMaterial.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
+                            <i:Interaction.Triggers>
+                                <i:EventTrigger EventName="MouseDoubleClick">
+                                    <i:InvokeCommandAction Command="{Binding SelectBaseMaterialCommand}"/>
+                                </i:EventTrigger>
+                            </i:Interaction.Triggers>
+                        </TextBox>
                     </DockPanel>
 
                     <!-- Количество материала -->
@@ -122,30 +128,20 @@
                         <TextBox Text="{Binding BaseMaterialCount, StringFormat={}{0:F3}}"
                                    Style="{StaticResource ModernTextBox}"/>
                     </DockPanel>
-                </StackPanel>
-            </Expander>
-
-            <!-- Секция: Покраска (только для не-purchased) -->
-            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True"
-                    Visibility="{Binding ComponentType, NotifyOnSourceUpdated=True, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
-                <Expander.Header>
-                    <TextBlock Text="Покраска" Style="{StaticResource SectionHeaderStyle}"/>
-                </Expander.Header>
-                <StackPanel>
 
                     <!-- Название краски -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Краска:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBlock Text="{Binding Paint.Name}" 
-                                   Style="{StaticResource ReadOnlyValueStyle}"/>
+                        <TextBlock Text="Материал:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding Paint.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
+                            <i:Interaction.Triggers>
+                                <i:EventTrigger EventName="MouseDoubleClick">
+                                    <i:InvokeCommandAction Command="{Binding SelectPaintCommand}"/>
+                                </i:EventTrigger>
+                            </i:Interaction.Triggers>
+                        </TextBox>
                     </DockPanel>
 
-                    <!-- Количество краски -->
-                    <!--<DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Количество:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBlock Text="{Binding PaintCount, StringFormat={}{0:F2}}"
-                                   Style="{StaticResource ReadOnlyValueStyle}"/>
-                    </DockPanel>-->
+
                 </StackPanel>
             </Expander>
 
@@ -223,7 +219,26 @@
                             </i:Interaction.Triggers>
                         </TextBox>
                     </DockPanel>
+                    
+                    <!-- Хранилище модели -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                        Visibility="{Binding UnfoldPath, Converter={StaticResource NullToVisibilityConverter}}">
+                        <TextBlock Text="Модель (Производство):" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
+                        <TextBox Text="{Binding UnfoldPath, Mode=OneWay}" 
+                            Style="{StaticResource ReadOnlyTextBox}"
+                            TextWrapping="NoWrap">
+                            <i:Interaction.Triggers>
+                                <i:EventTrigger EventName="MouseDoubleClick">
+                                    <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
+                                       CommandParameter="{Binding UnfoldPath}"/>
+                                </i:EventTrigger>
+                            </i:Interaction.Triggers>
+                        </TextBox>
+                    </DockPanel>
+
+
                 </StackPanel>
+                
             </Expander>
 
         </StackPanel>

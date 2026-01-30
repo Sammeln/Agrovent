@@ -10,11 +10,18 @@ namespace Agrovent.Infrastructure.Extensions
 {
     public static class AGR_IXPropertyRepoExtension
     {
-        public static IXProperty AGR_TryGetProp(this IXPropertyRepository repo, string propertyName)
+        public static IXProperty? AGR_TryGetProp(this IXPropertyRepository repo, string propertyName)
         {
-            IXProperty xProperty = repo.GetOrPreCreate(propertyName);
-            if (!xProperty.IsCommitted) xProperty.Commit(CancellationToken.None);
-            return xProperty;
+            try
+            {
+                IXProperty xProperty = repo.GetOrPreCreate(propertyName);
+                if (!xProperty.IsCommitted) xProperty.Commit(CancellationToken.None);
+                return xProperty;
+            }
+            catch (Exception)
+            {
+                throw;
+            }
         }
     }
 }

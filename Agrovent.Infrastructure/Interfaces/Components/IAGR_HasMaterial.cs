@@ -2,7 +2,7 @@
 {
     public interface IAGR_HasMaterial
     {
-        abstract IAGR_Material BaseMaterial { get; set; }
-        abstract decimal BaseMaterialCount { get; set; }
+        abstract IAGR_Material BaseMaterial { get; }
+        abstract decimal BaseMaterialCount { get; }
     }
 }

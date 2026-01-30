@@ -15,19 +15,38 @@ namespace Agrovent.Infrastructure.Converters
         {
             if (value != "")
             {
-                Enum type = (AGR_AvaType_e)value;
-                switch (type)
+                if (value is string)
                 {
-                    case AGR_AvaType_e.Production:
-                        return "Продукция";
-                    case AGR_AvaType_e.Component:
-                        return "Произведено";
-                    case AGR_AvaType_e.Purchased:
-                        return "Покупное";
-                    case AGR_AvaType_e.VirtualComponent:
-                        return "Виртуальный компонент";
-                    case AGR_AvaType_e.DontBuy:
-                        return "Не покупать";
+                    switch (value.ToString())
+                    {
+                        case "Production":
+                            return "Продукция";
+                        case "Component":
+                            return "Комплектующие";
+                        case "Purchased":
+                            return "Покупное";
+                        case "VirtualComponent":
+                            return "Виртуальный компонент";
+                        case "DontBuy":
+                            return "Не покупать";
+                    }
+                }
+                else
+                {
+                    Enum type = (AGR_AvaType_e)value;
+                    switch (type)
+                    {
+                        case AGR_AvaType_e.Production:
+                            return "Продукция";
+                        case AGR_AvaType_e.Component:
+                            return "Комплектующие";
+                        case AGR_AvaType_e.Purchased:
+                            return "Покупное";
+                        case AGR_AvaType_e.VirtualComponent:
+                            return "Виртуальный компонент";
+                        case AGR_AvaType_e.DontBuy:
+                            return "Не покупать";
+                    }
                 }
             }
             return null;

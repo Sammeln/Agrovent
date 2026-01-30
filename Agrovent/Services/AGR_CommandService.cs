@@ -5,8 +5,11 @@ using Agrovent.Infrastructure.Extensions; // Для AGR_TryGetProp и т.д.
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Base;
+using Agrovent.ViewModels.Windows;
+using Agrovent.Views.Windows;
 using Microsoft.Extensions.Logging;
 using System.Threading;
+using System.Windows;
 using Xarial.XCad.Data;
 using Xarial.XCad.Documents;
 using Xarial.XCad.SolidWorks.Documents;
@@ -17,11 +20,16 @@ namespace Agrovent.Services
     {
         private readonly ILogger<AGR_CommandService> _logger;
         private readonly IAGR_ComponentVersionService _componentVersionService; // Возможно, нужен для AvaArticle
+        private readonly IServiceProvider _serviceProvider; // Необходим для получения VM
 
-        public AGR_CommandService(ILogger<AGR_CommandService> logger, IAGR_ComponentVersionService componentVersionService)
+        public AGR_CommandService(
+            ILogger<AGR_CommandService> logger,
+            IAGR_ComponentVersionService componentVersionService,
+            IServiceProvider serviceProvider) // Принимаем IServiceProvider
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _componentVersionService = componentVersionService ?? throw new ArgumentNullException(nameof(componentVersionService));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         }
 
         public async Task<bool> UpdatePropertiesAsync()
@@ -84,6 +92,79 @@ namespace Agrovent.Services
             //    return false;
             //}
         }
+        public async Task<bool> OpenComponentRegistryAsync()
+        {
+            try
+            {
+                _logger.LogDebug("Открытие окна реестра компонентов");
+
+                // Получаем ViewModel из DI контейнера
+                var registryVM = AGR_ServiceContainer.GetService<AGR_ComponentRegistryVM>();
+                if (registryVM == null)
+                {
+                    _logger.LogError("Не удалось получить AGR_ComponentRegistryVM из DI контейнера.");
+                    return false;
+                }
+                registryVM.LoadDataCommand.Execute(null);
+
+                // Создаем View и устанавливаем DataContext
+                var registryView = new AGR_ComponentRegistryView 
+                {
+                    DataContext = registryVM,
+                    Title = "Реестр компонентов",
+                    Width = 1200,
+                    Height = 800,
+                    ResizeMode = ResizeMode.CanResizeWithGrip
+                };
+
+                // Открываем окно (модально или немодально)
+                registryView.ShowDialog(); // или window.Show(); для немодального окна
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при открытии окна реестра компонентов");
+                return false;
+            }
+        }
+
+        public async Task<bool> OpenProjectExplorerWindowAsync()
+        {
+            try
+            {
+                _logger.LogDebug("Открытие окна проводника компонентов");
+
+                // Получаем ViewModel из DI контейнера
+                var projectTreeVM = AGR_ServiceContainer.GetService<AGR_ProjectExplorerVM>();
+                if (projectTreeVM == null)
+                {
+                    _logger.LogError("Не удалось получить AGR_ComponentRegistryVM из DI контейнера.");
+                    return false;
+                }
+                projectTreeVM.LoadProjectsCommand.Execute(null);
+
+                // Создаем View и устанавливаем DataContext
+                var projectTreeView = new AGR_ProjectExplorerView
+                {
+                    DataContext = projectTreeVM,
+                    Title = "Дерево компонентов",
+                    Width = 1200,
+                    Height = 800,
+                    ResizeMode = ResizeMode.CanResizeWithGrip
+                };
+
+                // Открываем окно (модально или немодально)
+                projectTreeView.ShowDialog(); // или window.Show(); для немодального окна
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при открытии окна проводника компонентов");
+                return false;
+            }
+        }
 
         private async Task UpdateMassPropertyAsync(ISwConfiguration configuration)
         {
@@ -106,7 +187,6 @@ namespace Agrovent.Services
                 _logger.LogWarning($"Could not access SolidWorks specific property for mass update in document: {document3D.Title}");
             }
         }
-
         private async Task UpdatePartSpecificPropertiesAsync(ISwDocument3D document, IXConfiguration configuration)
         {
             // Пример: обновление длины/ширины/толщины заготовки для листовых деталей
@@ -138,30 +218,5 @@ namespace Agrovent.Services
             // Для обычных деталей, возможно, только масса обновляется в этом методе.
         }
 
-        // Пример метода для обновления AvaArticle в сборке (псевдокод)
-        /*
-        private async Task UpdateAssemblyAvaArticleAsync(ISwDocument3D document, IXPropertiesCollection properties)
-        {
-            // Получить AvaArticle из дочерних компонентов (например, через AvaModel)
-            // Это требует обхода структуры сборки и логики агрегации
-            // string avaArticle = AggregateAvaArticleFromChildren(document);
-            // var avaProp = properties.GetOrPreCreate(AGR_PropertyNames.AvaArticle); // Предполагаем, что такое свойство есть
-            // avaProp.Value = avaArticle;
-            // await avaProp.Commit(CancellationToken.None);
-        }
-        */
-
-        // Пример метода определения листовой детали (псевдокод)
-        /*
-        private bool IsSheetMetalPart(ISwDocument3D document)
-        {
-            // Использовать API SolidWorks для проверки наличия листовых библиотечных элементов
-            // var swPart = document as ISwPart;
-            // var swApp = swPart.Sw;
-            // var feat = swPart.IGetFirstFeature();
-            // ... анализ features ...
-            return false; // Пока заглушка
-        }
-        */
     }
 }

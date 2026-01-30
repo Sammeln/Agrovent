@@ -1,5 +1,6 @@
 ﻿// ComponentViewModelFactory.cs (если нужно создавать ViewModel с зависимостями)
 using System.Collections.ObjectModel;
+using Agrovent.DAL.Services;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components;
@@ -24,12 +25,38 @@ namespace Agrovent.Services
     public class AGR_ComponentViewModelFactory : IAGR_ComponentViewModelFactory
     {
         private readonly ILogger<AGR_ComponentViewModelFactory> _logger;
+        private readonly IComponentDataService _componentDataService;
 
         public AGR_ComponentViewModelFactory(ILogger<AGR_ComponentViewModelFactory> logger)
         {
             _logger = logger;
         }
+        [Obsolete]
+        public async Task<IAGR_BaseComponent> CreateComponentAsync(ISwDocument3D document)
+        {
+            _logger.LogDebug($"Creating component async: {document.Title}");
 
+            return document switch
+            {
+                ISwPart part => await CreatePartComponentAsync(part),
+                ISwAssembly assembly => await CreateAssemblyComponentAsync(assembly),
+                _ => throw new NotSupportedException($"Document type not supported: {document.GetType()}")
+            };
+        }
+        public IAGR_BaseComponent CreateComponent(ISwDocument3D document)
+        {
+            _logger.LogDebug($"Creating component async: {document.Title}");
+
+            return document switch
+            {
+                ISwPart part => CreatePartComponent(part),
+                ISwAssembly assembly => CreateAssemblyComponent(assembly),
+                _ => throw new NotSupportedException($"Document type not supported: {document.GetType()}")
+            };
+        }
+
+        // Синхронные методы для обратной совместимости
+        [Obsolete]
         public async Task<AGR_AssemblyComponentVM> CreateAssemblyComponentAsync(ISwDocument3D document)
         {
             throw new NotImplementedException();
@@ -56,6 +83,22 @@ namespace Agrovent.Services
             //}
         }
 
+        public AGR_AssemblyComponentVM CreateAssemblyComponent(ISwDocument3D document)
+        {
+            _logger.LogDebug($"Creating assembly component sync: {document.Title}");
+
+            try
+            {
+                var viewModel = new AGR_AssemblyComponentVM(document as ISwAssembly);
+                return viewModel;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating assembly component sync: {document.Title}");
+                throw;
+            }
+        }
+        [Obsolete]
         public async Task<AGR_PartComponentVM> CreatePartComponentAsync(ISwDocument3D document)
         {
             throw new NotImplementedException();
@@ -72,45 +115,6 @@ namespace Agrovent.Services
             //    _logger.LogError(ex, $"Error creating part component: {document.Title}");
             //    throw;
             //}
-        }
-        public async Task<IAGR_BaseComponent> CreateComponentAsync(ISwDocument3D document)
-        {
-            _logger.LogDebug($"Creating component async: {document.Title}");
-
-            return document switch
-            {
-                ISwPart part => await CreatePartComponentAsync(part),
-                ISwAssembly assembly => await CreateAssemblyComponentAsync(assembly),
-                _ => throw new NotSupportedException($"Document type not supported: {document.GetType()}")
-            };
-        }
-        public IAGR_BaseComponent CreateComponent(ISwDocument3D document)
-        {
-            _logger.LogDebug($"Creating component async: {document.Title}");
-
-            return document switch
-            {
-                ISwPart part => CreatePartComponent(part),
-                ISwAssembly assembly => CreateAssemblyComponent(assembly),
-                _ => throw new NotSupportedException($"Document type not supported: {document.GetType()}")
-            };
-        }
-
-        // Синхронные методы для обратной совместимости
-        public AGR_AssemblyComponentVM CreateAssemblyComponent(ISwDocument3D document)
-        {
-            _logger.LogDebug($"Creating assembly component sync: {document.Title}");
-
-            try
-            {
-                var viewModel = new AGR_AssemblyComponentVM(document as ISwAssembly);
-                return viewModel;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error creating assembly component sync: {document.Title}");
-                throw;
-            }
         }
 
         public AGR_PartComponentVM CreatePartComponent(ISwDocument3D document)

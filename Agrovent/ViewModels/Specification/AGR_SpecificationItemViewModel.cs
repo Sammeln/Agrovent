@@ -17,7 +17,7 @@ namespace Agrovent.ViewModels.Specification
 
         public string Name => _component.Name;
         public string ConfigName => _component.ConfigName;
-        public string PartNumber => _component.PartNumber;
+        public string PartNumber => Component.AvaType == AGR_AvaType_e.Purchased ? Component.AvaArticle?.Article.ToString() : _component.PartNumber;
         public int Quantity => _quantity;
         public AGR_ComponentType_e ComponentType => _component.ComponentType;
 
@@ -26,8 +26,10 @@ namespace Agrovent.ViewModels.Specification
         {
             get
             {
-                if (_component is AGR_PartComponentVM part)
+                if (_component is AGR_PartComponentVM part && _component.ComponentType != AGR_ComponentType_e.Purchased)
+                {
                     return part.BaseMaterial?.Name;
+                }
                 return null;
             }
         }
@@ -36,8 +38,10 @@ namespace Agrovent.ViewModels.Specification
         {
             get
             {
-                if (_component is AGR_PartComponentVM part)
+                if (_component is AGR_PartComponentVM part && _component.ComponentType != AGR_ComponentType_e.Purchased)
+                {
                     return part.BaseMaterialCount;
+                }
                 return null;
             }
         }
@@ -93,23 +97,10 @@ namespace Agrovent.ViewModels.Specification
         public string MaterialInfo => MaterialName != null ? $"{MaterialName} ({MaterialCount:F2})" : null;
         public string QuantityString => Quantity.ToString();
 
-        public byte[] Preview
-        {
-            get
-            {
-                var app = AGR_ServiceContainer.GetService<ISwApplication>();
+        public int HashSum => Component.CalculateComponentHash();
 
-                string filePath = Component.FilePath;
-                string activeConfig = Component.ConfigName;
+        public byte[] Preview => Component.Preview;
 
-                object com = app.Sw.GetPreviewBitmap(filePath, activeConfig);
-                stdole.StdPicture pic = com as stdole.StdPicture;
-                var bmp = Bitmap.FromHbitmap((IntPtr)pic.Handle);
-
-                ImageConverter converter = new ImageConverter();
-                return (byte[])converter.ConvertTo(bmp, typeof(byte[]));
-            }
-        }
         public AGR_SpecificationItemVM(IAGR_BaseComponent component, int quantity)
         {
             _component = component;

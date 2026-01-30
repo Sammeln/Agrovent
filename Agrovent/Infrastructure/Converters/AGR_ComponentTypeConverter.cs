@@ -10,17 +10,34 @@ namespace Agrovent.Infrastructure.Converters
         {
             if (value != "")
             {
-                Enum type = (AGR_ComponentType_e)value;
-                switch (type)
+                if (value is string)
                 {
-                    case AGR_ComponentType_e.Assembly:
-                        return "Сборочные единицы";
-                    case AGR_ComponentType_e.Part:
-                        return "Детали";
-                    case AGR_ComponentType_e.Purchased:
-                        return "Покупное";
-                    case AGR_ComponentType_e.SheetMetallPart:
-                        return "Листовые детали";
+                    switch (value.ToString())
+                    {
+                        case "Assembly":
+                            return "Сборочные единицы";
+                        case "Part":
+                            return "Детали";
+                        case "Purchased":
+                            return "Покупное";
+                        case "SheetMetallPart":
+                            return "Листовые детали";
+                    }
+                }
+                else
+                {
+                    Enum type = (AGR_ComponentType_e)value;
+                    switch (type)
+                    {
+                        case AGR_ComponentType_e.Assembly:
+                            return "Сборочные единицы";
+                        case AGR_ComponentType_e.Part:
+                            return "Детали";
+                        case AGR_ComponentType_e.Purchased:
+                            return "Покупное";
+                        case AGR_ComponentType_e.SheetMetallPart:
+                            return "Листовые детали";
+                    }
                 }
             }
             return null;

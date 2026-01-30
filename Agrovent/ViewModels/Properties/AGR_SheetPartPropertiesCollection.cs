@@ -96,7 +96,7 @@ namespace Agrovent.ViewModels.Properties
             base.UpdateProperties();
 
             IXProperty property = default;
-            var cutlist = (mConfiguration as IXPartConfiguration).CutLists.First();
+            var cutlist = (mConfiguration as IXPartConfiguration).CutLists.FirstOrDefault();
             if (cutlist != null)
             {
                 try
@@ -105,6 +105,7 @@ namespace Agrovent.ViewModels.Properties
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankLen);
                     if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
+                        SheetMetall_Length = property;
                         SheetMetall_Length.Value = property.Value;
                     }
 
@@ -112,6 +113,7 @@ namespace Agrovent.ViewModels.Properties
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankWid);
                     if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
+                        SheetMetall_Width = property;
                         SheetMetall_Width.Value = property.Value;
                     }
 
@@ -119,7 +121,9 @@ namespace Agrovent.ViewModels.Properties
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankThick);
                     if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
+                        SheetMetall_Thickness = property;
                         SheetMetall_Thickness.Value = property.Value;
+                        //OnPropertyChanged(nameof(SheetMetall_Thickness));
                     }
 
                     //Вычисление площади развертки
@@ -132,6 +136,7 @@ namespace Agrovent.ViewModels.Properties
                         //Площадь в кв.мм переводим в кв.м
                         area = area / 1000000;
 
+                        SheetMetall_SurfaceArea = property;
                         SheetMetall_SurfaceArea.Value = Math.Round(area, 3, MidpointRounding.ToPositiveInfinity);
                     }
 
@@ -139,6 +144,7 @@ namespace Agrovent.ViewModels.Properties
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankBends);
                     if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
+                        SheetMetall_Bends = property;
                         SheetMetall_Bends.Value = property.Value;
                     }
 
@@ -146,6 +152,7 @@ namespace Agrovent.ViewModels.Properties
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankHoles);
                     if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
+                        SheetMetall_Holes = property;
                         SheetMetall_Holes.Value = property.Value;
                     }
 
@@ -159,6 +166,7 @@ namespace Agrovent.ViewModels.Properties
                         //Площадь в кв.мм переводим в кв.м
                         area = area / 1000000;
 
+                        SheetMetall_PlateArea = property;
                         SheetMetall_PlateArea.Value = Math.Round(area, 3, MidpointRounding.ToPositiveInfinity);
                     }
                     //Вычисление внешнего контура
@@ -168,7 +176,7 @@ namespace Agrovent.ViewModels.Properties
                         double contVal = double.Parse(property.Value.ToString()
                                             .Replace('.', ',')
                                             );
-
+                        SheetMetall_OuterContour = property;
                         SheetMetall_OuterContour.Value = Math.Round(contVal, 3, MidpointRounding.ToPositiveInfinity);
                     }
                     //Вычисление внутреннего контура
@@ -178,9 +186,8 @@ namespace Agrovent.ViewModels.Properties
                         double contVal = double.Parse(property.Value.ToString()
                                                .Replace('.', ',')
                                                );
-
+                        SheetMetall_InnerContour = property;
                         SheetMetall_InnerContour.Value = Math.Round(contVal, 3, MidpointRounding.ToPositiveInfinity);
-
                     }
 
                 }

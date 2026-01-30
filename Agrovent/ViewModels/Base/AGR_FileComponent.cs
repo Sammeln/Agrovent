@@ -15,6 +15,26 @@ namespace Agrovent.ViewModels.Base
         public string? ProductionModelFilePath  => GetProdModelFilePath();
         public string? ProductionDrawFilePath  => GetProdDrawFilePath();
 
+        public string? UnfoldPath => null;//GetUnfoldPath();
+
+        private string? GetUnfoldPath()
+        {
+            try
+            {
+                var fileList = Directory.GetFiles(@"\\192.168.10.56\pdm").Select(path => Path.GetFileName(path)).ToList();
+                var unfoldPath = fileList
+                    .Where(path => path.StartsWith(PartNumber, StringComparison.OrdinalIgnoreCase) && path.EndsWith("geo", StringComparison.OrdinalIgnoreCase))
+                    .FirstOrDefault();
+
+                return unfoldPath;
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+
         private string? GetDrawFilePath()
         {
             var drawPath = Path.ChangeExtension(mDocument.Path, "slddrw");
