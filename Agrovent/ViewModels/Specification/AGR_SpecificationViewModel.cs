@@ -46,6 +46,18 @@ namespace Agrovent.ViewModels.Specification
         }
         #endregion
 
+
+        #region Команды
+        private RelayCommand _closeCommand;
+        public RelayCommand CloseCommand => _closeCommand ??= new RelayCommand(
+            _ => CloseWindow?.Invoke(),
+            _ => true);
+        #endregion
+
+        #region События
+        public event Action CloseWindow;
+        #endregion
+
         #region Статистические свойства
         private int _totalComponents;
         public int TotalComponents
@@ -82,18 +94,6 @@ namespace Agrovent.ViewModels.Specification
             private set => Set(ref _totalPurchased, value);
         }
         #endregion
-
-        #region Команды
-        private RelayCommand _closeCommand;
-        public RelayCommand CloseCommand => _closeCommand ??= new RelayCommand(
-            _ => CloseWindow?.Invoke(),
-            _ => true);
-        #endregion
-
-        #region События
-        public event Action CloseWindow;
-        #endregion
-
         public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent)
         {
             _baseComponent = baseComponent;

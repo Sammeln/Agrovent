@@ -161,9 +161,9 @@
 
                     <!-- Материал -->
                     <DataGridTextColumn Header="Материал" 
-                                        Binding="{Binding MaterialInfo}" 
+                                        Binding="{Binding MaterialName}" 
                                         Width="4*"
-                                        ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                                        />
 
                     <!-- Краска -->
                     <DataGridTextColumn Header="Краска" 
@@ -186,7 +186,7 @@
                 Padding="16,12" 
                 BorderBrush="#E0E0E0" 
                 BorderThickness="0,1,0,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="Collapsed">
                 <Button Content="Обновить" 
                         Style="{StaticResource ActionButtonStyle}"
                         Command="{Binding RefreshCommand}"/>

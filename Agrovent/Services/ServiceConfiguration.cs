@@ -31,8 +31,7 @@ namespace Agrovent
 
             services.AddSingleton<IConfiguration>(configuration);
 
-            services.Configure<AGR_FileStorageConfig>(configuration.GetSection("FileStorage")); // Предполагаем, что в appsettings.json есть секция "FileStorage"
-            // Регистрация AGR_FileStorageConfig как Singleton (можно и transient/scoped, в зависимости от нужд)
+            services.Configure<AGR_FileStorageConfig>(configuration.GetSection("FileStorage")); 
             services.AddSingleton(provider => provider.GetRequiredService<IOptions<AGR_FileStorageConfig>>().Value);
 
             // 2. Логирование
@@ -70,8 +69,6 @@ namespace Agrovent
             services.AddScoped<AGR_TaskPaneViewModel>();
             services.AddTransient<AGR_ComponentRegistryVM>();
             services.AddTransient<AGR_ProjectExplorerVM>();
-            // services.AddTransient<AGR_AssemblyComponentVM>();
-            // services.AddTransient<AGR_PartComponentVM>();
 
             return services;
         }

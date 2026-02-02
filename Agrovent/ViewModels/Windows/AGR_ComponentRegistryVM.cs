@@ -63,6 +63,8 @@ namespace Agrovent.ViewModels.Windows
                 // Это может быть дорогая операция, в реальном приложении можно добавить пагинацию
                 var versions = await _componentRepository.GetAllLatestComponentVersionsAsync(); // Предполагаем, что такой метод есть в репозитории
 
+                var source = new ObservableCollection<ComponentVersion>(versions);
+
                 // Очищаем текущую коллекцию
                 RegistryItems.Clear();
 
