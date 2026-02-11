@@ -15,6 +15,7 @@ using Agrovent.Infrastructure.Services;
 using Agrovent.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 using Agrovent.ViewModels.Windows;
+using Agrovent.ViewModels;
 
 namespace Agrovent
 {
@@ -66,7 +67,7 @@ namespace Agrovent
                ));
 
             // 6. ViewModels (если нужно)
-            services.AddScoped<AGR_TaskPaneViewModel>();
+            services.AddSingleton<AGR_TaskPaneViewModel>();
             services.AddTransient<AGR_ComponentRegistryVM>();
             services.AddTransient<AGR_ProjectExplorerVM>();
 

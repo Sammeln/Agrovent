@@ -18,14 +18,21 @@ using System.IO;
 using Xarial.XCad.UI;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Drawing;
-using EModelView;
 using Xarial.XCad.SolidWorks;
 using System.Windows.Media.Imaging;
+using Agrovent.DAL;
+using Agrovent.ViewModels.Windows;
+using Agrovent.Views.Windows;
+using Microsoft.Extensions.Logging;
+using Xarial.XCad.Documents;
 
 namespace Agrovent.ViewModels.Components
 {
-    public class AGR_AssemblyComponentVM : AGR_FileComponent, IAGR_Assembly
+    public class AGR_AssemblyComponentVM : AGR_FileComponent, IAGR_Assembly, IAGR_HasPaint
     {
+
+        private readonly ILogger<AGR_PartComponentVM> _logger; // Добавляем логгер
+
         #region Property - SelectedItem
         private IAGR_BaseComponent _SelectedItem;
         public IAGR_BaseComponent SelectedItem
@@ -44,11 +51,25 @@ namespace Agrovent.ViewModels.Components
         }
         #endregion
 
+        // Реализация IAGR_HasPaint
+        private IAGR_Material? _paint;
+        public IAGR_Material? Paint
+        {
+            get => _paint;
+            set => Set(ref _paint, value);
+        }
+
+        #region PaintCount
+        private decimal? _PaintCount;
+        public decimal? PaintCount { get => _PaintCount; set => _PaintCount = value; }
+        #endregion
+
         #region METHODS
         public IEnumerable<IAGR_SpecificationItem> GetChildComponents()
         {
             // Получаем компоненты верхнего уровня
-            var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_ActiveComponents().AGR_BaseComponents();
+            //var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_ActiveComponents().AGR_BaseComponents();
+            var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_BaseComponents(true);
             // Группируем и создаем SpecificationItemVM для верхнего уровня
             var groupedTop = topComponents
                 .GroupBy(c => new { c.Name, c.ConfigName })
@@ -59,7 +80,8 @@ namespace Agrovent.ViewModels.Components
         public IEnumerable<IAGR_SpecificationItem> GetFlatComponents()
         {
             // Получаем все компоненты (плоский список)
-            var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents();
+            //var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents();
+            var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.TryFlatten().AGR_BaseComponents(true);
             // Группируем и создаем SpecificationItemVM для плоского списка
             var groupedFlat = flatComponents
                 .GroupBy(c => new { c.Name, c.ConfigName })
@@ -114,12 +136,67 @@ namespace Agrovent.ViewModels.Components
         }
         #endregion
 
+        #region SelectPaintCommand
+        private ICommand _SelectPaintCommand;
+        public ICommand SelectPaintCommand => _SelectPaintCommand
+            ??= new RelayCommand(OnSelectPaintCommandExecuted, CanSelectPaintCommandExecute);
+        private bool CanSelectPaintCommandExecute(object p) => true;
+        private void OnSelectPaintCommandExecuted(object p)
+        {
+            try
+            {
+                _logger?.LogDebug("Открытие окна выбора AvaArticle для компонента {PartNumber}", PartNumber);
+
+                // Получаем IServiceProvider из вашего контейнера (предполагаем, что он доступен)
+                // Это может быть AGR_ServiceContainer или другой способ получения провайдера.
+                // Пример (может отличаться в вашем проекте):
+
+                // Получаем нужные сервисы для VM
+                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
+
+                // Создаем ViewModel
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
+                selectVm.SearchText = "Краска порошковая ";
+
+                // Создаем View и устанавливаем DataContext
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+
+
+                selectView.ShowActivated = true;
+                // Открываем окно модально
+                selectView.ShowDialog();
+
+                // Если окно закрыто с результатом OK и элемент выбран
+                if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
+                {
+                    // Присваиваем выбранный AvaArticleModel в BaseMaterial.AvaModel
+                    Paint = new AGR_Material(selectVm.SelectedArticle);
+                    mProperties.FirstOrDefault(p => p.Name == AGR_PropertyNames.Color).Value = Paint.Name;
+                    _logger?.LogInformation("Выбран AvaArticle {Article} для компонента {PartNumber}", selectVm.SelectedArticle.Article, PartNumber);
+
+                    // Обновляем свойства, если это влияет на них (например, BaseMaterialCount)
+                    //Task.Run(async () => await UpdatePropertiesAsync()).ConfigureAwait(false); // Вызов асинхронного метода
+                }
+                else
+                {
+                    _logger?.LogDebug("Окно выбора AvaArticle закрыто без выбора.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Ошибка при открытии окна выбора AvaArticle для компонента {PartNumber}", PartNumber);
+            }
+        }
+        #endregion 
+
         #endregion
 
         #region CTOR
-        public AGR_AssemblyComponentVM(ISwDocument3D swDocument3D) : base(swDocument3D)
+        public AGR_AssemblyComponentVM(ISwDocument3D doc3D) : base(doc3D)
         {
-            
+            Paint = new AGR_Paint(doc3D); // Предполагаем, что AGR_Paint может быть создан так
+            PaintCount = 0; // Инициализация
         } 
         #endregion
     }

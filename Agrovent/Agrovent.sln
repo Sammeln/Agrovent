@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agrovent.DAL", "..\Agrovent
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agrovent.Infrastructure", "..\Agrovent.Infrastructure\Agrovent.Infrastructure.csproj", "{50B9A029-B02B-46A9-9D2C-780FF08257BA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AGR_PropManager", "..\AGR_PropManager\AGR_PropManager.csproj", "{1B97D482-D93C-4DFD-9A82-B4F13FA318FF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,6 +32,10 @@ Global
 		{50B9A029-B02B-46A9-9D2C-780FF08257BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{50B9A029-B02B-46A9-9D2C-780FF08257BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{50B9A029-B02B-46A9-9D2C-780FF08257BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1B97D482-D93C-4DFD-9A82-B4F13FA318FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1B97D482-D93C-4DFD-9A82-B4F13FA318FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1B97D482-D93C-4DFD-9A82-B4F13FA318FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1B97D482-D93C-4DFD-9A82-B4F13FA318FF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

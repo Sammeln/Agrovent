@@ -1,9 +1,13 @@
-﻿using Agrovent.Infrastructure.Enums;
+﻿using System.Windows;
+using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Components;
+using Microsoft.VisualStudio.Shell.Interop;
 using Xarial.XCad.Data;
 using Xarial.XCad.Documents;
+using Xarial.XCad.Documents.Enums;
 using Xarial.XCad.SolidWorks.Documents;
+using static System.Windows.Forms.AxHost;
 
 namespace Agrovent.Infrastructure.Extensions
 {
@@ -16,11 +20,11 @@ namespace Agrovent.Infrastructure.Extensions
             if (!string.IsNullOrEmpty(prop.Value.ToString()))
             {
                 var avaType = Convert.ToInt32(xDoc.Configurations.Active.Properties[AGR_PropertyNames.AvaType].Value);
-            if ((AGR_AvaType_e)avaType != null)
-            {
-                return (AGR_AvaType_e)avaType;
+                if ((AGR_AvaType_e)avaType != null)
+                {
+                    return (AGR_AvaType_e)avaType;
+                }
             }
-        }
             return AGR_AvaType_e.Component;
         }
         public static AGR_ComponentType_e ComponentType(this ISwDocument3D xDoc)
@@ -55,23 +59,68 @@ namespace Agrovent.Infrastructure.Extensions
             //Purchased
         }
 
+        public static IAGR_BaseComponent AGR_BaseComponent(this IXComponent xComp, bool OnlyActive)
+        {
+            if (OnlyActive)
+            {
+                if (!xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Suppressed)
+                    && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.SuppressedIdMismatch)
+                    && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.ExcludedFromBom)
+                    && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Embedded)
+                    )
+                {
+                    try
+                    {
+                        var xDoc = xComp.ReferencedDocument as ISwDocument3D;
+                        var componentType = xDoc.ComponentType();
+                        switch (componentType)
+                        {
+                            case AGR_ComponentType_e.Purchased:
+                                if (xDoc.Path.EndsWith("asm", StringComparison.OrdinalIgnoreCase)) return new AGR_AssemblyComponentVM(xDoc);
+                                else return new AGR_PartComponentVM(xDoc);
+                            case AGR_ComponentType_e.Assembly:
+                                return new AGR_AssemblyComponentVM(xDoc);
+                            case AGR_ComponentType_e.Part:
+                            case AGR_ComponentType_e.SheetMetallPart:
+                                return new AGR_PartComponentVM(xDoc);
+                            default:
+                                throw new NotImplementedException($"Component type {componentType} is not implemented.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.Forms.MessageBox.Show($"{xComp.Name}");
+                    }
+                    throw new NotImplementedException($"Component type {xComp} is not implemented.");
+                }
+            }
+            throw new NotImplementedException($"Component type {xComp} is not implemented.");
+        }
         public static IAGR_BaseComponent AGR_BaseComponent(this IXComponent xComp)
         {
-            var xDoc = xComp.ReferencedDocument as ISwDocument3D;
-            var componentType = xDoc.ComponentType();
-            switch (componentType)
+            try
             {
-                case AGR_ComponentType_e.Purchased:
-                    if (xDoc.Path.EndsWith("asm",StringComparison.OrdinalIgnoreCase)) return new AGR_AssemblyComponentVM(xDoc);
-                    else return new AGR_PartComponentVM(xDoc);
-                case AGR_ComponentType_e.Assembly:
-                    return new AGR_AssemblyComponentVM(xDoc);
-                case AGR_ComponentType_e.Part:
-                case AGR_ComponentType_e.SheetMetallPart:
-                    return new AGR_PartComponentVM(xDoc);
-                default:
-                    throw new NotImplementedException($"Component type {componentType} is not implemented.");
+                var xDoc = xComp.ReferencedDocument as ISwDocument3D;
+                var componentType = xDoc.ComponentType();
+                switch (componentType)
+                {
+                    case AGR_ComponentType_e.Purchased:
+                        if (xDoc.Path.EndsWith("asm", StringComparison.OrdinalIgnoreCase)) return new AGR_AssemblyComponentVM(xDoc);
+                        else return new AGR_PartComponentVM(xDoc);
+                    case AGR_ComponentType_e.Assembly:
+                        return new AGR_AssemblyComponentVM(xDoc);
+                    case AGR_ComponentType_e.Part:
+                    case AGR_ComponentType_e.SheetMetallPart:
+                        return new AGR_PartComponentVM(xDoc);
+                    default:
+                        throw new NotImplementedException($"Component type {componentType} is not implemented.");
+                }
             }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show($"{xComp.Name}");
+            }
+            throw new NotImplementedException($"Component type {xComp} is not implemented.");
         }
         public static IAGR_BaseComponent AGR_BaseComponent(this IXDocument xDoc)
         {
@@ -90,6 +139,6 @@ namespace Agrovent.Infrastructure.Extensions
             }
         }
 
-       
+
     }
 }

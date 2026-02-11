@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.DAL.Entities.TechnologicalProcess;
 using Agrovent.DAL.Entities.Projects;
+using Agrovent.DAL.Entities.TechProcess;
 
 namespace Agrovent.DAL
 {
@@ -21,7 +22,12 @@ namespace Agrovent.DAL
         public DbSet<ComponentFile> ComponentFiles { get; set; }
         public DbSet<AvaArticleModel> AvaArticles { get; set; }
         public DbSet<Project> Projects { get; set; } 
-        public DbSet<ProjectComponent> ProjectComponents { get; set; } 
+        public DbSet<ProjectComponent> ProjectComponents { get; set; }
+
+        public DbSet<Workstation> Workstations { get; set; }
+        public DbSet<Operation> Operations { get; set; }
+        public DbSet<TechnologicalProcess> TechProcesses { get; set; }
+
         #endregion
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -76,6 +82,11 @@ namespace Agrovent.DAL
                 .WithOne(f => f.ComponentVersion)
                 .HasForeignKey(f => f.ComponentVersionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ComponentVersion>()
+                .HasOne(cv => cv.Component)
+                .WithMany(c => c.Versions)
+                .HasForeignKey(cv => cv.ComponentId);
 
             // Структура сборки - самореференциальная связь
             modelBuilder.Entity<AssemblyStructure>(entity =>
@@ -171,6 +182,23 @@ namespace Agrovent.DAL
                 .HasMany(cv => cv.ProjectComponents) // Добавляем навигационное свойство
                 .WithOne(pc => pc.ComponentVersion)
                 .HasForeignKey(pc => pc.ComponentVersionId);
+
+            // --- Техпроцессы ---
+            modelBuilder.Entity<TechnologicalProcess>()
+                .HasOne(tp => tp.Component)
+                .WithOne() // Указывает, что связь один-к-одному или не требует обратной навигации в Component
+                .HasForeignKey<TechnologicalProcess>(tp => tp.PartNumber)
+                .HasPrincipalKey<Component>(c => c.PartNumber); // Указывает, что внешний ключ ссылается на PartNumber
+
+            modelBuilder.Entity<Operation>()
+                .HasOne(op => op.TechnologicalProcess)
+                .WithMany(tp => tp.Operations)
+                .HasForeignKey(op => op.TechnologicalProcessId);
+
+            modelBuilder.Entity<Operation>()
+                .HasOne(op => op.Workstation)
+                .WithMany(w => w.Operations)
+                .HasForeignKey(op => op.WorkstationId);
 
         }
 

@@ -27,6 +27,7 @@
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
 
+            <converter:AGR_ComponentTypeToVisibilityConverter x:Key="ComponentTypeToVisibilityConverter"/>
             <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
@@ -108,17 +109,14 @@
                             <DataGridTemplateColumn Header="Название" Width="4*" SortMemberPath="Name">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Style="{StaticResource ReadOnlyValueStyle}" Text="{Binding Name, Mode=OneWay}"/>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource ReadOnlyValueStyle}" Text="{Binding Name, Mode=OneWay}"/>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <!--<DataGridTextColumn Header="Конфигурация" 
-                                                       Binding="{Binding ConfigName}" 
-                                                       Width="120"/>
-                                    <DataGridTextColumn Header="Тип" 
-                                                       Binding="{Binding ComponentType}" 
-                                                       Width="120"/>-->
-                            <DataGridTemplateColumn Header="PartNumber" Width="2*" SortMemberPath="PartNumber">
+
+                            <DataGridTemplateColumn Header="PartNumber" Width="1.2*" SortMemberPath="PartNumber">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding PartNumber, Mode=OneWay}"/>
@@ -126,7 +124,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="Кол-во" Width="*" SortMemberPath="PartNumber">
+                            <DataGridTemplateColumn Header="Кол-во" Width="0.7*" SortMemberPath="PartNumber">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBox Style="{StaticResource ReadOnlyTextBox}" Text="{Binding Quantity, Mode=OneWay}"/>
@@ -193,6 +191,31 @@
                             </Border>
                         </WrapPanel>
                     </StackPanel>-->
+                </StackPanel>
+            </Expander>
+
+            <!-- Секция: Покраска -->
+            <Expander  Style="{StaticResource CardStyleExpander}" IsExpanded="True" 
+                        Visibility="{Binding ComponentType,
+                        NotifyOnSourceUpdated=True,
+                       NotifyOnTargetUpdated=True, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                <Expander.Header>
+                    <TextBlock Text="Покраска" Style="{StaticResource SectionHeaderStyle}"/>
+                </Expander.Header>
+                <StackPanel>
+                    <!-- Название краски -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                        <TextBlock Text="Краска:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding Paint.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
+                            <i:Interaction.Triggers>
+                                <i:EventTrigger EventName="MouseDoubleClick">
+                                    <i:InvokeCommandAction Command="{Binding SelectPaintCommand}"/>
+                                </i:EventTrigger>
+                            </i:Interaction.Triggers>
+                        </TextBox>
+                    </DockPanel>
+
+
                 </StackPanel>
             </Expander>
 

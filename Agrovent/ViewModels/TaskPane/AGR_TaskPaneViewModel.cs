@@ -13,6 +13,11 @@ using System.Windows.Controls;
 using SolidWorks.Interop.sldworks;
 using Agrovent.Infrastructure.Enums;
 using Microsoft.VisualStudio.Shell.Interop;
+using Agrovent.Infrastructure.Interfaces;
+using Agrovent.DAL.Repositories;
+using Microsoft.VisualStudio.TextManager.Interop;
+using Agrovent.DAL;
+using System.Diagnostics;
 
 namespace Agrovent.ViewModels.TaskPane
 {
@@ -22,8 +27,10 @@ namespace Agrovent.ViewModels.TaskPane
         private readonly ISwApplication _app;
         private readonly IAGR_ComponentViewModelFactory _viewModelFactory;
         private readonly ILogger<AGR_TaskPaneViewModel> _logger;
-        private readonly IComponentDataService _componentDataService; 
-        
+        private readonly IUnitOfWork _unitOfWork;
+
+        private bool Initialized = false;
+
         private CancellationTokenSource _cancellationTokenSource;
 
 
@@ -77,21 +84,33 @@ namespace Agrovent.ViewModels.TaskPane
         public AGR_TaskPaneViewModel(
             IAGR_ComponentViewModelFactory viewModelFactory,
             ILogger<AGR_TaskPaneViewModel> logger,
-            IComponentDataService componentDataService)
+            IComponentDataService componentDataService,
+            IAGR_ComponentRepository componentRepo,
+            IUnitOfWork unitOfWork
+            )
         {
             _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
             _viewModelFactory = viewModelFactory;
             _logger = logger;
-            _componentDataService = componentDataService;
+            _unitOfWork = unitOfWork;
             _cancellationTokenSource = new CancellationTokenSource();
 
-            _app.Documents.DocumentActivated += OnDocumentActivatedAsync;
-            //_app.Documents.DocumentOpened += Documents_DocumentOpened;
-            //_app.Documents.DocumentLoaded += Documents_DocumentLoaded;
+            if (!Initialized)
+            {
+                _app.Documents.DocumentActivated += OnDocumentActivatedAsync;
+                _app.Idle += OnIdle;
+                Initialized = true;
+                (_app.Sw as SldWorks).CommandOpenPreNotify += AGR_TaskPaneViewModel_CommandOpenPreNotify;
+            }
 
-            _app.Idle += OnIdle;
 
             _logger.LogInformation("TaskPaneViewModel initialized");
+        }
+
+        private int AGR_TaskPaneViewModel_CommandOpenPreNotify(int Command, int UserCommand)
+        {
+            Debug.Print("CommandOpenPreNotify: " + Command + ", UserCommand: " + UserCommand);
+            return 0;
         }
 
 
@@ -106,9 +125,33 @@ namespace Agrovent.ViewModels.TaskPane
             {
                 SubsribePartEvents(doc as ISwPart);
             }
+            if (doc is ISwAssembly assembly)
+            {
+                (assembly.Assembly as AssemblyDoc).FileDropPreNotify += AGR_TaskPaneViewModel_FileDropPreNotify;
+                (assembly.Assembly as AssemblyDoc).FileDropNotify += AGR_TaskPaneViewModel_FileDropNotify;
+            }
 
 
         }
+
+        private int AGR_TaskPaneViewModel_FileDropNotify(string FileName)
+        {
+            if (true)
+            {
+
+            }
+            return 0;
+        }
+
+        private int AGR_TaskPaneViewModel_FileDropPreNotify(string FileName)
+        {
+            if (true)
+            {
+
+            }
+            return 0;
+        }
+
         private void UnsubsribeEvents(IXDocument doc)
         {
             ActiveComponent.Selections.NewSelection -= OnSelectionChangedAsync;
@@ -117,6 +160,11 @@ namespace Agrovent.ViewModels.TaskPane
             if (doc is ISwPart part)
             {
                 UnSubsribePartEvents(doc as ISwPart);
+            }
+            if (doc is ISwAssembly assembly)
+            {
+                (assembly.Assembly as AssemblyDoc).FileDropPreNotify -= AGR_TaskPaneViewModel_FileDropPreNotify;
+                (assembly.Assembly as AssemblyDoc).FileDropNotify -= AGR_TaskPaneViewModel_FileDropNotify;
             }
         }
 
@@ -160,98 +208,6 @@ namespace Agrovent.ViewModels.TaskPane
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        private async Task LoadDocumentViewModel(ISwDocument3D document)
-        {
-            try
-            {
-                if (document == null)
-                {
-                    IsLoading = false;
-                    return;
-                }
-
-                _logger.LogDebug($"Loading ViewModel for: {document.Title}");
-
-
-                LoadingMessage = document is ISwAssembly
-                    ? "Загрузка сборки..."
-                    : "Загрузка детали...";
-
-                // Создаём ViewModel из документа SolidWorks
-                var viewModel = _viewModelFactory.CreateComponent(document);
-
-
-                // Загружаем данные из БД
-                LoadingMessage = "Загрузка данных из базы...";
-                await LoadComponentDataFromDatabase(viewModel);
-
-
-                BaseComponent = viewModel;
-                ActiveView = viewModel;
-
-                _logger.LogInformation($"ViewModel loaded for: {document.Title}");
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogDebug($"Loading cancelled for: {document?.Title}");
-
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error loading ViewModel for: {document?.Title}");
-
-            }
-            finally
-            {
-                IsLoading = false;
-                LoadingMessage = string.Empty;
-            }
-        }
-        private async Task LoadComponentDataFromDatabase(IAGR_BaseComponent component)
-        {
-            try
-            {
-                var partNumber = component.PartNumber;
-
-                // Проверяем существование компонента в БД
-                var existsInDb = _componentDataService.ComponentExistsInDatabase(partNumber);
-                component.IsInDatabase = existsInDb;
-
-                _logger.LogDebug($"Component {partNumber} exists in DB: {existsInDb}");
-
-                if (existsInDb)
-                {
-                    // Загружаем последнюю версию из БД
-                    var latestVersion = _componentDataService.GetLatestComponentVersion(partNumber);
-
-                    if (latestVersion != null)
-                    {
-                        _logger.LogDebug($"Loaded version {latestVersion.Version} for {partNumber}");
-
-                        // Обновляем свойства из БД
-                        component.Version = latestVersion.Version;
-                        component.HashSum = latestVersion.HashSum;
-                        component.ComponentType = latestVersion.ComponentType;
-
-                        // Загружаем AvaArticle если есть
-                        if (latestVersion.AvaArticleArticle.HasValue)
-                        {
-                            component.AvaArticle = latestVersion.AvaArticle;
-                            _logger.LogDebug($"Loaded AvaArticle {latestVersion.AvaArticleArticle} for {partNumber}");
-                        }
-                    }
-                }
-                else
-                {
-                    _logger.LogDebug($"Component {partNumber} not found in database");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error loading component data from database for {component?.PartNumber}");
-            }
-        }
 
         private async void OnDocumentActivatedAsync(IXDocument doc)
         {
@@ -328,13 +284,13 @@ namespace Agrovent.ViewModels.TaskPane
 
                 // Загружаем данные из БД
                 LoadingMessage = "Загрузка данных из базы...";
-                if (!string.IsNullOrEmpty(viewModel.PartNumber))
+                if (!string.IsNullOrEmpty(viewModel.PartNumber) && !string.IsNullOrEmpty(viewModel.SwDocument.Path))
                 {
                     await LoadComponentDataFromDatabaseAsync(viewModel);
                 }
                 else
                 {
-                    //await CheckComponentByHashAsync(viewModel);
+                    await CheckComponentByHashAsync(viewModel);
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -366,31 +322,26 @@ namespace Agrovent.ViewModels.TaskPane
             {
                 var partNumber = component.PartNumber;
 
-                // Проверяем существование компонента в БД
-                var existsInDb = await _componentDataService.ComponentExistsInDatabaseAsync(partNumber);
+                // Проверяем существование компонента в БД через UnitOfWork
+                var latestVersion = await _unitOfWork.ComponentRepository.GetLatestComponentVersion(partNumber); // Используем метод из репозитория
+                var existsInDb = latestVersion != null; // Если версия найдена, компонент существует
                 component.IsInDatabase = existsInDb;
 
                 _logger.LogDebug($"Component {partNumber} exists in DB: {existsInDb}");
 
-                if (existsInDb)
+                if (existsInDb && latestVersion != null) // Убедимся, что latestVersion не null
                 {
-                    // Загружаем последнюю версию из БД
-                    var latestVersion = await _componentDataService.GetLatestComponentVersionAsync(partNumber);
+                    _logger.LogDebug($"Loaded version {latestVersion.Version} for {partNumber}");
 
-                    if (latestVersion != null)
+                    // Обновляем свойства из БД
+                    component.Version = latestVersion.Version;
+                    component.HashSum = latestVersion.HashSum;
+
+                    // Загружаем AvaArticle если есть
+                    if (latestVersion.AvaArticle != null) // Используем AvaArticleId из ComponentVersion
                     {
-                        _logger.LogDebug($"Loaded version {latestVersion.Version} for {partNumber}");
-
-                        // Обновляем свойства из БД
-                        component.Version = latestVersion.Version;
-                        component.HashSum = latestVersion.HashSum;
-
-                        // Загружаем AvaArticle если есть
-                        if (latestVersion.AvaArticleArticle.HasValue)
-                        {
-                            component.AvaArticle = latestVersion.AvaArticle;
-                            _logger.LogDebug($"Loaded AvaArticle {latestVersion.AvaArticleArticle} for {partNumber}");
-                        }
+                        component.AvaArticle = latestVersion.AvaArticle; // Предполагаем, что AvaArticleNavigation загружено
+                        _logger.LogDebug($"Loaded AvaArticle {latestVersion.AvaArticle} for {partNumber}");
                     }
                 }
                 else
@@ -411,10 +362,11 @@ namespace Agrovent.ViewModels.TaskPane
                 int hashSum = component.CalculateComponentHash();
                 var name = component.Name;
 
-                var existingComponent = _componentDataService.ComponentExistsInDatabaseAsync(hashSum, name).Result;
+                // Используем UnitOfWork для поиска по хэшу
+                var existingComponent = await _unitOfWork.ComponentRepository.FindComponentByHash(hashSum); // Используем метод из репозитория
                 if (existingComponent != null)
                 {
-                    var res  = _app.ShowMessageBox($"В базе найден такой компонент - {existingComponent.Component.PartNumber}\nНужно или переименовать компонент или использовать сохраненное обозначение\nИспользовать обозначение?",
+                    var res = _app.ShowMessageBox($"В базе найден такой компонент - {existingComponent.Component.PartNumber}\nНужно или переименовать компонент или использовать сохраненное обозначение\nИспользовать обозначение?",
                                         Xarial.XCad.Base.Enums.MessageBoxIcon_e.Question,
                                         Xarial.XCad.Base.Enums.MessageBoxButtons_e.YesNo);
                     if (res == Xarial.XCad.Base.Enums.MessageBoxResult_e.Yes)
@@ -423,10 +375,10 @@ namespace Agrovent.ViewModels.TaskPane
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex) // Ловим и логируем исключение
             {
-
-                throw;
+                _logger.LogError(ex, $"Error checking component by hash for {component?.Name}");
+                // Не выбрасываем исключение, чтобы не прерывать основной поток загрузки
             }
         }
 
@@ -440,11 +392,29 @@ namespace Agrovent.ViewModels.TaskPane
 
 
                     var viewModel = _viewModelFactory.CreateComponent(swDoc);
-                    await LoadComponentDataFromDatabase(viewModel);
+                    await LoadComponentDataFromDatabaseAsync(viewModel);
 
                     Selection = viewModel;
                     ActiveView = viewModel;
                 }
+
+                else if (selObject is IXComponent component)
+                {
+                    swDoc = component.ReferencedDocument as ISwDocument3D;
+                    _logger.LogDebug($"Selection changed to: {swDoc.Title}");
+
+                    var viewModel = _viewModelFactory.CreateComponent(swDoc);
+                    await LoadComponentDataFromDatabaseAsync(viewModel);
+                    if (viewModel is AGR_AssemblyComponentVM assemblyComponentVM)
+                    {
+                        assemblyComponentVM.GetChildComponents();
+                    }
+
+                    Selection = viewModel;
+                    ActiveView = viewModel;
+
+                }
+
             }
             catch (Exception ex)
             {

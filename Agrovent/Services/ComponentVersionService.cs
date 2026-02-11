@@ -201,11 +201,12 @@ namespace Agrovent.Infrastructure.Services
             }
         }
 
-        
+
         // Копирование файлов в хранилище ---
         private async Task CopyFilesToStorageAsync(IAGR_BaseComponent rootComponent, int rootHashSum)
         {
             var rootPartNumber = rootComponent.PartNumber;
+
             // 1. Собираем информацию о файлах и их хэшах
             var filesToCopyInfo = new Dictionary<string, int>(); // Ключ: исходный путь, Значение: хэш компонента
 
@@ -249,6 +250,7 @@ namespace Agrovent.Infrastructure.Services
                 _logger.LogError(ex, "Ошибка при получении экземпляра SolidWorks Application.");
                 return; // Или выбросить исключение
             }
+
 
             // --- НОВАЯ ЛОГИКА: Подготовка массивов и вызов CopyDocument ---
             if (rootComponent is IAGR_HasFile rootFileComponent && !string.IsNullOrEmpty(rootFileComponent.CurrentModelFilePath))

@@ -5,14 +5,24 @@ using Agrovent.Infrastructure.Commands;
 using Agrovent.Infrastructure.Configuration;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.Windows.Details;
+using Agrovent.Views.Windows.Details;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.Shell.Interop;
+using SolidWorks.Interop.swconst;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Data;
-using System.Windows.Input; // Для CollectionViewSource
+using System.Windows.Input;
+using Xarial.XCad.Base;
+using Xarial.XCad.Documents;
+using Xarial.XCad.SolidWorks;
+using Xarial.XCad.SolidWorks.Documents; // Для CollectionViewSource
 
 namespace Agrovent.ViewModels.Windows
 {
@@ -31,18 +41,13 @@ namespace Agrovent.ViewModels.Windows
             _storageConfig = storageConfig ?? throw new ArgumentNullException(nameof(storageConfig));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            //LoadDataCommand = new RelayCommand(async () => await LoadDataAsync());
-
             // Инициализация CollectionViewSource
             RegistryItemsView = CollectionViewSource.GetDefaultView(RegistryItems);
             RegistryItemsView.Filter = FilterRegistryItems; // Устанавливаем метод фильтрации
-
-            // Загружаем данные при создании VM (или вызывайте LoadDataCommand извне)
-            // Task.Run(async () => await LoadDataAsync()); // Не рекомендуется запускать асинхронный код в конструкторе
         }
 
+        #region COMMANDS
         // Команда для загрузки данных
-
         #region LoadDataCommand
         private ICommand _LoadDataCommand;
         public ICommand LoadDataCommand => _LoadDataCommand
@@ -87,8 +92,182 @@ namespace Agrovent.ViewModels.Windows
             }
         }
 
-        #endregion 
+        #endregion
 
+        #region OpenComponentCommand
+        private ICommand _OpenComponentCommand;
+        public ICommand OpenComponentCommand => _OpenComponentCommand
+            ??= new RelayCommand<AGR_ComponentRegistryItemVM>(OnOpenComponentCommandExecuted, CanOpenComponentCommandExecute);
+        private bool CanOpenComponentCommandExecute(AGR_ComponentRegistryItemVM p) => true;//p != null && !string.IsNullOrEmpty(p.StoragePath) && File.Exists(p.StoragePath);
+        private void OnOpenComponentCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
+        {
+            if (selectedItem == null || string.IsNullOrEmpty(selectedItem.StoragePath)) return;
+
+            var filePath = selectedItem.StoragePath;
+
+            if (!File.Exists(filePath))
+            {
+                _logger.LogWarning($"Команда 'Открыть': Файл не существует: {filePath}");
+                return;
+            }
+
+            try
+            {
+                // Получаем ISwApplication
+                var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swApp == null)
+                {
+                    _logger.LogError("Команда 'Открыть': Не удалось получить ISwApplication.");
+                    return;
+                }
+
+                // Проверяем, открыт ли документ
+                var openDoc = swApp.Documents.FirstOrDefault(x => x.Path == filePath);
+                if (openDoc != null)
+                {
+                    // Документ уже открыт, делаем его активным
+                    swApp.Documents.Active = openDoc as ISwDocument;
+                    _logger.LogDebug($"Команда 'Открыть': Документ уже открыт, активирован: {filePath}");
+                }
+                else
+                {
+                    // Документ не открыт, открываем
+                    var newDoc = swApp.Documents.PreCreateFromPath(filePath);
+                    newDoc.Commit(CancellationToken.None);
+                    _logger.LogDebug($"Команда 'Открыть': Документ открыт: {filePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Команда 'Открыть': Ошибка при открытии файла {filePath}");
+            }
+        }
+        #endregion
+
+        #region AddToAssemblyCommand
+        private ICommand _AddToAssemblyCommand;
+        public ICommand AddToAssemblyCommand => _AddToAssemblyCommand
+            ??= new RelayCommand<AGR_ComponentRegistryItemVM>(OnAddToAssemblyCommandExecuted, CanAddToAssemblyCommandExecute);
+        private bool CanAddToAssemblyCommandExecute(AGR_ComponentRegistryItemVM p)
+        {
+            if (p == null || string.IsNullOrEmpty(p.StoragePath) || !File.Exists(p.StoragePath)) return false;
+
+            // Проверяем, активен ли сборочный документ
+            var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+            if (swApp == null) return false;
+
+            var activeDoc = swApp.Documents.Active;
+            return activeDoc is ISwAssembly;
+        }
+        private void OnAddToAssemblyCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
+        {
+            if (selectedItem == null || string.IsNullOrEmpty(selectedItem.StoragePath)) return;
+
+            var filePath = selectedItem.StoragePath;
+
+            if (!File.Exists(filePath))
+            {
+                _logger.LogWarning($"Команда 'Добавить в сборку': Файл не существует: {filePath}");
+                return;
+            }
+
+            try
+            {
+                var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swApp == null)
+                {
+                    _logger.LogError("Команда 'Добавить в сборку': Не удалось получить ISwApplication.");
+                    return;
+                }
+
+                // Проверяем, активен ли сборочный документ
+                var activeDoc = swApp.Documents.Active;
+                if (!(activeDoc is ISwAssembly swAssembly))
+                {
+                    _logger.LogWarning("Команда 'Добавить в сборку': Активный документ не является сборкой.");
+                    return;
+                }
+
+                // Проверяем, открыт ли документ компонента
+                IXDocument3D? compDoc = swApp.Documents.FirstOrDefault(x => x.Path == filePath) as IXDocument3D;
+                if (compDoc == null)
+                {
+                    // Документ не открыт, открываем его
+                    //compDoc = swApp.Documents.PreCreateFromPath(filePath) as IXDocument3D;
+
+                    compDoc = swApp.Documents.PreCreate<ISwDocument3D>();
+                    compDoc.Path = filePath;
+
+                    if (compDoc == null)
+                    {
+                        _logger.LogError($"Команда 'Добавить в сборку': Не удалось открыть документ компонента: {filePath}");
+                        return;
+                    }
+                    //compDoc.Commit(CancellationToken.None);
+                    _logger.LogDebug($"Команда 'Добавить в сборку': Документ компонента открыт: {filePath}");
+
+                    swApp.Documents.Active = activeDoc;
+                }
+
+                // Создаем шаблон компонента
+                var xComp = swAssembly.Configurations.Active.Components.PreCreate<IXComponent>();
+                if (xComp == null)
+                {
+                    _logger.LogError($"Команда 'Добавить в сборку': Не удалось создать шаблон компонента для {filePath}");
+                    return;
+                }
+
+                // Устанавливаем ссылку на документ
+                xComp.ReferencedDocument = compDoc;
+
+                // Добавляем в сборку
+                swAssembly.Configurations.Active.Components.Add(xComp);
+                _logger.LogDebug($"Команда 'Добавить в сборку': Компонент добавлен в сборку: {filePath}");
+
+                // Выделяем компонент
+                xComp.Select(false);
+
+                // Запускаем внутреннюю команду для перемещения компонента (Move Component)
+                swApp.Sw.RunCommand(1993, "");
+
+                // Запускаем внутреннюю команду ZoomToFit (Zoom to Fit)
+                swApp.Sw.RunCommand(332, "");
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Команда 'Добавить в сборку': Ошибка при добавлении файла {filePath} в сборку.");
+            }
+        }
+        #endregion
+
+        #region ShowDetailsCommand
+        private ICommand _ShowDetailsCommand;
+        public ICommand ShowDetailsCommand => _ShowDetailsCommand
+            ??= new RelayCommand<AGR_ComponentRegistryItemVM>(OnShowDetailsCommandExecuted, CanShowDetailsCommandExecute);
+        private bool CanShowDetailsCommandExecute(AGR_ComponentRegistryItemVM p) => p != null; // Всегда доступна, если элемент выбран
+        private void OnShowDetailsCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
+        {
+            if (selectedItem == null) return;
+
+            // Создаем и открываем окно с деталями
+            var detailsVM = new AGR_ComponentDetailsVM(selectedItem); // Предполагаем, что ViewModel будет создана
+            var detailsView = new AGR_ComponentDetailsView { DataContext = detailsVM };
+
+            var window = new Window
+            {
+                Title = $"Детали: {selectedItem.Name} ({selectedItem.PartNumber})",
+                Content = detailsView,
+                Width = 800,
+                Height = 600,
+                ResizeMode = ResizeMode.CanResizeWithGrip
+            };
+
+            window.ShowDialog(); // Открываем модально
+        }
+        #endregion
+
+        #endregion
 
         // Коллекция для хранения данных
         private ObservableCollection<AGR_ComponentRegistryItemVM> _registryItems = new();
@@ -111,7 +290,7 @@ namespace Agrovent.ViewModels.Windows
             }
         }
 
-
+        public string Title = "title";
 
         // Метод фильтрации для CollectionViewSource
         private bool FilterRegistryItems(object item)

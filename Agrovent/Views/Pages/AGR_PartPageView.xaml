@@ -96,7 +96,21 @@
                         <TextBlock Text="{Binding Version, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource ReadOnlyValueStyle}"/>
                     </DockPanel>
-                    
+
+                    <!-- Хэш -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                                Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                        <TextBlock Text="Хэш:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding HashSum, Mode=OneWay}" Style="{StaticResource  ReadOnlyTextBox}"/>
+                    </DockPanel>
+                    <!-- Хэш -->
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                                Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                        <TextBlock Text="Хэш(метод):" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBox Text="{Binding CalcHash, Mode=OneWay}" Style="{StaticResource  ReadOnlyTextBox}"/>
+                    </DockPanel>
+
+
                 </StackPanel>
             </Expander>
 
@@ -131,7 +145,7 @@
 
                     <!-- Название краски -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Материал:" Style="{StaticResource PropertyLabelStyle}"/>
+                        <TextBlock Text="Краска:" Style="{StaticResource PropertyLabelStyle}"/>
                         <TextBox Text="{Binding Paint.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
                             <i:Interaction.Triggers>
                                 <i:EventTrigger EventName="MouseDoubleClick">

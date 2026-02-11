@@ -149,12 +149,44 @@ namespace Agrovent.Infrastructure.Extensions
                 yield return agrComp;
             }
         }
+        public static IEnumerable<IAGR_BaseComponent> AGR_BaseComponents(this IXComponentRepository repo, bool OnlyActive)
+        {
+            foreach (var xComp in repo.AGR_TryFlatten())
+            {
+                if (!xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Suppressed)
+                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.SuppressedIdMismatch)
+                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.ExcludedFromBom)
+                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Embedded)
+                   )
+                {
+
+                    var agrComp = xComp.AGR_BaseComponent();
+                    yield return agrComp;
+                }
+            }
+        }
+
         public static IEnumerable<IAGR_BaseComponent> AGR_BaseComponents(this IEnumerable<IXComponent> repo)
         {
             foreach (var xComp in repo)
             {
                 var agrComp = xComp.AGR_BaseComponent();
                 yield return agrComp;
+            }
+        }
+        public static IEnumerable<IAGR_BaseComponent> AGR_BaseComponents(this IEnumerable<IXComponent> repo, bool OnlyActive)
+        {
+            foreach (var xComp in repo)
+            {
+                if (!xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Suppressed)
+                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.SuppressedIdMismatch)
+                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.ExcludedFromBom)
+                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Embedded)
+                   )
+                {
+                    var agrComp = xComp.AGR_BaseComponent();
+                    yield return agrComp;
+                }
             }
         }
     }

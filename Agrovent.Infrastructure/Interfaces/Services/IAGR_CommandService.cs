@@ -10,5 +10,6 @@ namespace Agrovent.Infrastructure.Interfaces
         Task<bool> UpdatePropertiesAsync();
         Task<bool> OpenComponentRegistryAsync();
         Task<bool> OpenProjectExplorerWindowAsync();
+        Task<bool> SaveActiveComponentAsync();
     }
 }

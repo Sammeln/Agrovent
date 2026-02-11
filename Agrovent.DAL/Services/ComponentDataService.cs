@@ -147,8 +147,8 @@ namespace Agrovent.DAL.Services
         {
             try
             {
-
-                return await _context.ComponentVersions.Where(c => c.HashSum == hashSum).FirstOrDefaultAsync();
+                return await _context.ComponentVersions
+                        .FirstOrDefaultAsync(c => c.HashSum == hashSum);
                 
             }
             catch (System.Exception ex)

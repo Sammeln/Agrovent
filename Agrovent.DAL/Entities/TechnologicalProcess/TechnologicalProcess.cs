@@ -14,11 +14,13 @@ namespace Agrovent.DAL.Entities.TechnologicalProcess
         [Required]
         [Column("part_number")]
         [MaxLength(255)]
-        public string PartNumber { get; set; }
+        public string PartNumber { get; set; } = string.Empty; // Убедимся, что не null
 
-        // Навигационное свойство к компоненту
+        // Навигационное свойство к компоненту по PartNumber
+        // ВАЖНО: Это создаст внешний ключ на Component.PartNumber
+        // Убедитесь, что в Component есть PK PartNumber или UNIQUE индекс на PartNumber
         [ForeignKey(nameof(PartNumber))]
-        public Component Component { get; set; }
+        public virtual Component Component { get; set; } = null!; // Указываем, что не null
 
         // Коллекция операций
         public virtual ICollection<Operation> Operations { get; set; } = new List<Operation>();

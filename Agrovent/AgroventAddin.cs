@@ -1,6 +1,3 @@
-using System.ComponentModel.Design;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -10,17 +7,15 @@ using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Services;
-using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Specification;
 using Agrovent.ViewModels.TaskPane;
 using Agrovent.Views.Windows;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SolidWorks.Interop.sldworks;
-using SolidWorks.Interop.swconst;
+using Xarial.XCad.Base;
+using Xarial.XCad.Documents;
 using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
@@ -124,6 +119,7 @@ namespace Agrovent
                 _logger.LogError(ex, "Ошибка при инициализации TaskPane");
             }
         }
+
         private void InitDI()
         {
             AGR_ServiceContainer.Initialize(services =>
@@ -133,10 +129,6 @@ namespace Agrovent
 
                 // Дополнительные сервисы, специфичные для SolidWorks
                 services.AddSingleton(Application);
-                services.AddSingleton(CommandManager);
-
-                // ViewModels
-                services.AddTransient<AGR_TaskPaneViewModel>();
             });
         }
         private void OnCommandClickExecute(AGR_Commands_e command)
@@ -158,6 +150,8 @@ namespace Agrovent
                         break;
 
                     case AGR_Commands_e.SaveComponent:
+                        _commandService.SaveActiveComponentAsync();
+                        break;
                         if (Application.Documents.Active is ISwAssembly) SaveActiveAssembly();
                         else SaveActiveComponent();
 
@@ -170,7 +164,24 @@ namespace Agrovent
                         _commandService.OpenComponentRegistryAsync();
                         break;
                     case AGR_Commands_e.ProjectsExplorer:
-                        _commandService.OpenProjectExplorerWindowAsync();
+
+                        //_commandService.OpenProjectExplorerWindowAsync();
+
+                        var swAssembly = Application.Documents.Active as ISwAssembly;
+                        if (swAssembly != null)
+                        {
+                            var doc = Application.Documents.PreCreateFromPath(@"D:\Работа\3.3D модели\КВ Бок  570х280 #00000-1.SLDPRT") as IXDocument3D;
+                            var xComp = swAssembly.Configurations.Active.Components.PreCreate<IXComponent>();
+                            xComp.ReferencedDocument = doc;
+                            swAssembly.Configurations.Active.Components.Add(xComp);
+
+                            xComp.Select(false);
+
+                            Application.Sw.RunCommand(1993, "");
+                            Application.Sw.RunCommand(332, "");
+                        }
+
+
                         break;
                     default:
                         break;
@@ -336,117 +347,3 @@ namespace Agrovent
         }
     }
 }
-
-#region MyRegion
-
-//using System.ComponentModel.Design;
-//using System.Runtime.InteropServices;
-//using System.Text;
-//using Agrovent.DAL;
-//using Agrovent.Services;
-//using Agrovent.ViewModels.Components;
-//using Agrovent.ViewModels.Specification;
-//using Agrovent.ViewModels.TaskPane;
-//using Agrovent.Views.Windows;
-//using Microsoft.Extensions.DependencyInjection;
-//using Microsoft.Extensions.Logging;
-//using Xarial.XCad.SolidWorks;
-//using Xarial.XCad.SolidWorks.Documents;
-//using Xarial.XCad.UI.Commands;
-
-//namespace Agrovent
-//{
-//    [ComVisible(true)]
-//    [Guid("8864d08d-f77a-47b9-858f-4af5eea4fd76")]
-//    public class AgroventAddin : SwAddInEx
-//    {
-//        #region DI Services
-//        private ILogger<AgroventAddin> _logger;
-//        #endregion
-
-//        public override void OnConnect()
-//        {
-//            //Инициализация контейнера сервисов
-//            InitDI();
-
-//            //Получение сервисов из контейнера
-//            _logger = AGR_ServiceContainer.GetService<ILogger<AgroventAddin>>();
-
-//            //решение проблемы с Behaviour
-//            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
-//            //Инициализация группы команд в солиде
-//            CommandManager.AddCommandGroup<AGR_Commands_e>().CommandClick += OnCommandClickExecute;
-
-//            //инициализация модели представления TaskPane
-//            InitTaskPane();
-
-//            _logger.LogDebug("AddIn успешно добавлено.");
-
-//        }
-
-
-
-//        public override void OnDisconnect()
-//        {
-//            // Cleanup code here
-//        }
-
-//        private void OnCommandClickExecute(AGR_Commands_e command)
-//        {
-//            switch (command)
-//            {
-//                case AGR_Commands_e.Command1:
-
-//                    if (Application.Documents.Active is ISwAssembly swAssembly)
-//                    {
-//                        AGR_SpecificationWindow specWindow = new AGR_SpecificationWindow();
-//                        specWindow.DataContext = new AGR_SpecificationViewModel(new AGR_AssemblyComponentVM(swAssembly));
-//                        specWindow.ShowDialog();
-//                    }
-
-//                    break;
-//                case AGR_Commands_e.Command2:
-//                    // Handle Command2
-//                    DataContext dataContext = new DataContext();
-//                    var a = dataContext.AvaArticles.First();
-//                    Application.ShowMessageBox($"Имя:{a.Name}\nАртикул:{a.Article}\nТип:{a.Type}\nКод:{a.PartNumber}\nБренд:{a.Brand}",
-//                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info,
-//                        Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
-//                    break;
-
-//                default:
-//                    break;
-//            }
-//        }
-//        private void InitDI()
-//        {
-//            AGR_ServiceContainer.Initialize(services =>
-//            {
-//                // Дополнительная регистрация специфичная для нашего Add-in
-//                services.AddSingleton<AgroventAddin>(this);
-
-//                // Можно добавить конфигурацию из файла
-//                // services.AddSingleton<IConfiguration>(LoadConfiguration());
-//            });
-//        }
-//        private void InitTaskPane()
-//        {
-//            var _taskPaneVM = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
-//            var taskPaneView = this.CreateTaskPaneWpf<AGR_TaskPaneView>();
-//            //taskPaneView.Control.DataContext = _taskPaneVM;
-//            taskPaneView.IsActive = true;
-//            taskPaneView.Control.Focus();
-//        }
-//    }
-
-
-//    public enum AGR_Commands_e
-//    {
-//        Command1,
-//        Command2
-//    }
-
-//}
-
-#endregion

@@ -14,6 +14,26 @@ namespace Agrovent.ViewModels.Specification
     {
         private readonly AGR_AssemblyComponentVM _baseComponent;
         private CollectionViewSource _groupedComponentsView;
+        
+        #region CTOR
+        public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent)
+        {
+            _baseComponent = baseComponent;
+            WindowTitle = $"Спецификация: {baseComponent.Name} ({baseComponent.PartNumber})";
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            _groupedComponentsView = new CollectionViewSource();
+
+            // Инициализируем пустую коллекцию
+            Components = new ObservableCollection<AGR_SpecificationItemVM>();
+
+            // Загружаем компоненты асинхронно
+            LoadComponents();
+        } 
+        #endregion
 
         #region Публичные свойства
         public ICollectionView GroupedComponentsView => _groupedComponentsView?.View;
@@ -45,7 +65,6 @@ namespace Agrovent.ViewModels.Specification
             private set => Set(ref _hasComponents, value);
         }
         #endregion
-
 
         #region Команды
         private RelayCommand _closeCommand;
@@ -94,24 +113,9 @@ namespace Agrovent.ViewModels.Specification
             private set => Set(ref _totalPurchased, value);
         }
         #endregion
-        public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent)
-        {
-            _baseComponent = baseComponent;
-            WindowTitle = $"Спецификация: {baseComponent.Name} ({baseComponent.PartNumber})";
-            Initialize();
-        }
 
-        private void Initialize()
-        {
-            _groupedComponentsView = new CollectionViewSource();
 
-            // Инициализируем пустую коллекцию
-            Components = new ObservableCollection<AGR_SpecificationItemVM>();
-
-            // Загружаем компоненты асинхронно
-            LoadComponents();
-        }
-
+        #region METHODS
         private void LoadComponents()
         {
             if (_baseComponent.GetChildComponents() == null)
@@ -186,6 +190,7 @@ namespace Agrovent.ViewModels.Specification
         public void Refresh()
         {
             LoadComponents();
-        }
+        } 
+        #endregion
     }
 }

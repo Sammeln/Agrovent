@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 using Agrovent.DAL.Entities.Components;
 using System.Windows.Media.Imaging;
 using Agrovent.ViewModels.Base;
+using System.Runtime.InteropServices;
+using System.Windows.Input;
+using System.Windows;
+using Agrovent.Infrastructure.Commands;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -57,6 +61,7 @@ namespace Agrovent.ViewModels.Components
         public string AvaTypeDisplay => GetDisplayString(_entity.AvaType);
         public int Version => _entity.Version;
 
+        public ComponentVersion ComponentVersion;
         // Свойство для ссылки на файл в хранилище
         public string StoragePath
         {
@@ -64,10 +69,19 @@ namespace Agrovent.ViewModels.Components
             {
                 // Предполагаем, что файл хранится как Model.FileName (например, Cube.SLDPRT)
                 // и путь формируется как StorageRootFolder + HashSum + FileName
-                if (!string.IsNullOrEmpty(_entity.Files.First().FilePath))
+                if (!string.IsNullOrEmpty(_entity.Files.First
+                        (x => x.FilePath.EndsWith("prt",StringComparison.OrdinalIgnoreCase)
+                        || x.FilePath.EndsWith("asm", StringComparison.OrdinalIgnoreCase)
+                    ).FilePath))
                 {
+                    var path = _entity.Files.First(x => x.FilePath.EndsWith("prt", StringComparison.OrdinalIgnoreCase)
+                        || x.FilePath.EndsWith("asm", StringComparison.OrdinalIgnoreCase)
+                    ).FilePath;
+
+                    var fileName = Path.GetFileName(path);
+
                     var hashFolder = _entity.HashSum.ToString("D10");
-                    var fullPath = Path.Combine(_storageRootFolder, hashFolder);
+                    var fullPath = Path.Combine(_storageRootFolder, hashFolder, fileName);
                     return fullPath;
                 }
                 return "N/A"; // Или пустая строка
@@ -95,6 +109,5 @@ namespace Agrovent.ViewModels.Components
             }
             */
         }
-
     }
 }

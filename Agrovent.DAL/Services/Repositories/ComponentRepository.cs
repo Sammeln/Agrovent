@@ -199,6 +199,8 @@ namespace Agrovent.DAL.Repositories
                 // 7. Сохраняем информацию о файлах
                 await SaveFileData(componentVersion, component);
 
+                component.HashSum = hashSum;
+
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation($"Компонент подготовлен к сохранению: {component.PartNumber} v{nextVersion}");
@@ -312,7 +314,9 @@ namespace Agrovent.DAL.Repositories
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Ошибка при поиске компонента по хешу: {hashSum}");
+                //System.Windows.Forms.MessageBox.Show(ex.Message);
                 throw;
+
             }
         }
 

@@ -44,6 +44,7 @@ namespace Agrovent.ViewModels.Components
 
         #region PROPS
 
+        #region BaseMaterial
         // Реализация IAGR_HasMaterial
         private IAGR_Material _baseMaterial;
         public IAGR_Material BaseMaterial
@@ -55,14 +56,18 @@ namespace Agrovent.ViewModels.Components
                 mProperties.AGR_TryGetProp(AGR_PropertyNames.Material).Value = value.Name;
             }
         }
+        #endregion
 
+        #region BaseMaterialCount
         private decimal _baseMaterialCount;
         public decimal BaseMaterialCount
         {
             get => _baseMaterialCount;
             set => Set(ref _baseMaterialCount, value);
         }
+        #endregion
 
+        #region Paint
         // Реализация IAGR_HasPaint
         private IAGR_Material? _paint;
         public IAGR_Material? Paint
@@ -70,7 +75,13 @@ namespace Agrovent.ViewModels.Components
             get => _paint;
             set => Set(ref _paint, value);
         }
-        public decimal? PaintCount { get => paintCount; set => paintCount = value; }
+        #endregion
+
+        #region PaintCount
+        private decimal? _PaintCount;
+        public decimal? PaintCount { get => _PaintCount; set => _PaintCount = value; }
+        #endregion
+
         #endregion
 
         #region METHODS
@@ -248,13 +259,53 @@ namespace Agrovent.ViewModels.Components
             return PropertiesCollection.Properties
                 .FirstOrDefault(p => string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
         } 
+        public void Refresh()
+        {
+            OnPropertyChanged(nameof(CurrentModelFilePath));
+            OnPropertyChanged(nameof(CurrentDrawFilePath));
+            OnPropertyChanged(nameof(StorageModelFilePath));
+            OnPropertyChanged(nameof(StorageDrawFilePath));
+            OnPropertyChanged(nameof(ProductionModelFilePath));
+            OnPropertyChanged(nameof(ProductionDrawFilePath));
+
+            OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(ConfigName));
+            OnPropertyChanged(nameof(PartNumber));
+            OnPropertyChanged(nameof(Article));
+            OnPropertyChanged(nameof(FilePath));
+            OnPropertyChanged(nameof(Version));
+            OnPropertyChanged(nameof(HashSum));
+            OnPropertyChanged(nameof(Preview));
+            OnPropertyChanged(nameof(ComponentType));
+            OnPropertyChanged(nameof(AvaType));
+
+            switch (ComponentType)
+            {
+                case AGR_ComponentType_e.Part:
+                    PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
+                    break;
+                case AGR_ComponentType_e.SheetMetallPart:
+                    PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
+                    break;
+                case AGR_ComponentType_e.Purchased:
+                    PropertiesCollection?.Properties.Clear();
+                    break;
+                case AGR_ComponentType_e.NA:
+                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
+                    break;
+                default:
+                    break;
+            }
+
+            PropertiesCollection.UpdateProperties();
+            OnPropertyChanged(nameof(PropertiesCollection));
+        }
         #endregion
 
         #region COMMANDS
 
         #region OpenFoldefCommand
         private ICommand _OpenFolderCommand;
-        private decimal? paintCount;
 
         public ICommand OpenFolderCommand => _OpenFolderCommand
             ??= new RelayCommand(OnOpenFolderCommandExecuted, CanOpenFolderCommandExecute);
@@ -310,6 +361,7 @@ namespace Agrovent.ViewModels.Components
                 {
                     // Присваиваем выбранный AvaArticleModel в BaseMaterial.AvaModel
                     BaseMaterial = new AGR_Material(selectVm.SelectedArticle);
+                    mProperties.FirstOrDefault(p => p.Name == AGR_PropertyNames.Material).Value = BaseMaterial.Name;
                     _logger?.LogInformation("Выбран AvaArticle {Article} для компонента {PartNumber}", selectVm.SelectedArticle.Article, PartNumber);
 
                     // Обновляем свойства, если это влияет на них (например, BaseMaterialCount)
@@ -348,7 +400,7 @@ namespace Agrovent.ViewModels.Components
 
                 // Создаем ViewModel
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
-                selectVm.SearchText = "Краска порошковая";
+                selectVm.SearchText = "Краска порошковая ";
 
                 // Создаем View и устанавливаем DataContext
                 var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
@@ -362,7 +414,8 @@ namespace Agrovent.ViewModels.Components
                 if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
                 {
                     // Присваиваем выбранный AvaArticleModel в BaseMaterial.AvaModel
-//                    Paint = new AGR_Material(selectVm.SelectedArticle);
+                    Paint = new AGR_Material(selectVm.SelectedArticle);
+                    mProperties.FirstOrDefault(p => p.Name == AGR_PropertyNames.Color).Value = Paint.Name;
                     _logger?.LogInformation("Выбран AvaArticle {Article} для компонента {PartNumber}", selectVm.SelectedArticle.Article, PartNumber);
 
                     // Обновляем свойства, если это влияет на них (например, BaseMaterialCount)
@@ -382,49 +435,10 @@ namespace Agrovent.ViewModels.Components
 
         #endregion
 
-        public void Refresh()
-        {
-            OnPropertyChanged(nameof(CurrentModelFilePath));
-            OnPropertyChanged(nameof(CurrentDrawFilePath));
-            OnPropertyChanged(nameof(StorageModelFilePath));
-            OnPropertyChanged(nameof(StorageDrawFilePath));
-            OnPropertyChanged(nameof(ProductionModelFilePath));
-            OnPropertyChanged(nameof(ProductionDrawFilePath));
-
-            OnPropertyChanged(nameof(Name));
-            OnPropertyChanged(nameof(ConfigName));
-            OnPropertyChanged(nameof(PartNumber));
-            OnPropertyChanged(nameof(Article));
-            OnPropertyChanged(nameof(FilePath));
-            OnPropertyChanged(nameof(Version));
-            OnPropertyChanged(nameof(HashSum));
-            OnPropertyChanged(nameof(Preview));
-            OnPropertyChanged(nameof(ComponentType));
-            OnPropertyChanged(nameof(AvaType));
-
-            switch (ComponentType)
-            {
-                case AGR_ComponentType_e.Part:
-                    PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.SheetMetallPart:
-                    PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
-                    break;
-                case AGR_ComponentType_e.Purchased:
-                    PropertiesCollection?.Properties.Clear();
-                    break;
-                case AGR_ComponentType_e.NA:
-                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-                    break;
-                default:
-                    break;
-            }
-
-            PropertiesCollection.UpdateProperties();
-            OnPropertyChanged(nameof(PropertiesCollection));
-        }
 
 
     }
+
+
 
 }
