@@ -8,6 +8,7 @@ using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Handlers;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Models;
 using Agrovent.Services;
 using Agrovent.TestMacroFeature;
 using Agrovent.ViewModels.Components;
@@ -210,7 +211,7 @@ namespace Agrovent
                     break;
 
                     case AGR_Commands_e.TestCommand:
-
+                        var user = AGR_ServiceContainer.GetService<User>();
                     break;
 
                     default:
