@@ -11,22 +11,26 @@ using Agrovent.Infrastructure.Interfaces;
 using System.Drawing;
 using Xarial.XCad.SolidWorks;
 using Agrovent.ViewModels.Components;
+using System.Runtime.InteropServices;
+using Microsoft.VisualStudio.Shell.Interop;
+using Xarial.XCad.Base.Attributes;
+using Agrovent.Properties;
 
 namespace Agrovent.ViewModels.Base
 {
     public class AGR_BaseComponent : BaseViewModel, IAGR_BaseComponent
     {
         #region FIELDS
-        internal ISwDocument3D mDocument;
-        internal ISwConfiguration mConfiguration;
-        internal ISwCustomPropertiesCollection mProperties;
+        internal ISwDocument3D? mDocument;
+        internal ISwConfiguration? mConfiguration;
+        internal ISwCustomPropertiesCollection? mProperties;
         #endregion
 
         #region PROPS
 
         public ISwDocument3D SwDocument => mDocument;
         public string Name { get => Path.GetFileNameWithoutExtension(mDocument?.Title); }
-        public string ConfigName { get => mConfiguration.Name; }
+        public string ConfigName { get => mConfiguration?.Name ?? ""; }
         public string PartNumber
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
@@ -71,24 +75,24 @@ namespace Agrovent.ViewModels.Base
 
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.HashSum).Value = value;
         }
-        public int CalcHash { get => CalculateComponentHash(); }
-        public byte[] Preview
+        public bool IsLoaded  { get; set; }
+
+        #region Preview
+        private byte[]? _Preview;
+        public byte[]? Preview
         {
             get
             {
-                var app = AGR_ServiceContainer.GetService<ISwApplication>();
-
-                string filePath = FilePath;
-                string activeConfig = ConfigName;
-
-                object com = app.Sw.GetPreviewBitmap(filePath, activeConfig);
-                stdole.StdPicture pic = com as stdole.StdPicture;
-                var bmp = Bitmap.FromHbitmap((IntPtr)pic.Handle);
-
-                ImageConverter converter = new ImageConverter();
-                return (byte[])converter.ConvertTo(bmp, typeof(byte[]));
+                if (_Preview == null)
+                {
+                    _Preview = ComputePreviewImageBytes();
+                }
+                return _Preview;
             }
-        }
+            // Устанавливать можно только извне, если нужно переопределить
+            protected set => _Preview = value;
+        } 
+        #endregion
         public string FilePath => mDocument.Path;
 
         #region Property - IAGR_AvaArticleModel _AvaArticle
@@ -101,11 +105,12 @@ namespace Agrovent.ViewModels.Base
                 Set(ref _AvaArticle, value);
             }
         }
-
         public bool HasAvaArticle => _AvaArticle != null;
+        #endregion
 
-        private bool _isInDatabase = false;
-        public bool IsInDatabase
+        #region IsInDatabase
+        private AGR_ComponentDatabaseState_e _isInDatabase = AGR_ComponentDatabaseState_e.NotLoaded;
+        public AGR_ComponentDatabaseState_e IsInDatabase
         {
             get => _isInDatabase;
             set => Set(ref _isInDatabase, value);
@@ -118,7 +123,6 @@ namespace Agrovent.ViewModels.Base
             get => mDocument.ComponentType();
             set
             {
-                OnPropertyChanged(nameof(ComponentType));
                 switch (value)
                 {
                     case AGR_ComponentType_e.Assembly:
@@ -129,6 +133,8 @@ namespace Agrovent.ViewModels.Base
                         break;
                     case AGR_ComponentType_e.SheetMetallPart:
                         PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
+                        PropertiesCollection.UpdateProperties();
+                        OnPropertyChanged(nameof(PropertiesCollection));
                         break;
                     case AGR_ComponentType_e.Purchased:
                         PropertiesCollection?.Properties.Clear();
@@ -139,6 +145,7 @@ namespace Agrovent.ViewModels.Base
                     default:
                         break;
                 }
+                OnPropertyChanged(nameof(ComponentType));
             }
         }
         public AGR_AvaType_e AvaType
@@ -180,19 +187,31 @@ namespace Agrovent.ViewModels.Base
                 if (this is AGR_PartComponentVM part)
                 {
                     //hash = hash + (component.Name?.GetHashCode(StringComparison.Ordinal) ?? 0);
+
+                    foreach (var feat in part.SwDocument.Features)
+                    {
+                        
+                    }
+
                     string str = string.Empty;
                     double sum = 0d;
 
                     var swPart = part.SwDocument as ISwPart;
 
-                    foreach (var dim in swPart.Dimensions)
+                    var dimensions = swPart.Dimensions.ToList();
+
+                    if (dimensions != null && dimensions?.Count > 0)
                     {
-                        hash += dim.Value.GetHashCode();
+                        foreach (var dim in swPart.Dimensions)
+                        {
+                            hash += dim.Value.GetHashCode();
+                        } 
                     }
                     foreach (var feat in swPart.Features)
                     {
-                        hash += feat.Name.GetHashCode();
+                        str += feat.Name;
                     }
+                    hash += HashString(str);
                 }
                 if (this is AGR_AssemblyComponentVM assembly)
                 {
@@ -214,7 +233,78 @@ namespace Agrovent.ViewModels.Base
                 //return hash;
             }
         }
+        protected virtual byte[]? ComputePreviewImageBytes()
+        {
+            try
+            {
+                var app = AGR_ServiceContainer.GetService<ISwApplication>();
 
+                string? filePath = FilePath;
+                string activeConfig = ConfigName ?? "Default"; // Используем "Default", если ConfigName null
+
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    //_logger?.LogWarning("ComputePreviewImageBytes: FilePath is null or empty.");
+                    return null;
+                }
+
+                // Вызов GetPreviewBitmap из UI-потока
+                object? com = app.Sw.GetPreviewBitmap(filePath, activeConfig);
+                if (com == null)
+                {
+                    return Resources.NonePreview;
+                    //_logger?.LogWarning($"ComputePreviewImageBytes: GetPreviewBitmap returned null for {filePath}, config: {activeConfig}");
+                    //return null;
+                }
+
+                stdole.StdPicture? pic = com as stdole.StdPicture;
+                if (pic == null)
+                {
+                    //_logger?.LogWarning($"ComputePreviewImageBytes: GetPreviewBitmap returned unexpected type: {com.GetType()}");
+                    return null;
+                }
+
+                var bmp = Bitmap.FromHbitmap((IntPtr)pic.Handle);
+                // Освобождаем handle, так как FromHbitmap создает копию
+                // Не обязательно вызывать DeleteObject(pic.Handle) здесь, так как FromHbitmap уже скопировал данные
+
+
+                ImageConverter converter = new ImageConverter();
+                return (byte[])converter.ConvertTo(bmp, typeof(byte[]));
+
+                //using var ms = new MemoryStream();
+                //bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png); // Или Jpeg, в зависимости от ваших предпочтений
+                //bmp.Dispose(); // Уничтожаем Bitmap
+                //return ms.ToArray();
+            }
+            catch (COMException comEx)
+            {
+                //_logger?.LogError(comEx, $"COM ошибка при получении превью для {FilePath}: {comEx.Message}");
+                return null; // Возвращаем null в случае ошибки
+            }
+            catch (Exception ex)
+            {
+                //_logger?.LogError(ex, $"Ошибка при получении превью для {FilePath}: {ex.Message}");
+                return null; // Возвращаем null в случае ошибки
+            }
+        }
+        public void PrecomputePreview()
+        {
+            // Просто обращаемся к свойству, чтобы оно вычислилось в текущем потоке (ожидается UI-поток)
+            _ = Preview;
+        }
+        public int HashString(string text)
+        {
+            unchecked
+            {
+                int hash = 23;
+                foreach (char c in text)
+                {
+                    hash = hash * 31 + c;
+                }
+                return hash;
+            }
+        }
         #endregion
 
         #region CTOR

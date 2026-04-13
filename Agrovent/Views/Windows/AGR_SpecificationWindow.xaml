@@ -7,6 +7,7 @@
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Specification"
         xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        xmlns:b="clr-namespace:Agrovent.Infrastructure.Behaviors;assembly=Agrovent.Infrastructure"
         xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
         d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_SpecificationViewModel}}"
         mc:Ignorable="d"
@@ -28,7 +29,8 @@
             <converter:GroupHeaderColorConverter x:Key="GroupHeaderColorConverter"/>
             <!--<converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>-->
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-
+            
+            
             <DataTemplate DataType="{x:Type ImageSource}">
                 <Image Source="{Binding}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
             </DataTemplate>
@@ -36,7 +38,28 @@
             <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
                 <Image Source="{Binding Preview}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
             </DataTemplate>
-            
+
+            <!-- ContextMenu -->
+            <ContextMenu  x:Key="RowMenu" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem 
+                     Header="Установить материал" CommandParameter="{Binding}"
+                     Command="{Binding DataContext.SetBaseMaterialCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                <MenuItem 
+                     Header="Установить артикул" CommandParameter="{Binding}"
+                     Command="{Binding DataContext.SetAvaArticleCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                <MenuItem 
+                     Header="Установить тип...">
+                    <MenuItem Header="Покупное" CommandParameter="20021" 
+                              Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                    <MenuItem Header="Комплектующая" CommandParameter="5" 
+                              Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                    <MenuItem Header="Продукция" CommandParameter="3" 
+                              Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                    <MenuItem Header="Виртуальный компонент" CommandParameter="50625" 
+                              Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                </MenuItem>
+            </ContextMenu>
+
             <!-- Конвертеры видимости для разных типов компонентов -->
             <!--<converter:ComponentTypeToVisibilityConverter x:Key="MaterialVisibilityConverter" 
                 Parameter="Part,SheetMetallPart"/>
@@ -71,8 +94,8 @@
         <Grid Grid.Row="2" Margin="16">
             <Grid.Resources>
                 <!-- CollectionViewSource для группировки компонентов -->
-                <CollectionViewSource x:Key="GroupedComponents" 
-                                      Source="{Binding Components}">
+                <CollectionViewSource x:Key="1GroupedComponents" 
+                                      Source="{Binding Components, NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}">
                     <CollectionViewSource.GroupDescriptions>
                         <PropertyGroupDescription PropertyName="ComponentType"/>
                     </CollectionViewSource.GroupDescriptions>
@@ -84,13 +107,20 @@
             </Grid.Resources>
 
             <!-- DataGrid с группировкой -->
-            <DataGrid ItemsSource="{Binding Source={StaticResource GroupedComponents}}"
+                <!--ItemsSource="{Binding  Source={StaticResource GroupedComponents}}"-->
+            <DataGrid ItemsSource="{Binding GroupedComponentsView}"
                       Style="{StaticResource SpecificationDataGrid}"
                       AutoGenerateColumns="False"
                       CanUserSortColumns="True"
                       VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Auto">
-               
+                      HorizontalScrollBarVisibility="Auto"
+                      b:AGR_DataGridSelectedItemsBehavior.SelectedItems="{Binding SelectedComponents, Mode=TwoWay}"
+                      >
+
+                <DataGrid.InputBindings>
+                    <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
+                </DataGrid.InputBindings>
+
                 <!-- Настройка группировки -->
                 <DataGrid.GroupStyle>
                     <GroupStyle>
@@ -102,9 +132,17 @@
 
                 <!-- Колонки DataGrid -->
                 <DataGrid.Columns>
-
+                    
+                    <DataGridTemplateColumn Width="25">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    
                     <!-- Preview Column -->
-                    <DataGridTemplateColumn>
+                    <DataGridTemplateColumn Width="50" MinWidth="50">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
                                 <Setter Property="ToolTip">
@@ -137,13 +175,8 @@
                     <DataGridTextColumn Header="PartNumber / Артикул" 
                                         Width="2*"
                                         CanUserSort="True"
-                                        ElementStyle="{StaticResource CenterAlignedTextStyle}">
-                        <DataGridTextColumn.Binding>
-                            <MultiBinding StringFormat="{}{0}">
-                                <Binding Path="PartNumber"/>
-                                <Binding Path="Article"/>
-                            </MultiBinding>
-                        </DataGridTextColumn.Binding>
+                                        ElementStyle="{StaticResource CenterAlignedTextStyle}"
+                                        Binding="{Binding PartnumberOrArticle}">
                     </DataGridTextColumn>
 
                     <!-- Количество -->
@@ -172,12 +205,24 @@
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 </DataGrid.Columns>
+                
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="Background" Value="LightBlue"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                        <Setter Property="ContextMenu" Value="{StaticResource RowMenu}"/>
+                    </Style>
+                </DataGrid.RowStyle>
+
             </DataGrid>
 
             <!-- Сообщение при отсутствии компонентов -->
-            <TextBlock Text="Нет компонентов для отображения" 
+            <!--<TextBlock Text="Нет компонентов для отображения" 
                        Style="{StaticResource EmptySpecificationStyle}"
-                       Visibility="{Binding HasComponents, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=true}"/>
+                       Visibility="{Binding HasComponents, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=true}"/>-->
         </Grid>
 
         <!-- Панель действий -->

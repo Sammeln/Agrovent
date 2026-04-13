@@ -6,14 +6,18 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:local="clr-namespace:Agrovent.Views.Windows"
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Windows"
+        xmlns:b="clr-namespace:Agrovent.Infrastructure.Behaviours"
         mc:Ignorable="d"
-        d:DataContext="{d:DesignInstance Type=vm:SaveProgressVM, IsDesignTimeCreatable=True}"
+        d:DataContext="{d:DesignInstance Type=vm:AGR_SaveProgressVM, IsDesignTimeCreatable=True}"
         Title="Сохранение компонента..." Height="400" Width="600"
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <DataTemplate x:Key="ItemTemplate">
+            
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="10">
@@ -23,17 +27,33 @@
         </Grid.RowDefinitions>
 
         <!-- ListBox для отображения лога -->
-        <ListBox Grid.Row="0" x:Name="LogListBox"
-                 ItemsSource="{Binding LogMessages}"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                 IsEnabled="False" />
+        <ListView 
+            b:AutoScrollBehavior.AutoScroll="True"
+            Grid.Row="0" x:Name="LogListBox"
+            ItemsSource="{Binding LogMessages}"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+            ScrollViewer.VerticalScrollBarVisibility="Auto"
+            IsEnabled="True">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <TextBox
+                    Text="{Binding .}" 
+                    IsReadOnly="True"
+                    BorderThickness="0"
+                    Background="Transparent"
+                    Focusable="True"
+                    TextWrapping="WrapWithOverflow"
+                    VerticalAlignment="Center"
+                    Padding="2,1"/>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
         <!-- Отключаем интерактивность списка -->
 
         <!-- StackPanel для кнопок -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button x:Name="CloseButton" Content="Закрыть" Margin="0,0,5,0"
-                    Command="{Binding CloseCommand}" />
+                    Command="{Binding CloseCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" />
             <Button x:Name="SaveLogButton" Content="Сохранить лог" Margin="5,0,0,0"
                     Command="{Binding SaveLogCommand}" Visibility="{Binding IsFinished, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </StackPanel>

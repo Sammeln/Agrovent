@@ -8,12 +8,12 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Agrovent.DAL;
 using Agrovent.DAL.Entities.Components;
-using Agrovent.DAL.Repositories;
-using Agrovent.Infrastructure.Configuration;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.Windows;
+using EnumsNET;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -21,6 +21,7 @@ using Microsoft.VisualStudio.OLE.Interop;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 using Xarial.XCad.Documents;
+using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
 
@@ -31,14 +32,14 @@ namespace Agrovent.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<ComponentVersionService> _logger;
         private readonly DataContext _context;
-        private readonly AGR_FileStorageConfig _storageConfig;
+        private readonly AGR_SaveProgressVM _saveProgress;
 
-        public ComponentVersionService(IUnitOfWork unitOfWork, ILogger<ComponentVersionService> logger, DataContext context, AGR_FileStorageConfig storageConfig)
+        public ComponentVersionService(IUnitOfWork unitOfWork, ILogger<ComponentVersionService> logger, DataContext context, IAGR_SaveProgressVM saveProgress)
         {
             _unitOfWork = unitOfWork;
             _logger = logger;
             _context = context;
-            _storageConfig = storageConfig;
+            _saveProgress = saveProgress as AGR_SaveProgressVM;
         }
 
         public async Task<bool> CheckAndSaveComponentAsync(IAGR_BaseComponent component)
@@ -48,6 +49,7 @@ namespace Agrovent.Infrastructure.Services
             try
             {
                 _logger.LogInformation($"Начинаем сохранение компонента: {component.PartNumber}");
+                _saveProgress.AddLogMessage($"Начинаем сохранение компонента: {component.PartNumber}");
 
                 // 1. Проверяем, изменился ли компонент
                 var hasChanged = await _unitOfWork.ComponentRepository.HasComponentChanged(component);
@@ -55,6 +57,8 @@ namespace Agrovent.Infrastructure.Services
                 if (!hasChanged)
                 {
                     _logger.LogInformation($"Компонент не изменился: {component.PartNumber}");
+                    _saveProgress.AddLogMessage($"Компонент не изменился: {component.PartNumber}");
+
                     await _unitOfWork.RollbackTransactionAsync();
                     return false;
                 }
@@ -65,6 +69,7 @@ namespace Agrovent.Infrastructure.Services
                 if (existingVersion != null)
                 {
                     _logger.LogInformation($"Компонент уже существует: {component.PartNumber} v{existingVersion.Version}");
+                    _saveProgress.AddLogMessage($"Компонент уже существует: {component.PartNumber} v{existingVersion.Version}");
                     await _unitOfWork.RollbackTransactionAsync();
                     return false;
                 }
@@ -73,6 +78,8 @@ namespace Agrovent.Infrastructure.Services
                 var componentHash = component.CalculateComponentHash();
                 component.HashSum = componentHash;
                 _logger.LogDebug($"Вычислен HashSum для {component.PartNumber}: {componentHash}");
+                _saveProgress.AddLogMessage($"Вычислен HashSum для {component.PartNumber}: {componentHash}");
+
                 // --- КОНЕЦ НОВОГО ---
 
                 // 3. Сохраняем компонент
@@ -81,19 +88,21 @@ namespace Agrovent.Infrastructure.Services
                 // 4. Сохраняем все изменения
                 var savedCount = await _unitOfWork.CompleteAsync();
                 _logger.LogInformation($"Сохранено {savedCount} записей для компонента {component.PartNumber}");
+                _saveProgress.AddLogMessage($"Сохранено {savedCount} записей для компонента {component.PartNumber}");
 
                 // 5. Проверяем, что Id установлены
                 if (savedVersion.Id == 0)
                 {
                     _logger.LogError($"Id компонента {component.PartNumber} не установлен!");
+                    _saveProgress.AddLogMessage($"Id компонента {component.PartNumber} не установлен!");
+
                     await _unitOfWork.RollbackTransactionAsync();
                     return false;
                 }
 
-                await _unitOfWork.CommitTransactionAsync();
 
                 _logger.LogInformation($"Компонент успешно сохранен: {component.PartNumber}, Id: {savedVersion.Id}");
-
+                _saveProgress.AddLogMessage($"Компонент успешно сохранен: {component.PartNumber}, Id: {savedVersion.Id}");
 
                 // --- НОВОЕ: Сохраняем файлы ---
                 // Проверяем, является ли компонент файловым (имеет путь)
@@ -101,11 +110,13 @@ namespace Agrovent.Infrastructure.Services
                 {
                     try
                     {
+                        await TrySaveDocuments(component);
                         await CopyFilesToStorageAsync(component, componentHash);
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, $"Ошибка при копировании файлов для компонента {component.PartNumber} (HashSum: {componentHash}) в хранилище.");
+                        _saveProgress.AddLogMessage($"Ошибка при копировании файлов для компонента {component.PartNumber} (HashSum: {componentHash}) в хранилище. {ex.Message}");
                         // В зависимости от требований, можно:
                         // - Просто залогировать ошибку (как сейчас)
                         // - Выбросить исключение, чтобы сигнализировать о проблеме
@@ -117,7 +128,10 @@ namespace Agrovent.Infrastructure.Services
                 else
                 {
                     _logger.LogDebug($"Компонент {component.PartNumber} не имеет связанного файла для сохранения (IAGR_HasFile или FilePath пуст).");
+                    _saveProgress.AddLogMessage($"Компонент {component.PartNumber} не имеет связанного файла для сохранения (IAGR_HasFile или FilePath пуст).");
                 }
+                
+                await _unitOfWork.CommitTransactionAsync();
                 // --- КОНЕЦ НОВОГО ---
 
                 return true;
@@ -126,17 +140,34 @@ namespace Agrovent.Infrastructure.Services
             {
                 await _unitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, $"Ошибка при сохранении компонента: {component.PartNumber}");
+                _saveProgress.AddLogMessage($"Ошибка при сохранении компонента: {component.PartNumber}. {ex.Message}");
                 throw;
             }
         }
+
+        private async Task TrySaveDocuments(IAGR_BaseComponent component)
+        {
+            var docsToSave = component.SwDocument.OwnerApplication.Documents.Where(d => d.IsDirty).ToList();
+            foreach (var item in docsToSave)
+            {
+                var attr = File.GetAttributes(item.Path);
+                if (attr.HasAnyFlags(FileAttributes.ReadOnly))
+                {
+                    continue;
+                }
+                item.Save();
+            }
+        }
+
         public async Task<bool> CheckAndSaveAssemblyAsync(AGR_AssemblyComponentVM assembly)
         {
             var assemblyPartnumber = assembly.PartNumber;
             using var transaction = await _unitOfWork.BeginTransactionAsync();
-
+            
             try
             {
                 _logger.LogInformation($"Начинаем сохранение сборки: {assembly.PartNumber}");
+                _saveProgress.AddLogMessage($"Начинаем сохранение сборки: {assembly.PartNumber}");
 
                 // 1. Проверяем, изменилась ли сборка
                 var hasChanged = await _unitOfWork.ComponentRepository.HasComponentChanged(assembly);
@@ -144,6 +175,9 @@ namespace Agrovent.Infrastructure.Services
                 if (!hasChanged)
                 {
                     _logger.LogInformation($"Сборка не изменилась: {assembly.PartNumber}");
+                    _saveProgress.AddLogMessage($"Сборка не изменилась: {assembly.PartNumber}");
+
+
                     await _unitOfWork.RollbackTransactionAsync();
                     return false;
                 }
@@ -154,6 +188,7 @@ namespace Agrovent.Infrastructure.Services
                 if (existingVersion != null)
                 {
                     _logger.LogInformation($"Сборка уже существует: {assembly.PartNumber} v{existingVersion.Version}");
+                    _saveProgress.AddLogMessage($"Сборка уже существует: {assembly.PartNumber} v{existingVersion.Version}");
                     await _unitOfWork.RollbackTransactionAsync();
                     return false;
                 }
@@ -161,6 +196,7 @@ namespace Agrovent.Infrastructure.Services
                 // --- НОВОЕ: Вычисляем HashSum для сборки ---
                 var assemblyHash = assembly.CalculateComponentHash();
                 _logger.LogDebug($"Вычислен HashSum для сборки {assembly.PartNumber}: {assemblyHash}");
+                _saveProgress.AddLogMessage($"Вычислен HashSum для сборки {assembly.PartNumber}: {assemblyHash}");
                 // --- КОНЕЦ НОВОГО ---
 
                 // 3. Сохраняем структуру сборки
@@ -171,23 +207,27 @@ namespace Agrovent.Infrastructure.Services
                 await _unitOfWork.CommitTransactionAsync();
 
                 _logger.LogInformation($"Сборка успешно сохранена: {assembly.PartNumber}");
+                _saveProgress.AddLogMessage($"Сборка успешно сохранена: {assembly.PartNumber}");
 
                 // --- НОВОЕ: Сохраняем файлы сборки ---
                 if (assembly is IAGR_HasFile assemblyFileComponent && !string.IsNullOrEmpty(assemblyFileComponent.CurrentModelFilePath))
                 {
                     try
                     {
+                        await TrySaveDocuments(assembly);
                         await CopyFilesToStorageAsync(assembly, assemblyHash);
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, $"Ошибка при копировании файлов для сборки {assemblyPartnumber} (HashSum: {assemblyHash}) в хранилище.");
+                        _saveProgress.AddLogMessage($"Ошибка при копировании файлов для сборки {assemblyPartnumber} (HashSum: {assemblyHash}) в хранилище. {ex.Message}");
                         // В зависимости от требований, можно обработать ошибку
                     }
                 }
                 else
                 {
                     _logger.LogDebug($"Сборка {assemblyPartnumber} не имеет связанного файла для сохранения (IAGR_HasFile или FilePath пуст).");
+                    _saveProgress.AddLogMessage($"Сборка {assemblyPartnumber} не имеет связанного файла для сохранения (IAGR_HasFile или FilePath пуст).");
                 }
                 // --- КОНЕЦ НОВОГО ---
 
@@ -197,6 +237,7 @@ namespace Agrovent.Infrastructure.Services
             {
                 await _unitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, $"Ошибка при сохранении сборки: {assemblyPartnumber}");
+                _saveProgress.AddLogMessage($"Ошибка при сохранении сборки: {assemblyPartnumber}. {ex.Message}");
                 throw;
             }
         }
@@ -214,6 +255,8 @@ namespace Agrovent.Infrastructure.Services
             if (rootComponent is AGR_AssemblyComponentVM assemblyComponent)
             {
                 _logger.LogDebug($"Сборка обнаружена, извлекаем зависимости: {rootComponent.PartNumber}");
+                _saveProgress.AddLogMessage($"Сборка обнаружена, извлекаем зависимости: {rootComponent.PartNumber}");
+
                 var flatDependencies = assemblyComponent.GetFlatComponents(); // Получаем IEnumerable<IAGR_SpecificationItem>
                 foreach (var specItem in flatDependencies)
                 {
@@ -231,6 +274,7 @@ namespace Agrovent.Infrastructure.Services
             if (filesToCopyInfo.Count == 0)
             {
                 _logger.LogWarning($"Не найдено файлов для копирования для компонента {rootComponent.PartNumber} (HashSum: {rootHashSum})");
+                _saveProgress.AddLogMessage($"Не найдено файлов для копирования для компонента {rootComponent.PartNumber} (HashSum: {rootHashSum})");
                 return;
             }
 
@@ -242,12 +286,14 @@ namespace Agrovent.Infrastructure.Services
                 if (swApp == null)
                 {
                     _logger.LogError("Не удалось получить доступ к экземпляру SolidWorks Application для копирования файлов.");
+                    _saveProgress.AddLogMessage("Не удалось получить доступ к экземпляру SolidWorks Application для копирования файлов.");
                     return; // Или выбросить исключение
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка при получении экземпляра SolidWorks Application.");
+                _saveProgress.AddLogMessage($"Ошибка при получении экземпляра SolidWorks Application.{ex.Message}");
                 return; // Или выбросить исключение
             }
 
@@ -265,13 +311,14 @@ namespace Agrovent.Infrastructure.Services
                     var sourcePath = sourceArray[i];
                     if (filesToCopyInfo.TryGetValue(sourcePath, out int hashForPath))
                     {
-                        var targetDir = Path.Combine(_storageConfig.StorageRootFolder, hashForPath.ToString("D10"));
+                        var targetDir = Path.Combine(AGR_Options.StorageRootFolderPath, hashForPath.ToString("D10"));
                         Directory.CreateDirectory(targetDir); // Убедиться, что папка существует
                         targetArray[i] = Path.Combine(targetDir, Path.GetFileName(sourcePath));
                     }
                     else
                     {
                         _logger.LogError($"Не найден хэш для пути {sourcePath} в словаре filesToCopyInfo.");
+                        _saveProgress.AddLogMessage($"Не найден хэш для пути {sourcePath} в словаре filesToCopyInfo.");
                         // Пропускаем этот файл или обрабатываем ошибку по-другому
                         targetArray[i] = null; // или throw new Exception(...)
                     }
@@ -281,6 +328,7 @@ namespace Agrovent.Infrastructure.Services
                 if (targetArray.Any(t => t == null))
                 {
                     _logger.LogError("Не все целевые пути были вычислены. Операция копирования отменена.");
+                    _saveProgress.AddLogMessage("Не все целевые пути были вычислены. Операция копирования отменена.");
                     return;
                 }
 
@@ -291,14 +339,16 @@ namespace Agrovent.Infrastructure.Services
                 if (!filesToCopyInfo.TryGetValue(sourceFile, out int rootComponentHash))
                 {
                     _logger.LogError($"Не найден хэш для исходного файла rootComponent {sourceFile}.");
+                    _saveProgress.AddLogMessage($"Не найден хэш для исходного файла rootComponent {sourceFile}.");
                     //return; // Или выбросить исключение
                 }
-                var targetDirRoot = Path.Combine(_storageConfig.StorageRootFolder, rootComponentHash.ToString("D10"));
+                var targetDirRoot = Path.Combine(AGR_Options.StorageRootFolderPath, rootComponentHash.ToString("D10"));
                 Directory.CreateDirectory(targetDirRoot); // Убедиться, что папка существует
                 var targetFile = Path.Combine(targetDirRoot, Path.GetFileName(sourceFile));
 
                 // 1.5 Закрыть все файлы
                 _logger.LogDebug("Закрытие всех документов перед копированием.");
+                _saveProgress.AddLogMessage("Закрытие всех документов перед копированием.");
                 swApp.Sw.CloseAllDocuments(true); // true - подавляет запросы на сохранение
 
                 try
@@ -321,6 +371,7 @@ namespace Agrovent.Infrastructure.Services
                     else
                     {
                         _logger.LogInformation($"Файлы успешно скопированы через SW CopyDocument для компонента {rootPartNumber} (HashSum: {rootHashSum}).");
+                        _saveProgress.AddLogMessage($"Файлы успешно скопированы через SW CopyDocument для компонента {rootPartNumber} (HashSum: {rootHashSum}).");
                     }
                 }
                 catch (Exception ex)
@@ -328,10 +379,14 @@ namespace Agrovent.Infrastructure.Services
                     _logger.LogError(ex, $"Исключение при вызове SW CopyDocument для компонента {rootPartNumber} (HashSum: {rootHashSum}).");
                     // Логика обработки исключения
                 }
+
+                //swApp.Documents.Open(sourceFile); // Открываем исходный файл обратно в SolidWorks
+
             }
             else
             {
                 _logger.LogWarning($"RootComponent {rootPartNumber} не реализует IAGR_HasFile или FilePath пуст.");
+                _saveProgress.AddLogMessage($"RootComponent {rootPartNumber} не реализует IAGR_HasFile или FilePath пуст.");
             }
             // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
         }

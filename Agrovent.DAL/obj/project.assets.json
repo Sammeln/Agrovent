@@ -532,7 +532,7 @@
       },
       "Agrovent.Infrastructure/1.0.0": {
         "type": "project",
-        "framework": ".NETStandard,Version=v2.1",
+        "framework": ".NETCoreApp,Version=v6.0",
         "dependencies": {
           "Xarial.XCad": "0.8.2",
           "Xarial.XCad.SolidWorks": "0.8.2"

@@ -1,0 +1,1826 @@
+// File: ViewModels/Windows/SaveProgressVM.cs
+using System.Collections.ObjectModel;
+
+namespace Agrovent.ViewModels.Windows
+{
+    public interface IAGR_SaveProgressVM
+    {
+        abstract void AddLogMessage(string message);
+    }
+}
+
+// File: ViewModels/Windows/SaveProgressVM.cs
+using Agrovent.ViewModels.Base;
+using Agrovent.Infrastructure.Commands; // Для RelayCommand
+using Microsoft.Extensions.Logging; // Для ILogger (опционально)
+using System;
+using System.Collections.ObjectModel;
+using System.IO; // Для SaveFileDialog
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Input;
+using Microsoft.Win32; // Для SaveFileDialog
+
+namespace Agrovent.ViewModels.Windows
+{
+    public class AGR_SaveProgressVM : BaseViewModel, IAGR_SaveProgressVM
+    {
+        private readonly ILogger<AGR_SaveProgressVM>? _logger; // Опционально
+
+        public AGR_SaveProgressVM(ILogger<AGR_SaveProgressVM>? logger = null)
+        {
+            _logger = logger;
+
+            LogMessages = new ObservableCollection<string>();
+            CloseCommand = new RelayCommand(OnCloseCommandExecuted, CanCloseCommandExecute);
+            SaveLogCommand = new RelayCommand(OnSaveLogCommandExecuted, CanSaveLogCommandExecute);
+        }
+
+        #region Properties
+
+        #region LogMessages
+        private ObservableCollection<string> _logMessages;
+        public ObservableCollection<string> LogMessages
+        {
+            get => _logMessages;
+            set => Set(ref _logMessages, value);
+        }
+        #endregion
+
+        #region IsFinished
+        private bool _isFinished;
+        public bool IsFinished
+        {
+            get => _isFinished;
+            set
+            {
+                if (Set(ref _isFinished, value))
+                {
+                    // Уведомляем команды о возможном изменении CanExecute
+                    //((RelayCommand)CloseCommand).NotifyCanExecuteChanged();
+                    //((RelayCommand)SaveLogCommand).NotifyCanExecuteChanged();
+                }
+            }
+        }
+        #endregion
+
+        #endregion
+
+        #region Commands
+
+        #region CloseCommand
+        public ICommand CloseCommand { get; }
+        private bool CanCloseCommandExecute(object p) => true; // Всегда можно закрыть
+        private void OnCloseCommandExecuted(object p)
+        {
+            var view = p as Window;
+            if (view != null)
+            {
+                view.Close();
+                return;
+            }
+            // Закрытие окна будет обработано в View
+            //CloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+        #endregion
+
+        #region SaveLogCommand
+        public ICommand SaveLogCommand { get; }
+        private bool CanSaveLogCommandExecute(object p) => IsFinished; // Доступна только после завершения
+        private void OnSaveLogCommandExecuted(object p)
+        {
+            var dialog = new SaveFileDialog
+            {
+                FileName = "SaveLog.txt",
+                DefaultExt = ".txt",
+                Filter = "Text documents (.txt)|*.txt|All Files (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    File.WriteAllLines(dialog.FileName, LogMessages);
+                    _logger?.LogInformation($"Лог сохранен в файл: {dialog.FileName}");
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Ошибка при сохранении лога в файл.");
+                    MessageBox.Show($"Ошибка при сохранении лога: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        #endregion
+
+        #endregion
+
+        // Событие для запроса закрытия окна
+        public event EventHandler? CloseRequested;
+
+        // Метод для добавления сообщения в лог
+        // ПРЕДПОЛАГАЕТСЯ, ЧТО ВЫЗЫВАЕТСЯ ИЗ UI-ПОТОКА SolidWorks!
+        public void AddLogMessage(string message)
+        {
+            // Добавляем напрямую, так как вызывается из UI-потока
+            LogMessages.Add(message);
+            _logger?.LogDebug(message); // Также логируем через ILogger
+        }
+
+        // Метод для завершения процесса (вызывается извне после сохранения)
+        // ПРЕДПОЛАГАЕТСЯ, ЧТО ВЫЗЫВАЕТСЯ ИЗ UI-ПОТОКА SolidWorks!
+        public void SetFinished()
+        {
+            IsFinished = true;
+        }
+    }
+}
+
+// File: Services/AGR_CommandService.cs
+using Agrovent.DAL.Entities.Components; // Если нужно для AvaArticle
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Extensions; // Для AGR_TryGetProp и т.д.
+using Agrovent.Infrastructure.Interfaces;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.ViewModels.Base;
+using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.Windows;
+using Agrovent.Views.Windows;
+using Microsoft.Extensions.Logging;
+using System.Threading;
+using System.Windows;
+using Xarial.XCad.Data;
+using Xarial.XCad.Documents;
+using Xarial.XCad.SolidWorks;
+using Xarial.XCad.SolidWorks.Documents;
+
+namespace Agrovent.Services
+{
+    public class AGR_CommandService : IAGR_CommandService
+    {
+        private readonly ILogger<AGR_CommandService> _logger;
+        private readonly IAGR_ComponentVersionService _componentVersionService; // Возможно, нужен для AvaArticle
+        private readonly IServiceProvider _serviceProvider; // Необходим для получения VM
+
+        public AGR_CommandService(
+            ILogger<AGR_CommandService> logger,
+            IAGR_ComponentVersionService componentVersionService,
+            IServiceProvider serviceProvider) // Принимаем IServiceProvider
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _componentVersionService = componentVersionService ?? throw new ArgumentNullException(nameof(componentVersionService));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        }
+
+        public async Task<bool> UpdatePropertiesAsync()
+        {
+            return false;
+            //if (iComponent == null)
+            //{
+            //    _logger.LogWarning("UpdatePropertiesAsync called with null document.");
+            //    return false;
+            //}
+            //var component = iComponent as AGR_BaseComponent;
+            //var config = component.mConfiguration;
+            //var props = config.Properties;
+
+            //try
+            //{
+            //    _logger.LogDebug($"Starting property update for document: {component.mDocument.Title}");
+
+                // 1. Обновление базовых свойств (Наименование, Обозначение, Признак, Расширение, Путь файла)
+                // Эти свойства, скорее всего, управляются извне или из базы данных.
+                // Предположим, что их значения нужно получить из соответствующего ViewModel или базы данных.
+                // Пример (псевдокод - нужно интегрировать с логикой получения актуальных значов):
+                // var componentData = await _componentVersionService.GetComponentByPartNumber(...);
+                // props[AGR_PropertyNames.Name].Value = componentData.Name;
+                // props[AGR_PropertyNames.Partnumber].Value = componentData.PartNumber;
+                // props[AGR_PropertyNames.AvaType].Value = componentData.AvaType.ToString();
+                // props[AGR_PropertyNames.Extension].Value = Path.GetExtension(document.Path);
+                // props[AGR_PropertyNames.FilePath].Value = document.Path; // Не рекомендуется хранить путь в файле, но как пример
+
+                // 2. Обновление массы
+                //await UpdateMassPropertyAsync(config);
+
+                // 3. Обновление специфических свойств для деталей
+                //if (document is ISwPart)
+                //{
+                //    await UpdatePartSpecificPropertiesAsync(document, config);
+                //}
+                //else if (document is ISwAssembly)
+                //{
+                //    // Для сборок может быть логика обновления AvaArticle на основе дочерних компонентов
+                //    // Это сложнее и требует отдельного обсуждения/реализации
+                //    // await UpdateAssemblyAvaArticleAsync(document, props);
+                //}
+
+                // 4. Подтверждение изменений свойств
+                //foreach (var prop in props)
+                //{
+                //    if (!prop.IsCommitted)
+                //    {
+                //        await prop.Commit(CancellationToken.None);
+                //    }
+                //}
+
+            //    _logger.LogDebug($"Successfully updated properties for document: {component.mDocument.Title}");
+            //    return true;
+            //}
+            //catch (Exception ex)
+            //{
+            //    _logger.LogError(ex, $"Error updating properties for document: {component.mDocument.Title}");
+            //    return false;
+            //}
+        }
+        public async Task<bool> OpenComponentRegistryAsync()
+        {
+            try
+            {
+                _logger.LogDebug("Открытие окна реестра компонентов");
+
+                // Получаем ViewModel из DI контейнера
+                var registryVM = AGR_ServiceContainer.GetService<AGR_ComponentRegistryVM>();
+                if (registryVM == null)
+                {
+                    _logger.LogError("Не удалось получить AGR_ComponentRegistryVM из DI контейнера.");
+                    return false;
+                }
+                registryVM.LoadDataCommand.Execute(null);
+
+                // Создаем View и устанавливаем DataContext
+                var registryView = new AGR_ComponentRegistryView 
+                {
+                    DataContext = registryVM,
+                    Title = "Реестр компонентов",
+                    Width = 1200,
+                    Height = 800,
+                    ResizeMode = ResizeMode.CanResizeWithGrip
+                };
+
+                // Открываем окно (модально или немодально)
+                registryView.Show(); // или window.Show(); для немодального окна
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при открытии окна реестра компонентов");
+                return false;
+            }
+        }
+        public async Task<bool> OpenProjectExplorerWindowAsync()
+        {
+            try
+            {
+                _logger.LogDebug("Открытие окна проводника компонентов");
+
+                // Получаем ViewModel из DI контейнера
+                var projectTreeVM = AGR_ServiceContainer.GetService<AGR_ProjectExplorerVM>();
+                if (projectTreeVM == null)
+                {
+                    _logger.LogError("Не удалось получить AGR_ComponentRegistryVM из DI контейнера.");
+                    return false;
+                }
+                projectTreeVM.LoadProjectsCommand.Execute(null);
+
+                // Создаем View и устанавливаем DataContext
+                var projectTreeView = new AGR_ProjectExplorerView
+                {
+                    DataContext = projectTreeVM,
+                    Title = "Дерево компонентов",
+                    Width = 1200,
+                    Height = 800,
+                    ResizeMode = ResizeMode.CanResizeWithGrip
+                };
+
+                // Открываем окно (модально или немодально)
+                projectTreeView.ShowDialog(); // или window.Show(); для немодального окна
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при открытии окна проводника компонентов");
+                return false;
+            }
+        }
+        // --- НОВАЯ КОМАНДА: Сохранить активный компонент/сборку ---
+        public async Task<bool> SaveActiveComponentAsync()
+        {
+            try
+            {
+                var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swApp == null)
+                {
+                    _logger.LogError("Не удалось получить ISwApplication.");
+                    return false;
+                }
+
+                var activeDoc = swApp.Documents.Active;
+                if (activeDoc == null)
+                {
+                    swApp.ShowMessageBox("Нет активного документа.",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+                    return false;
+                }
+
+                ISwDocument3D swDoc = activeDoc as ISwDocument3D;
+                if (swDoc == null)
+                {
+                    swApp.ShowMessageBox("Активный документ не является 3D-моделью.",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+                    return false;
+                }
+
+                IAGR_BaseComponent component = swDoc switch
+                {
+                    ISwPart part => new AGR_PartComponentVM(part),
+                    ISwAssembly assembly => new AGR_AssemblyComponentVM(assembly),
+                    _ => throw new InvalidOperationException("Неподдерживаемый тип документа")
+                };
+
+                var componentName = component.Name;
+                var componentType = activeDoc is ISwAssembly ? "Сборка" : "Деталь";
+
+                // --- ПОЛУЧАЕМ SINGLETON SaveProgressVM ---
+                var progressVM = AGR_ServiceContainer.GetService<IAGR_SaveProgressVM>() as AGR_SaveProgressVM;
+                if (progressVM == null)
+                {
+                    _logger.LogError("Не удалось получить SaveProgressVM из DI контейнера.");
+                    return false;
+                }
+
+                // Очищаем лог перед началом
+                progressVM.LogMessages.Clear();
+                progressVM.AddLogMessage($"Начало процесса сохранения {componentType}: {componentName}");
+                _logger.LogInformation($"Начало процесса сохранения {componentType}: {componentName}");
+
+                // --- ПОКАЗЫВАЕМ ОКНО С ПРОГРЕССОМ (в UI-потоке SolidWorks) ---
+                var progressDialog = new SaveProgressView();
+                progressDialog.DataContext = progressVM;
+                
+                progressDialog.ShowDialog(); // Используем Show(), а не ShowDialog(), чтобы UI не блокировался *до* вызова сохранения
+                // progressDialog.ShowDialog(); // Блокирует UI до закрытия окна, что может быть неудобно, если сохранение быстро.
+
+                bool saved = false;
+                try
+                {
+                    // --- ВЫПОЛНЯЕМ СОХРАНЕНИЕ В ТОМ ЖЕ ПОТОКЕ ---
+                    if (activeDoc is ISwAssembly)
+                    {
+                        // Сохраняем как сборку
+                        saved = await _componentVersionService.CheckAndSaveAssemblyAsync((AGR_AssemblyComponentVM)component);
+                    }
+                    else
+                    {
+                        // Сохраняем как деталь
+                        saved = await _componentVersionService.CheckAndSaveComponentAsync(component);
+                    }
+
+                    if (saved)
+                    {
+                        progressVM.AddLogMessage($"Успешно сохранено: {componentName}");
+                        _logger.LogInformation($"Успешно сохранено: {componentName}");
+                    }
+                    else
+                    {
+                        progressVM.AddLogMessage($"Компонент {componentName} не изменился или уже существует.");
+                        _logger.LogInformation($"Компонент {componentName} не изменился или уже существует.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var errorMsg = $"Ошибка при сохранении {componentType} {componentName}: {ex.Message}";
+                    progressVM.AddLogMessage(errorMsg);
+                    _logger.LogError(ex, errorMsg);
+                    // Можно добавить stack trace в лог, если нужно
+                    // progressVM.AddLogMessage($"Stack Trace: {ex.StackTrace}");
+                }
+                finally
+                {
+                    // Устанавливаем флаг завершения в любом случае (успешно или с ошибкой)
+                    // Это может быть вызван из UI-потока, так как метод выполняется в нём
+                    progressVM.SetFinished();
+                }
+
+                // progressDialog.Close(); // Опционально: закрыть окно после завершения
+
+                return saved; // Возвращаем результат сохранения
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Неожиданная ошибка при вызове SaveActiveComponentAsync");
+                var swAppFallback = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swAppFallback != null)
+                {
+                    swAppFallback.ShowMessageBox($"Ошибка: {ex.Message}",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
+                }
+                return false;
+            }
+        }
+        private async Task UpdateMassPropertyAsync(ISwConfiguration configuration)
+        {
+            ISwDocument3D document3D = configuration.OwnerDocument as ISwDocument3D;
+
+            var massProp = configuration.Properties.GetOrPreCreate(AGR_PropertyNames.BlankMass); // Или другое имя для итоговой массы
+
+            if (massProp != null)
+            {
+                var massPrp = document3D.Evaluation.PreCreateMassProperty();
+                if (!massPrp.IsCommitted) massPrp.Commit(CancellationToken.None);
+                var mass = massPrp.Mass; // Получаем массу в кг
+
+                // Форматирование значения массы (например, 2 знака после запятой)
+                massProp.Value = Math.Round(mass, 3).ToString(); // SolidWorks свойства обычно строковые
+                _logger.LogDebug($"Updated mass property to: {mass} kg");
+            }
+            else
+            {
+                _logger.LogWarning($"Could not access SolidWorks specific property for mass update in document: {document3D.Title}");
+            }
+        }
+        private async Task UpdatePartSpecificPropertiesAsync(ISwDocument3D document, IXConfiguration configuration)
+        {
+            // Пример: обновление длины/ширины/толщины заготовки для листовых деталей
+            // Эта логика может быть сложной и зависеть от геометрии.
+            // Псевдокод:
+            /*
+            if (IsSheetMetalPart(document)) // Нужно реализовать метод определения листовой детали
+            {
+                var length = GetSheetMetalLength(document); // Нужно реализовать
+                var width = GetSheetMetalWidth(document);  // Нужно реализовать
+                var thickness = GetSheetMetalThickness(document); // Используем существующий метод или получаем из геометрии
+
+                var props = configuration.Properties;
+                var lengthProp = props.GetOrPreCreate(AGR_PropertyNames.BlankLen);
+                var widthProp = props.GetOrPreCreate(AGR_PropertyNames.BlankWid);
+                var thickProp = props.GetOrPreCreate(AGR_PropertyNames.BlankThick);
+
+                lengthProp.Value = length.ToString();
+                widthProp.Value = width.ToString();
+                thickProp.Value = thickness.ToString();
+
+                await lengthProp.Commit(CancellationToken.None);
+                await widthProp.Commit(CancellationToken.None);
+                await thickProp.Commit(CancellationToken.None);
+
+                _logger.LogDebug($"Updated sheet metal properties for: {document.Title}");
+            }
+            */
+            // Для обычных деталей, возможно, только масса обновляется в этом методе.
+        }
+
+    }
+}
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Agrovent.DAL.Entities.Components;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces.Components;
+using Agrovent.Infrastructure.Interfaces.Specification;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Properties;
+using Agrovent.Infrastructure.Interfaces;
+using Microsoft.VisualBasic.FileIO;
+using Xarial.XCad.Documents;
+using Xarial.XCad.SolidWorks.Documents;
+using Agrovent.ViewModels.Windows;
+
+namespace Agrovent.DAL.Repositories
+{
+    public class ComponentRepository : IAGR_ComponentRepository
+    {
+        private readonly DataContext _context;
+        private readonly ILogger<ComponentRepository> _logger;
+        private readonly IAGR_SaveProgressVM _saveProgress;
+
+        public ComponentRepository(DataContext context, ILogger<ComponentRepository> logger, IAGR_SaveProgressVM saveProgress)
+        {
+            _context = context;
+            _logger = logger;
+            _saveProgress = saveProgress;
+        }
+
+        #region Основные операции с компонентами
+
+        public async Task<Component?> GetComponentByPartNumber(string partNumber)
+        {
+            try
+            {
+                _logger.LogDebug($"Запрос компонента по PartNumber: {partNumber}");
+
+                return await _context.Components
+                    .Include(c => c.Versions)
+                        .ThenInclude(v => v.Properties)
+                    .Include(c => c.Versions)
+                        .ThenInclude(v => v.Material)
+                    .Include(c => c.Versions)
+                        .ThenInclude(v => v.Files)
+                    .FirstOrDefaultAsync(c => c.PartNumber == partNumber);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении компонента по PartNumber: {partNumber}");
+                throw;
+            }
+        }
+
+        public async Task<ComponentVersion?> GetComponentVersion(string partNumber, int version)
+        {
+            try
+            {
+                _logger.LogDebug($"Запрос версии компонента: {partNumber} v{version}");
+
+                return await _context.ComponentVersions
+                    .Include(v => v.Component)
+                    .Include(v => v.Properties)
+                    .Include(v => v.Material)
+                    .Include(v => v.Files)
+                    .FirstOrDefaultAsync(v => v.Component.PartNumber == partNumber && v.Version == version);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении версии компонента: {partNumber} v{version}");
+                throw;
+            }
+        }
+
+        public async Task<ComponentVersion?> GetLatestComponentVersion(string partNumber)
+        {
+            try
+            {
+                _logger.LogDebug($"Запрос последней версии компонента: {partNumber}");
+
+                var component = await GetComponentByPartNumber(partNumber);
+                if (component == null)
+                {
+                    _logger.LogDebug($"Компонент не найден: {partNumber}");
+                    return null;
+                }
+
+                return component.Versions
+                    .OrderByDescending(v => v.Version)
+                    .FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении последней версии компонента: {partNumber}");
+                throw;
+            }
+        }
+
+        #endregion
+
+        #region Создание/обновление компонента
+
+        public async Task<ComponentVersion> SaveComponent(IAGR_BaseComponent component, int hashSum)
+        {
+            try
+            {
+                var pn = component.PartNumber;
+                _logger.LogInformation($"Подготовка к сохранению компонента: {component.PartNumber}, HashSum: {hashSum}");
+                _saveProgress.AddLogMessage($"Подготовка к сохранению компонента: {component.PartNumber}, HashSum: {hashSum}");
+                // Генерация PartNumber, если он пуст 
+                if (string.IsNullOrWhiteSpace(component.PartNumber))
+                {
+                    _logger.LogDebug("PartNumber компонента пуст. Генерация нового...");
+                    _saveProgress.AddLogMessage("PartNumber компонента пуст. Генерация нового...");
+                    
+                    component.PartNumber = await GenerateNewPartNumberAsync();
+                    _logger.LogInformation($"Сгенерирован PartNumber: {component.PartNumber}");
+                    _saveProgress.AddLogMessage($"Сгенерирован PartNumber: {component.PartNumber}");
+                }
+                //else
+                //{
+                //    // Проверяем формат PartNumber, если он был задан
+                //    if (!IsValidPartNumberFormat(component.PartNumber))
+                //    {
+                //        _logger.LogWarning($"Предоставленный PartNumber '{component.PartNumber}' имеет неверный формат. Ожидается 7 цифр без точек.");
+                //        // В зависимости от требований, можно выбросить исключение или попытаться исправить
+                //        // throw new ArgumentException($"Invalid PartNumber format: {component.PartNumber}. Expected 7 digits without dots.");
+                //        // Или, например, попытаться очистить:
+                //        component.PartNumber = SanitizePartNumber(component.PartNumber);
+                //        if (!IsValidPartNumberFormat(component.PartNumber))
+                //        {
+                //            _logger.LogError($"Не удалось исправить формат PartNumber '{component.PartNumber}'.");
+                //            throw new ArgumentException($"Invalid or unfixable PartNumber format: {component.PartNumber}");
+                //        }
+                //    }
+                //}
+
+                // 1. Проверяем существование компонента по PartNumber
+                var existingComponent = await GetComponentByPartNumber(component.PartNumber);
+
+                if (existingComponent == null)
+                {
+
+                    // Проверяем, нет ли компонента с таким PartNumber в локальном контексте
+                    var localComponent = _context.Components.Local
+                        .FirstOrDefault(c => c.PartNumber == component.PartNumber);
+
+                    if (localComponent != null)
+                    {
+                        _logger.LogInformation($"Компонент найден в локальном контексте: {component.PartNumber}");
+                        _saveProgress.AddLogMessage($"Компонент найден в локальном контексте: {component.PartNumber}");
+                        existingComponent = localComponent;
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Создание нового компонента: {component.PartNumber}");
+                        _saveProgress.AddLogMessage($"Создание нового компонента: {component.PartNumber}");
+                        existingComponent = new Component
+                        {
+                            PartNumber = component.PartNumber,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.Components.Add(existingComponent);
+                        // Сохраняем сразу, чтобы получить Id
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation($"Создан компонент с Id: {existingComponent.Id}");
+                        _saveProgress.AddLogMessage($"Создан компонент с Id: {existingComponent.Id}");
+                    }
+                }
+
+                // 2. Проверяем существование версии по хешу
+                var existingVersion = await FindComponentByHash(hashSum);
+                if (existingVersion != null)
+                {
+                    _logger.LogInformation($"Версия уже существует: {component.PartNumber} v{existingVersion.Version}");
+                    _saveProgress.AddLogMessage($"Версия уже существует: {component.PartNumber} v{existingVersion.Version}");
+                    return existingVersion;
+                }
+
+                // 3. Определяем следующую версию
+                var nextVersion = existingComponent.Versions.Any()
+                    ? existingComponent.Versions.Max(v => v.Version) + 1
+                    : 1;
+
+                _logger.LogInformation($"Создание новой версии: {component.Name}_{component.PartNumber} v{nextVersion}");
+                _saveProgress.AddLogMessage($"Создание новой версии: {component.Name}_{component.PartNumber} v{nextVersion}");
+
+                // 4. Создаем новую версию компонента
+                var componentVersion = new ComponentVersion
+                {
+                    Component = existingComponent,
+                    Version = nextVersion,
+                    HashSum = hashSum,
+                    PreviewImage = component.Preview,
+                    Name = component.Name,
+                    ConfigName = component.ConfigName,
+                    AvaArticle = component.AvaArticle as AvaArticleModel,
+                    ComponentType = component.ComponentType,
+                    AvaType = component.AvaType,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.ComponentVersions.Add(componentVersion);
+
+                // 5. Сохраняем свойства компонента
+                await SaveComponentProperties(componentVersion, component);
+
+                // 6. Сохраняем материал и покраску для деталей
+                await SaveMaterialData(componentVersion, component);
+
+                // 7. Сохраняем информацию о файлах
+                await SaveFileData(componentVersion, component);
+
+                component.HashSum = hashSum;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Компонент подготовлен к сохранению: {component.PartNumber} v{nextVersion}");
+                _saveProgress.AddLogMessage($"Компонент подготовлен к сохранению: {component.PartNumber} v{nextVersion}");
+                return componentVersion;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при подготовке сохранения компонента: {component.PartNumber}");
+                _saveProgress.AddLogMessage($"Ошибка при подготовке сохранения компонента: {component.PartNumber}.\n{ex.Message}");
+                throw;
+            }
+        }
+
+        #endregion
+
+        #region Генерация нового Partnumber
+
+        private async Task<string> GenerateNewPartNumberAsync()
+        {
+            const int maxNumber = 9999999;
+            const int minNumber = 1;
+
+            // Загружаем все занятые PartNumbers из таблицы Components и Article из AvaArticles
+            // Преобразуем их в числа
+            var usedComponentsQuery = _context.Components
+                .Select(c => c.PartNumber)
+                .AsQueryable();
+
+            var usedArticlesQuery = _context.AvaArticles
+                //.Where(a => a.Type == "Комплектующие" || a.Type == "Продукция")
+                //.Where(a => a.PartNumber.Count() == 7)
+                .Select(a => a.PartNumber)
+                .AsQueryable();
+
+            // Объединяем обе коллекии строк PartNumber/Article
+            var allUsedStringsQuery = usedComponentsQuery;//.Union(usedArticlesQuery);
+
+            // --- КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Выполняем ToListAsync() ПОСЛЕ Union ---
+            // Это загружает все строки в память
+            var allUsedStringList = await allUsedStringsQuery.ToListAsync();
+
+            // Теперь фильтруем и преобразуем в int на стороне .NET
+            var usedNumbers = new HashSet<int>(
+                allUsedStringList
+                    .Where(s => !string.IsNullOrEmpty(s) && s.Length == 7 && s.All(char.IsDigit)) // Фильтрация в .NET
+                    .Select(s => int.Parse(s)) // Преобразование в .NET
+            );
+
+            //// Преобразуем строки в числа и собираем в HashSet для быстрого поиска
+            //var usedNumbers = new HashSet<int>(
+            //    await allUsedStringsQuery
+            //        .Where(s => !string.IsNullOrEmpty(s) && s.All(char.IsDigit) && s.Length == 7) // Убедимся, что строка состоит из 7 цифр
+            //        .Select(s => int.Parse(s)) // Преобразуем в int
+            //        .ToListAsync()
+            //);
+
+            // Ищем первое неиспользованное число
+            for (int i = minNumber; i <= maxNumber; i++)
+            {
+                if (!usedNumbers.Contains(i))
+                {
+                    // Найдено! Форматируем как 7-значную строку
+                    return i.ToString("D7");
+                }
+            }
+
+            // Если все числа заняты (в теории невозможно при maxNumber = 9999999)
+            throw new InvalidOperationException("Не удалось сгенерировать уникальный PartNumber: достигнут максимальный лимит.");
+        }
+        #endregion
+
+        #region  ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Проверка формата PartNumber 
+        private static bool IsValidPartNumberFormat(string partNumber)
+        {
+            // Проверяем, что строка не пустая, состоит из 7 цифр и не содержит точек
+            return !string.IsNullOrEmpty(partNumber) &&
+                   partNumber.Length == 7 &&
+                   partNumber.All(char.IsDigit); // Все символы - цифры, точки нет
+        }
+        #endregion
+
+        #region ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Попытка очистки PartNumber (опционально)
+        private static string SanitizePartNumber(string partNumber)
+        {
+            // Убираем точки и пробелы, оставляем только цифры
+            var cleaned = new string(partNumber.Where(char.IsDigit).ToArray());
+            // Обрезаем до 7 символов, если больше
+            if (cleaned.Length > 7)
+            {
+                cleaned = cleaned.Substring(0, 7);
+            }
+            // Добавляем ведущие нули, если меньше 7
+            return cleaned.PadLeft(7, '0');
+        } 
+        #endregion
+
+        #region Поиск компонента по хешу
+
+        public async Task<ComponentVersion?> FindComponentByHash(int hashSum)
+        {
+            try
+            {
+                _logger.LogDebug($"Поиск компонента по хешу: {hashSum}");
+
+                return await _context.ComponentVersions
+                    .Include(v => v.Component)
+                    .Include(v => v.Properties)
+                    .Include(v => v.Material)
+                    .Include(v => v.Files)
+                    .FirstOrDefaultAsync(v => v.HashSum == hashSum);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при поиске компонента по хешу: {hashSum}");
+                //System.Windows.Forms.MessageBox.Show(ex.Message);
+                throw;
+
+            }
+        }
+
+        #endregion
+
+        #region Структура сборки
+
+        public async Task<List<AssemblyStructure>> GetAssemblyStructure(string assemblyPartNumber, int version)
+        {
+            try
+            {
+                _logger.LogDebug($"Запрос структуры сборки: {assemblyPartNumber} v{version}");
+
+                var assemblyVersion = await GetComponentVersion(assemblyPartNumber, version);
+                if (assemblyVersion == null)
+                {
+                    _logger.LogWarning($"Версия сборки не найдена: {assemblyPartNumber} v{version}");
+                    return new List<AssemblyStructure>();
+                }
+
+                return await _context.AssemblyStructures
+                    .Include(s => s.AssemblyVersion)
+                        .ThenInclude(av => av.Component)
+                    .Include(s => s.ComponentVersion)
+                        .ThenInclude(cv => cv.Component)
+                    .Include(s => s.ComponentVersion)
+                        .ThenInclude(cv => cv.Properties)
+                    .Include(s => s.ComponentVersion)
+                        .ThenInclude(cv => cv.Material)
+                    .Where(s => s.AssemblyVersionId == assemblyVersion.Id)
+                    .OrderBy(s => s.Level)
+                    .ThenBy(s => s.OrderIndex)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении структуры сборки: {assemblyPartNumber}");
+                throw;
+            }
+        }
+
+        public async Task SaveAssemblyStructure(IAGR_BaseComponent assembly, IEnumerable<IAGR_SpecificationItem> components)
+        {
+
+            try
+            {
+                _logger.LogInformation($"Подготовка к сохранению структуры сборки: {assembly.PartNumber}");
+
+                // 1. Сохраняем сборку как компонент
+                var assemblyHash = assembly.CalculateComponentHash(); //(assembly as IAGR_BaseComponent);
+                var assemblyVersion = await SaveComponent(assembly as IAGR_BaseComponent, assemblyHash);
+
+                // 2. Удаляем старую структуру
+                //var oldStructures = await _context.AssemblyStructures
+                //    .Where(s => s.AssemblyVersionId == assemblyVersion.Id)
+                //    .ToListAsync();
+
+                //if (oldStructures.Any())
+                //{
+                //    _context.AssemblyStructures.RemoveRange(oldStructures);
+                //    _logger.LogInformation($"Удалена старая структура для сборки: {assemblyVersion.Name}");
+                //}
+
+                // 3. Сохраняем новую структуру рекурсивно
+                await SaveAssemblyStructureRecursive(assemblyVersion, components.ToList(), null, 0, 0);
+
+                _logger.LogInformation($"Структура сборки подготовлена к сохранению: {assemblyVersion.Name} v{assemblyVersion.Version}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при подготовке сохранения структуры сборки");
+                throw;
+            }
+        }
+
+        private async Task SaveAssemblyStructureRecursive(
+            ComponentVersion assemblyVersion,
+            IList<IAGR_SpecificationItem> components,
+            AssemblyStructure? parent,
+            int level,
+            int orderIndex)
+        {
+            foreach (var item in components)
+            {
+                // Сохраняем компонент
+                var componentHash = item.Component.CalculateComponentHash();
+                var componentVersion = await SaveComponent(item.Component, componentHash);
+
+                // Создаем запись в структуре
+                var structure = new AssemblyStructure
+                {
+                    AssemblyVersion = assemblyVersion,
+                    ComponentVersion = componentVersion,
+                    Quantity = item.Quantity,
+                    Level = level,
+                    ParentStructure = parent,
+                    OrderIndex = orderIndex++
+                };
+
+                _context.AssemblyStructures.Add(structure);
+
+                // Если компонент - сборка, рекурсивно обрабатываем его структуру
+                if (item.Component is IAGR_Assembly childAssembly)
+                {
+                    var childComponents = childAssembly.GetChildComponents().ToList();
+                    await SaveAssemblyStructureRecursive(assemblyVersion, childComponents, structure, level + 1, 0);
+                }
+            }
+        }
+
+        #endregion
+
+        #region Статистика
+
+        public async Task<int> GetComponentCount()
+        {
+            try
+            {
+                _logger.LogDebug("Запрос количества компонентов");
+                return await _context.Components.CountAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении количества компонентов");
+                throw;
+            }
+        }
+
+        public async Task<int> GetComponentVersionCount()
+        {
+            try
+            {
+                _logger.LogDebug("Запрос количества версий компонентов");
+                return await _context.ComponentVersions.CountAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении количества версий компонентов");
+                throw;
+            }
+        }
+
+        #endregion
+
+        #region Управление версиями
+
+        public async Task<bool> HasComponentChanged(IAGR_BaseComponent component)
+        {
+            try
+            {
+                _logger.LogDebug($"Проверка изменений компонента: {component.PartNumber}");
+
+                var hash = component.CalculateComponentHash();
+                var existingVersion = await FindComponentByHash(hash);
+                return existingVersion == null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при проверке изменений компонента: {component.PartNumber}");
+                throw;
+            }
+        }
+
+        public async Task<ComponentVersion?> GetExistingVersion(IAGR_BaseComponent component)
+        {
+            try
+            {
+                _logger.LogDebug($"Поиск существующей версии компонента: {component.PartNumber}");
+
+                var hash = component.CalculateComponentHash();
+                return await FindComponentByHash(hash);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при поиске существующей версии компонента: {component.PartNumber}");
+                throw;
+            }
+        }
+
+        #endregion
+
+        #region Вспомогательные методы
+
+        private async Task SaveComponentProperties(ComponentVersion componentVersion, IAGR_BaseComponent component)
+        {
+            if (component.PropertiesCollection?.Properties == null || !component.PropertiesCollection.Properties.Any())
+                return;
+
+            _logger.LogDebug($"Сохранение свойств для компонента: {component.PartNumber}");
+
+            foreach (var property in component.PropertiesCollection.Properties)
+            {
+                var prop = new ComponentProperty
+                {
+                    ComponentVersion = componentVersion,
+                    Name = property.Name,
+                    Value = property.Value?.ToString() ?? string.Empty,
+                    Type = MapPropertyType(property.Value)
+                };
+                _context.ComponentProperties.Add(prop);
+            }
+
+            _logger.LogDebug($"Сохранено {component.PropertiesCollection.Properties.Count} свойств");
+        }
+
+        private async Task SaveMaterialData(ComponentVersion componentVersion, IAGR_BaseComponent component)
+        {
+            // Сохраняем материал только для деталей и листовых деталей
+            if (component.ComponentType != AGR_ComponentType_e.Part &&
+                component.ComponentType != AGR_ComponentType_e.SheetMetallPart)
+                return;
+
+            // Проверяем, реализует ли компонент интерфейсы материала и покраски
+            IAGR_Material? baseMaterial = null;
+            decimal baseMaterialCount = 0;
+            IAGR_Material? paint = null;
+            decimal? paintCount = null;
+
+            if (component is IAGR_HasMaterial partMaterial)
+            {
+                baseMaterial = partMaterial.BaseMaterial;
+                baseMaterialCount = partMaterial.BaseMaterialCount;
+            }
+            if (component is IAGR_HasPaint partPaint)
+            {
+                paint = partPaint.Paint;
+                paintCount = partPaint.PaintCount;
+            }
+
+            _logger.LogDebug($"Сохранение материала для компонента: {component.PartNumber}");
+
+            var material = new ComponentMaterial
+            {
+                ComponentVersion = componentVersion,
+                BaseMaterial = baseMaterial?.Name,
+                BaseMaterialCount = baseMaterialCount,
+                Paint = paint?.Name,
+                PaintCount = paintCount
+            };
+
+            _context.ComponentMaterials.Add(material);
+        }
+
+        private async Task SaveFileData(ComponentVersion componentVersion, IAGR_BaseComponent component)
+        {
+            // Проверяем, реализует ли компонент интерфейс файлов
+            if (!(component is IAGR_HasFile fileComponent))
+                return;
+
+            _logger.LogDebug($"Сохранение информации о файлах для компонента: {component.PartNumber}");
+
+            var files = new List<ComponentFile>();
+
+            // Текущая модель
+            if (!string.IsNullOrEmpty(fileComponent.CurrentModelFilePath))
+            {
+                files.Add(new ComponentFile
+                {
+                    ComponentVersion = componentVersion,
+                    FileType = AGR_FileType_e.CurrentModel,
+                    FilePath = fileComponent.CurrentModelFilePath,
+                    LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentModelFilePath),
+                    FileSize = new FileInfo(fileComponent.CurrentModelFilePath).Length
+                });
+            }
+
+            // Текущий чертеж
+            if (!string.IsNullOrEmpty(fileComponent.CurrentDrawFilePath))
+            {
+                files.Add(new ComponentFile
+                {
+                    ComponentVersion = componentVersion,
+                    FileType = AGR_FileType_e.CurrentDrawing,
+                    FilePath = fileComponent.CurrentDrawFilePath,
+                    LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentDrawFilePath),
+                    FileSize = new FileInfo(fileComponent.CurrentDrawFilePath).Length
+                });
+            }
+
+            // Модель в хранилище
+            if (!string.IsNullOrEmpty(fileComponent.StorageModelFilePath))
+            {
+                files.Add(new ComponentFile
+                {
+                    ComponentVersion = componentVersion,
+                    FileType = AGR_FileType_e.StorageModel,
+                    FilePath = fileComponent.StorageModelFilePath,
+                    LastModified = File.GetLastWriteTimeUtc(fileComponent.StorageModelFilePath),
+                    FileSize = new FileInfo(fileComponent.StorageModelFilePath).Length
+                });
+            }
+
+            // Чертеж в хранилище
+            if (!string.IsNullOrEmpty(fileComponent.StorageDrawFilePath))
+            {
+                files.Add(new ComponentFile
+                {
+                    ComponentVersion = componentVersion,
+                    FileType = AGR_FileType_e.StorageDrawing,
+                    FilePath = fileComponent.StorageDrawFilePath,
+                    LastModified = File.GetLastWriteTimeUtc(fileComponent.StorageDrawFilePath),
+                    FileSize = new FileInfo(fileComponent.StorageDrawFilePath).Length
+                });
+            }
+
+            // Модель в производстве
+            if (!string.IsNullOrEmpty(fileComponent.ProductionModelFilePath))
+            {
+                files.Add(new ComponentFile
+                {
+                    ComponentVersion = componentVersion,
+                    FileType = AGR_FileType_e.ProductionModel,
+                    FilePath = fileComponent.ProductionModelFilePath,
+                    LastModified = File.GetLastWriteTimeUtc(fileComponent.ProductionModelFilePath),
+                    FileSize = new FileInfo(fileComponent.ProductionModelFilePath).Length
+                });
+            }
+
+            // Чертеж в производстве
+            if (!string.IsNullOrEmpty(fileComponent.ProductionDrawFilePath))
+            {
+                files.Add(new ComponentFile
+                {
+                    ComponentVersion = componentVersion,
+                    FileType = AGR_FileType_e.ProductionDrawing,
+                    FilePath = fileComponent.ProductionDrawFilePath,
+                    LastModified = File.GetLastWriteTimeUtc(fileComponent.ProductionDrawFilePath),
+                    FileSize = new FileInfo(fileComponent.ProductionDrawFilePath).Length
+                });
+            }
+
+            foreach (var file in files)
+            {
+                _context.ComponentFiles.Add(file);
+            }
+
+            _logger.LogDebug($"Сохранено {files.Count} файлов");
+        }
+
+        private AGR_PropertyType_e MapPropertyType(object? value)
+        {
+            if (value == null)
+                return AGR_PropertyType_e.String;
+
+            return value switch
+            {
+                bool _ => AGR_PropertyType_e.Boolean,
+                sbyte or byte or short or ushort or int or uint or long or ulong => AGR_PropertyType_e.Number,
+                float or double or decimal => AGR_PropertyType_e.Number,
+                DateTime => AGR_PropertyType_e.Date,
+                _ => AGR_PropertyType_e.String
+            };
+        }
+
+
+        #endregion
+
+        public async Task<IEnumerable<ComponentVersion>> GetAllLatestComponentVersionsAsync()
+        {
+            try
+            {
+                _logger.LogDebug("Запрос всех последних версий компонентов");
+
+                // Запрос для получения последней версии для каждого компонента
+                // Группируем версии по ComponentId и выбираем версию с максимальным номером
+                var latestVersions = await _context.ComponentVersions
+                    .Include(v => v.Component) // Подгружаем связанный компонент
+                    .Include(v => v.Files)     // Подгружаем связанный файл
+                    .AsNoTracking() // Оптимизация для чтения
+                    .GroupBy(v => v.ComponentId)
+                    .Select(g => g.OrderByDescending(v => v.Version).First())
+                    .ToListAsync();
+
+                return latestVersions;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении всех последних версий компонентов");
+                throw;
+            }
+        }
+        public async Task<IEnumerable<ComponentVersion>> GetTopLevelAssembliesNotInProjectsAsync()
+        {
+            try
+            {
+                _logger.LogDebug("Запрос версий сборок верхнего уровня, не входящих в проекты");
+
+                // Предположим, ComponentType_e.Assembly соответствует 0 (или другому значению enum -> int)
+                // и что "верхний уровень" означает, что у компонента нет родителя в структуре сборки (что сложно определить без хранения этой связи)
+                // Вместо этого, будем искать сборки, которые НЕ находятся НИ в одном ProjectComponent
+                var assembliesInProjects = _context.ProjectComponents
+                    .Select(pc => pc.ComponentVersionId)
+                    .Distinct();
+
+                var topLevelAssemblies = await _context.ComponentVersions
+                    .Include(cv => cv.Component) // Подгружаем связанный компонент
+                    .Where(cv => cv.ComponentType == (int)AGR_ComponentType_e.Assembly 
+                                && !assembliesInProjects.Contains(cv.Id))
+                    .ToListAsync();
+
+                return topLevelAssemblies;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении версий сборок верхнего уровня, не входящих в проекты");
+                throw;
+            }
+        }
+    }
+}
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Agrovent.DAL;
+using Agrovent.DAL.Entities.Components;
+using Agrovent.DAL.Repositories;
+using Agrovent.Infrastructure.Configuration;
+using Agrovent.Infrastructure.Interfaces;
+using Agrovent.Infrastructure.Interfaces.Components;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.Windows;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.OLE.Interop;
+using SolidWorks.Interop.sldworks;
+using SolidWorks.Interop.swconst;
+using Xarial.XCad.Documents;
+using Xarial.XCad.Documents.Extensions;
+using Xarial.XCad.SolidWorks;
+using Xarial.XCad.SolidWorks.Documents;
+
+namespace Agrovent.Infrastructure.Services
+{
+    public class ComponentVersionService : IAGR_ComponentVersionService
+    {
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<ComponentVersionService> _logger;
+        private readonly DataContext _context;
+        private readonly AGR_FileStorageConfig _storageConfig;
+        private readonly AGR_SaveProgressVM _saveProgress;
+
+        public ComponentVersionService(IUnitOfWork unitOfWork, ILogger<ComponentVersionService> logger, DataContext context, AGR_FileStorageConfig storageConfig, IAGR_SaveProgressVM saveProgress)
+        {
+            _unitOfWork = unitOfWork;
+            _logger = logger;
+            _context = context;
+            _storageConfig = storageConfig;
+            _saveProgress = saveProgress as AGR_SaveProgressVM;
+        }
+
+        public async Task<bool> CheckAndSaveComponentAsync(IAGR_BaseComponent component)
+        {
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                _logger.LogInformation($"Начинаем сохранение компонента: {component.PartNumber}");
+                _saveProgress.AddLogMessage($"Начинаем сохранение компонента: {component.PartNumber}");
+
+                // 1. Проверяем, изменился ли компонент
+                var hasChanged = await _unitOfWork.ComponentRepository.HasComponentChanged(component);
+
+                if (!hasChanged)
+                {
+                    _logger.LogInformation($"Компонент не изменился: {component.PartNumber}");
+                    _saveProgress.AddLogMessage($"Компонент не изменился: {component.PartNumber}");
+
+                    await _unitOfWork.RollbackTransactionAsync();
+                    return false;
+                }
+
+                // 2. Получаем существующую версию (в рамках той же транзакции)
+                var existingVersion = await _unitOfWork.ComponentRepository.GetExistingVersion(component);
+
+                if (existingVersion != null)
+                {
+                    _logger.LogInformation($"Компонент уже существует: {component.PartNumber} v{existingVersion.Version}");
+                    _saveProgress.AddLogMessage($"Компонент уже существует: {component.PartNumber} v{existingVersion.Version}");
+                    await _unitOfWork.RollbackTransactionAsync();
+                    return false;
+                }
+
+                // --- НОВОЕ: Вычисляем HashSum до сохранения ---
+                var componentHash = component.CalculateComponentHash();
+                component.HashSum = componentHash;
+                _logger.LogDebug($"Вычислен HashSum для {component.PartNumber}: {componentHash}");
+                _saveProgress.AddLogMessage($"Вычислен HashSum для {component.PartNumber}: {componentHash}");
+
+                // --- КОНЕЦ НОВОГО ---
+
+                // 3. Сохраняем компонент
+                var savedVersion = await _unitOfWork.ComponentRepository.SaveComponent(component, component.CalculateComponentHash());
+
+                // 4. Сохраняем все изменения
+                var savedCount = await _unitOfWork.CompleteAsync();
+                _logger.LogInformation($"Сохранено {savedCount} записей для компонента {component.PartNumber}");
+                _saveProgress.AddLogMessage($"Сохранено {savedCount} записей для компонента {component.PartNumber}");
+
+                // 5. Проверяем, что Id установлены
+                if (savedVersion.Id == 0)
+                {
+                    _logger.LogError($"Id компонента {component.PartNumber} не установлен!");
+                    _saveProgress.AddLogMessage($"Id компонента {component.PartNumber} не установлен!");
+
+                    await _unitOfWork.RollbackTransactionAsync();
+                    return false;
+                }
+
+                await _unitOfWork.CommitTransactionAsync();
+
+                _logger.LogInformation($"Компонент успешно сохранен: {component.PartNumber}, Id: {savedVersion.Id}");
+                _saveProgress.AddLogMessage($"Компонент успешно сохранен: {component.PartNumber}, Id: {savedVersion.Id}");
+
+                // --- НОВОЕ: Сохраняем файлы ---
+                // Проверяем, является ли компонент файловым (имеет путь)
+                if (component is IAGR_HasFile fileComponent && !string.IsNullOrEmpty(fileComponent.CurrentModelFilePath))
+                {
+                    try
+                    {
+                        await CopyFilesToStorageAsync(component, componentHash);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Ошибка при копировании файлов для компонента {component.PartNumber} (HashSum: {componentHash}) в хранилище.");
+                        _saveProgress.AddLogMessage($"Ошибка при копировании файлов для компонента {component.PartNumber} (HashSum: {componentHash}) в хранилище. {ex.Message}");
+                        // В зависимости от требований, можно:
+                        // - Просто залогировать ошибку (как сейчас)
+                        // - Выбросить исключение, чтобы сигнализировать о проблеме
+                        // - Вернуть false, чтобы сигнализировать о частичном успехе
+                        // - Записать статус ошибки в базу данных
+                        // Пока просто логируем.
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug($"Компонент {component.PartNumber} не имеет связанного файла для сохранения (IAGR_HasFile или FilePath пуст).");
+                    _saveProgress.AddLogMessage($"Компонент {component.PartNumber} не имеет связанного файла для сохранения (IAGR_HasFile или FilePath пуст).");
+                }
+                // --- КОНЕЦ НОВОГО ---
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, $"Ошибка при сохранении компонента: {component.PartNumber}");
+                _saveProgress.AddLogMessage($"Ошибка при сохранении компонента: {component.PartNumber}. {ex.Message}");
+                throw;
+            }
+        }
+        public async Task<bool> CheckAndSaveAssemblyAsync(AGR_AssemblyComponentVM assembly)
+        {
+            var assemblyPartnumber = assembly.PartNumber;
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            
+            try
+            {
+                _logger.LogInformation($"Начинаем сохранение сборки: {assembly.PartNumber}");
+                _saveProgress.AddLogMessage($"Начинаем сохранение сборки: {assembly.PartNumber}");
+
+                // 1. Проверяем, изменилась ли сборка
+                var hasChanged = await _unitOfWork.ComponentRepository.HasComponentChanged(assembly);
+
+                if (!hasChanged)
+                {
+                    _logger.LogInformation($"Сборка не изменилась: {assembly.PartNumber}");
+                    _saveProgress.AddLogMessage($"Сборка не изменилась: {assembly.PartNumber}");
+                    await _unitOfWork.RollbackTransactionAsync();
+                    return false;
+                }
+
+                // 2. Получаем существующую версию сборки
+                var existingVersion = await _unitOfWork.ComponentRepository.GetExistingVersion(assembly);
+
+                if (existingVersion != null)
+                {
+                    _logger.LogInformation($"Сборка уже существует: {assembly.PartNumber} v{existingVersion.Version}");
+                    _saveProgress.AddLogMessage($"Сборка уже существует: {assembly.PartNumber} v{existingVersion.Version}");
+                    await _unitOfWork.RollbackTransactionAsync();
+                    return false;
+                }
+
+                // --- НОВОЕ: Вычисляем HashSum для сборки ---
+                var assemblyHash = assembly.CalculateComponentHash();
+                _logger.LogDebug($"Вычислен HashSum для сборки {assembly.PartNumber}: {assemblyHash}");
+                _saveProgress.AddLogMessage($"Вычислен HashSum для сборки {assembly.PartNumber}: {assemblyHash}");
+                // --- КОНЕЦ НОВОГО ---
+
+                // 3. Сохраняем структуру сборки
+                await _unitOfWork.ComponentRepository.SaveAssemblyStructure(assembly, assembly.GetChildComponents());
+
+                // 4. Сохраняем все изменения и коммитим транзакцию
+                await _unitOfWork.CompleteAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                _logger.LogInformation($"Сборка успешно сохранена: {assembly.PartNumber}");
+                _saveProgress.AddLogMessage($"Сборка успешно сохранена: {assembly.PartNumber}");
+
+                // --- НОВОЕ: Сохраняем файлы сборки ---
+                if (assembly is IAGR_HasFile assemblyFileComponent && !string.IsNullOrEmpty(assemblyFileComponent.CurrentModelFilePath))
+                {
+                    try
+                    {
+                        await CopyFilesToStorageAsync(assembly, assemblyHash);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Ошибка при копировании файлов для сборки {assemblyPartnumber} (HashSum: {assemblyHash}) в хранилище.");
+                        _saveProgress.AddLogMessage($"Ошибка при копировании файлов для сборки {assemblyPartnumber} (HashSum: {assemblyHash}) в хранилище. {ex.Message}");
+                        // В зависимости от требований, можно обработать ошибку
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug($"Сборка {assemblyPartnumber} не имеет связанного файла для сохранения (IAGR_HasFile или FilePath пуст).");
+                    _saveProgress.AddLogMessage($"Сборка {assemblyPartnumber} не имеет связанного файла для сохранения (IAGR_HasFile или FilePath пуст).");
+                }
+                // --- КОНЕЦ НОВОГО ---
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, $"Ошибка при сохранении сборки: {assemblyPartnumber}");
+                _saveProgress.AddLogMessage($"Ошибка при сохранении сборки: {assemblyPartnumber}. {ex.Message}");
+                throw;
+            }
+        }
+
+
+        // Копирование файлов в хранилище ---
+        private async Task CopyFilesToStorageAsync(IAGR_BaseComponent rootComponent, int rootHashSum)
+        {
+            var rootPartNumber = rootComponent.PartNumber;
+
+            // 1. Собираем информацию о файлах и их хэшах
+            var filesToCopyInfo = new Dictionary<string, int>(); // Ключ: исходный путь, Значение: хэш компонента
+
+            // Если rootComponent - сборка, получаем плоский список зависимостей
+            if (rootComponent is AGR_AssemblyComponentVM assemblyComponent)
+            {
+                _logger.LogDebug($"Сборка обнаружена, извлекаем зависимости: {rootComponent.PartNumber}");
+                _saveProgress.AddLogMessage($"Сборка обнаружена, извлекаем зависимости: {rootComponent.PartNumber}");
+
+                var flatDependencies = assemblyComponent.GetFlatComponents(); // Получаем IEnumerable<IAGR_SpecificationItem>
+                foreach (var specItem in flatDependencies)
+                {
+                    var depComponent = specItem.Component; // IAGR_BaseComponent
+                    AddComponentFilesToDict(depComponent, filesToCopyInfo);
+                }
+                AddComponentFilesToDict(rootComponent, filesToCopyInfo);
+            }
+            // Для детали или других типов добавляем только сам rootComponent
+            else
+            {
+                AddComponentFilesToDict(rootComponent, filesToCopyInfo);
+            }
+
+            if (filesToCopyInfo.Count == 0)
+            {
+                _logger.LogWarning($"Не найдено файлов для копирования для компонента {rootComponent.PartNumber} (HashSum: {rootHashSum})");
+                _saveProgress.AddLogMessage($"Не найдено файлов для копирования для компонента {rootComponent.PartNumber} (HashSum: {rootHashSum})");
+                return;
+            }
+
+            // 2. Получаем экземпляр SolidWorks Application
+            ISwApplication swApp;
+            try
+            {
+                swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swApp == null)
+                {
+                    _logger.LogError("Не удалось получить доступ к экземпляру SolidWorks Application для копирования файлов.");
+                    _saveProgress.AddLogMessage("Не удалось получить доступ к экземпляру SolidWorks Application для копирования файлов.");
+                    return; // Или выбросить исключение
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении экземпляра SolidWorks Application.");
+                _saveProgress.AddLogMessage($"Ошибка при получении экземпляра SolidWorks Application.{ex.Message}");
+                return; // Или выбросить исключение
+            }
+
+
+            // --- НОВАЯ ЛОГИКА: Подготовка массивов и вызов CopyDocument ---
+            if (rootComponent is IAGR_HasFile rootFileComponent && !string.IsNullOrEmpty(rootFileComponent.CurrentModelFilePath))
+            {
+                // 1.1 Сформировать sourceArray
+                var sourceArray = filesToCopyInfo.Keys.Where(path => !string.IsNullOrEmpty(path)).ToArray();
+
+                // 1.2 Сформировать targetArray
+                var targetArray = new string[sourceArray.Length];
+                for (int i = 0; i < sourceArray.Length; i++)
+                {
+                    var sourcePath = sourceArray[i];
+                    if (filesToCopyInfo.TryGetValue(sourcePath, out int hashForPath))
+                    {
+                        var targetDir = Path.Combine(_storageConfig.StorageRootFolder, hashForPath.ToString("D10"));
+                        Directory.CreateDirectory(targetDir); // Убедиться, что папка существует
+                        targetArray[i] = Path.Combine(targetDir, Path.GetFileName(sourcePath));
+                    }
+                    else
+                    {
+                        _logger.LogError($"Не найден хэш для пути {sourcePath} в словаре filesToCopyInfo.");
+                        _saveProgress.AddLogMessage($"Не найден хэш для пути {sourcePath} в словаре filesToCopyInfo.");
+                        // Пропускаем этот файл или обрабатываем ошибку по-другому
+                        targetArray[i] = null; // или throw new Exception(...)
+                    }
+                }
+
+                // Проверяем, что все пути в targetArray заполнены
+                if (targetArray.Any(t => t == null))
+                {
+                    _logger.LogError("Не все целевые пути были вычислены. Операция копирования отменена.");
+                    _saveProgress.AddLogMessage("Не все целевые пути были вычислены. Операция копирования отменена.");
+                    return;
+                }
+
+                // 1.3 Записать исходный путь rootComponent
+                var sourceFile = rootFileComponent.CurrentModelFilePath; // Это CurrentModelFilePath
+
+                // 1.4 Записать целевой путь rootComponent
+                if (!filesToCopyInfo.TryGetValue(sourceFile, out int rootComponentHash))
+                {
+                    _logger.LogError($"Не найден хэш для исходного файла rootComponent {sourceFile}.");
+                    _saveProgress.AddLogMessage($"Не найден хэш для исходного файла rootComponent {sourceFile}.");
+                    //return; // Или выбросить исключение
+                }
+                var targetDirRoot = Path.Combine(_storageConfig.StorageRootFolder, rootComponentHash.ToString("D10"));
+                Directory.CreateDirectory(targetDirRoot); // Убедиться, что папка существует
+                var targetFile = Path.Combine(targetDirRoot, Path.GetFileName(sourceFile));
+
+                // 1.5 Закрыть все файлы
+                _logger.LogDebug("Закрытие всех документов перед копированием.");
+                _saveProgress.AddLogMessage("Закрытие всех документов перед копированием.");
+                swApp.Sw.CloseAllDocuments(true); // true - подавляет запросы на сохранение
+
+                try
+                {
+                    // 1.6 Вызвать CopyDocument
+                    // NOTE: sourceArray и targetArray должны быть object[], а не string[]
+                    var errorsRaw = swApp.Sw.CopyDocument(
+                        sourceFile, // sourcePath: активный файл (корень)
+                        targetFile, // targetPath: целевой файл корня
+                        sourceArray, // sourcepaths: массив всех зависимостей (и корня, и дочерних)
+                        targetArray, // targetpaths: массив всех целевых путей
+                        (int)swMoveCopyOptions_e.swMoveCopyOptionsOverwriteExistingDocs
+                    );
+
+                    if (errorsRaw != 0)
+                    {
+                        _logger.LogError($"Ошибки SolidWorks при копировании файлов через CopyDocument: {JsonSerializer.Serialize(errorsRaw)}");
+                        // Логика обработки ошибок
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Файлы успешно скопированы через SW CopyDocument для компонента {rootPartNumber} (HashSum: {rootHashSum}).");
+                        _saveProgress.AddLogMessage($"Файлы успешно скопированы через SW CopyDocument для компонента {rootPartNumber} (HashSum: {rootHashSum}).");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Исключение при вызове SW CopyDocument для компонента {rootPartNumber} (HashSum: {rootHashSum}).");
+                    // Логика обработки исключения
+                }
+
+                swApp.Documents.Open(sourceFile); // Открываем исходный файл обратно в SolidWorks
+
+            }
+            else
+            {
+                _logger.LogWarning($"RootComponent {rootPartNumber} не реализует IAGR_HasFile или FilePath пуст.");
+                _saveProgress.AddLogMessage($"RootComponent {rootPartNumber} не реализует IAGR_HasFile или FilePath пуст.");
+            }
+            // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
+        }
+
+        // --- Добавление файлов компонента в словарь ---
+        private void AddComponentFilesToDict(IAGR_BaseComponent component, Dictionary<string, int> filesDict)
+        {
+            if (!(component is IAGR_HasFile fileComponent))
+            {
+                _logger.LogDebug($"Компонент {component.PartNumber} не реализует IAGR_HasFile, пропускаем.");
+                return;
+            }
+
+            var componentHash = component.CalculateComponentHash(); // Вычисляем хэш для текущего компонента
+
+            // Добавляем CurrentModelFilePath
+            if (!string.IsNullOrEmpty(fileComponent.CurrentModelFilePath))
+            {
+                if (!filesDict.ContainsKey(fileComponent.CurrentModelFilePath))
+                {
+                    filesDict[fileComponent.CurrentModelFilePath] = componentHash;
+                    _logger.LogDebug($"Добавлен файл модели для {component.PartNumber} (Hash: {componentHash}): {fileComponent.CurrentModelFilePath}");
+                }
+                else
+                {
+                    _logger.LogDebug($"Файл модели для {component.PartNumber} уже добавлен: {fileComponent.CurrentModelFilePath}");
+                }
+            }
+            else
+            {
+                _logger.LogDebug($"CurrentModelFilePath пуст для компонента {component.PartNumber}");
+            }
+
+            // Добавляем CurrentDrawFilePath (если есть)
+            if (!string.IsNullOrEmpty(fileComponent.CurrentDrawFilePath))
+            {
+                if (!filesDict.ContainsKey(fileComponent.CurrentDrawFilePath))
+                {
+                    filesDict[fileComponent.CurrentDrawFilePath] = componentHash;
+                    _logger.LogDebug($"Добавлен файл чертежа для {component.PartNumber} (Hash: {componentHash}): {fileComponent.CurrentDrawFilePath}");
+                }
+                else
+                {
+                    _logger.LogDebug($"Файл чертежа для {component.PartNumber} уже добавлен: {fileComponent.CurrentDrawFilePath}");
+                }
+            }
+            else
+            {
+                _logger.LogDebug($"CurrentDrawFilePath пуст для компонента {component.PartNumber}");
+            }
+        }
+
+        public async Task<ComponentVersion?> GetComponentVersionAsync(string partNumber, int version)
+        {
+            try
+            {
+                _logger.LogDebug($"Запрос версии компонента: {partNumber} v{version}");
+
+                // Этот метод только для чтения, поэтому не используем транзакцию
+                return await _unitOfWork.ComponentRepository.GetComponentVersion(partNumber, version);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении версии компонента: {partNumber}");
+                throw;
+            }
+        }
+
+        public async Task<bool> HasComponentChangedAsync(IAGR_BaseComponent component)
+        {
+            try
+            {
+                _logger.LogDebug($"Проверка изменений компонента: {component.PartNumber}");
+
+                // Этот метод только для чтения, поэтому не используем транзакцию
+                return await _unitOfWork.ComponentRepository.HasComponentChanged(component);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при проверке изменений компонента: {component.PartNumber}");
+                throw;
+            }
+        }
+
+        // Дополнительный метод для получения последней версии компонента
+        public async Task<ComponentVersion?> GetLatestComponentVersionAsync(string partNumber)
+        {
+            try
+            {
+                _logger.LogDebug($"Запрос последней версии компонента: {partNumber}");
+                return await _unitOfWork.ComponentRepository.GetLatestComponentVersion(partNumber);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении последней версии компонента: {partNumber}");
+                throw;
+            }
+        }
+
+        // Дополнительный метод для получения структуры сборки
+        public async Task<List<AssemblyStructure>> GetAssemblyStructureAsync(string assemblyPartNumber, int version)
+        {
+            try
+            {
+                _logger.LogDebug($"Запрос структуры сборки: {assemblyPartNumber} v{version}");
+                return await _unitOfWork.ComponentRepository.GetAssemblyStructure(assemblyPartNumber, version);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении структуры сборки: {assemblyPartNumber}");
+                throw;
+            }
+        }
+    }
+}
+
+<!-- File: Views/Windows/SaveProgressView.xaml -->
+<Window x:Class="Agrovent.Views.Windows.SaveProgressView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:Agrovent.Views.Windows"
+        xmlns:vm="clr-namespace:Agrovent.ViewModels.Windows"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:AGR_SaveProgressVM, IsDesignTimeCreatable=True}"
+        Title="Сохранение компонента..." Height="400" Width="600"
+        ResizeMode="CanResizeWithGrip"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ListBox для отображения лога -->
+        <ListBox Grid.Row="0" x:Name="LogListBox"
+                 ItemsSource="{Binding LogMessages}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 IsEnabled="True" />
+        <!-- Отключаем интерактивность списка -->
+
+        <!-- StackPanel для кнопок -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="CloseButton" Content="Закрыть" Margin="0,0,5,0"
+                    Command="{Binding CloseCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" />
+            <Button x:Name="SaveLogButton" Content="Сохранить лог" Margin="5,0,0,0"
+                    Command="{Binding SaveLogCommand}" Visibility="{Binding IsFinished, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        </StackPanel>
+    </Grid>
+</Window>
+
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Agrovent.DAL;
+using Agrovent.DAL.Repositories;
+using Agrovent.Services;
+using Microsoft.EntityFrameworkCore;
+using Agrovent.Infrastructure.Interfaces;
+using System.Reflection;
+using System.IO;
+using Xarial.XCad.Documents;
+using Agrovent.ViewModels.TaskPane;
+using Agrovent.DAL.Services;
+using Agrovent.Infrastructure.Services;
+using Agrovent.Infrastructure.Configuration;
+using Microsoft.Extensions.Options;
+using Agrovent.ViewModels.Windows;
+using Agrovent.ViewModels;
+
+namespace Agrovent
+{
+    public static class ServiceConfiguration
+    {
+        public static IServiceCollection ConfigureServices(this IServiceCollection services)
+        {
+            // 1. Конфигурация
+            var appStr = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(appStr)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+
+            services.AddSingleton<IConfiguration>(configuration);
+
+            services.Configure<AGR_FileStorageConfig>(configuration.GetSection("FileStorage")); 
+            services.AddSingleton(provider => provider.GetRequiredService<IOptions<AGR_FileStorageConfig>>().Value);
+
+            // 2. Логирование
+            services.AddLogging(configure =>
+            {
+                configure.AddConsole();
+                configure.AddDebug();
+                configure.SetMinimumLevel(LogLevel.Debug);
+            });
+
+            // 3. База данных
+            services.AddDbContext<DataContext>(options =>
+            {
+                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                options.EnableSensitiveDataLogging();
+                options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+            });
+
+            // 4. Репозитории
+            services.AddScoped<IAGR_ComponentRepository, ComponentRepository>();
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IAGR_ComponentVersionService, ComponentVersionService>();
+
+            // 5. Сервисы
+            services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
+            services.AddScoped<IComponentDataService, ComponentDataService>();
+            services.AddScoped<IAGR_CommandService, AGR_CommandService>(provider =>
+               new AGR_CommandService(
+                   provider.GetRequiredService<ILogger<AGR_CommandService>>(),
+                   provider.GetRequiredService<IAGR_ComponentVersionService>(),
+                   provider // Передаем IServiceProvider
+               ));
+
+            // 6. ViewModels (если нужно)
+            services.AddSingleton<AGR_TaskPaneViewModel>();
+            services.AddTransient<AGR_ComponentRegistryVM>();
+            services.AddTransient<AGR_ProjectExplorerVM>();
+            services.AddSingleton<IAGR_SaveProgressVM, AGR_SaveProgressVM>();
+
+            return services;
+        }
+    }
+}

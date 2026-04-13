@@ -3,9 +3,8 @@ using Agrovent.DAL.Entities;
 using Agrovent.DAL.Entities.Components;
 using Microsoft.Extensions.Configuration;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.DAL.Entities.TechnologicalProcess;
-using Agrovent.DAL.Entities.Projects;
 using Agrovent.DAL.Entities.TechProcess;
+using Agrovent.DAL.Entities.Projects;
 
 namespace Agrovent.DAL
 {
@@ -26,6 +25,7 @@ namespace Agrovent.DAL
 
         public DbSet<Workstation> Workstations { get; set; }
         public DbSet<Operation> Operations { get; set; }
+        public DbSet<TemplateOperation> TemplateOperations { get; set; }
         public DbSet<TechnologicalProcess> TechProcesses { get; set; }
 
         #endregion
@@ -34,7 +34,8 @@ namespace Agrovent.DAL
         {
             if (!optionsBuilder.IsConfigured)
             {
-                var connectionString = _configuration?.GetConnectionString("DefaultConnection") ?? "Host=192.168.15.200;Port=5432;Database=PRPMDB2;Username=user;Password=sauser#1;";
+                //var connectionString = _configuration?.GetConnectionString("DefaultConnection") ?? "Host=192.168.15.200;Port=5432;Database=PRPMDB2;Username=user;Password=sauser#1;";
+                var connectionString = _configuration?.GetConnectionString("DefaultConnection");
                 optionsBuilder.UseNpgsql(connectionString);
             }
             //optionsBuilder.UseNpgsql($"Host=localhost;Database=PRPMDB;Username=user;Password=sauser#1;");
@@ -92,36 +93,29 @@ namespace Agrovent.DAL
             modelBuilder.Entity<AssemblyStructure>(entity =>
             {
                 // Связь с версией сборки
-                entity.HasOne(a => a.AssemblyVersion)
+                entity.HasOne(a => a.ParentComponentVersion)
                     .WithMany()
-                    .HasForeignKey(a => a.AssemblyVersionId)
+                    .HasForeignKey(a => a.ParentComponentVersionId)
                     .OnDelete(DeleteBehavior.Cascade);
 
                 // Связь с версией компонента
-                entity.HasOne(a => a.ComponentVersion)
+                entity.HasOne(a => a.ChildComponentVersion)
                     .WithMany()
-                    .HasForeignKey(a => a.ComponentVersionId)
+                    .HasForeignKey(a => a.ChildComponentVersionId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Связь с родительской структурой
-                entity.HasOne(a => a.ParentStructure)
-                    .WithMany(a => a.ChildStructures)
-                    .HasForeignKey(a => a.ParentStructureId)
-                    .OnDelete(DeleteBehavior.Restrict); // Изменяем на Restrict или SetNull
-
                 // Индексы
-                entity.HasIndex(a => a.AssemblyVersionId);
-                entity.HasIndex(a => a.ComponentVersionId);
-                entity.HasIndex(a => a.ParentStructureId);
+                entity.HasIndex(a => a.ChildComponentVersionId);
+                entity.HasIndex(a => a.ParentComponentVersionId);
             });
 
             // Индекс для быстрого поиска структуры по сборке
             modelBuilder.Entity<AssemblyStructure>()
-                .HasIndex(a => a.AssemblyVersionId);
+                .HasIndex(a => a.ParentComponentVersionId);
 
             // Индекс для быстрого поиска где используется компонент
             modelBuilder.Entity<AssemblyStructure>()
-                .HasIndex(a => a.ComponentVersionId);
+                .HasIndex(a => a.ChildComponentVersionId);
 
             modelBuilder.Entity<AvaArticleModel>()
                 .HasKey(a => a.Article);
@@ -133,25 +127,7 @@ namespace Agrovent.DAL
                 .HasForeignKey(cv => cv.AvaArticleArticle)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // TechnologicalProcess конфигурация
-            modelBuilder.Entity<TechnologicalProcess>(entity =>
-            {
-                entity.HasIndex(tp => tp.PartNumber)
-                    .IsUnique();
-
-                entity.HasOne(tp => tp.Component)
-                    .WithMany()
-                    .HasForeignKey(tp => tp.PartNumber)
-                    .HasPrincipalKey(c => c.PartNumber)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasMany(tp => tp.Operations)
-                    .WithOne(o => o.TechnologicalProcess)
-                    .HasForeignKey(o => o.TechnologicalProcessId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            modelBuilder.Entity<Operation>(entity =>
+           modelBuilder.Entity<Operation>(entity =>
             {
                 entity.HasIndex(o => o.TechnologicalProcessId);
                 entity.HasIndex(o => new { o.TechnologicalProcessId, o.SequenceNumber })
@@ -184,21 +160,44 @@ namespace Agrovent.DAL
                 .HasForeignKey(pc => pc.ComponentVersionId);
 
             // --- Техпроцессы ---
-            modelBuilder.Entity<TechnologicalProcess>()
-                .HasOne(tp => tp.Component)
-                .WithOne() // Указывает, что связь один-к-одному или не требует обратной навигации в Component
-                .HasForeignKey<TechnologicalProcess>(tp => tp.PartNumber)
-                .HasPrincipalKey<Component>(c => c.PartNumber); // Указывает, что внешний ключ ссылается на PartNumber
+            modelBuilder.Entity<Workstation>(entity =>
+            {
+                entity.HasKey(w => w.AvaId);
+                entity.HasMany(d => d.TemplateOperations)
+                    .WithOne(p => p.Workstation)
+                    .HasForeignKey(d => d.WorkstationId)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_TemplateOperation_Workstation");
+            });
 
-            modelBuilder.Entity<Operation>()
-                .HasOne(op => op.TechnologicalProcess)
-                .WithMany(tp => tp.Operations)
-                .HasForeignKey(op => op.TechnologicalProcessId);
+            modelBuilder.Entity<TechnologicalProcess>(entity =>
+            {
+                entity.HasOne(d => d.Component)
+                    .WithOne(p => p.TechnologicalProcess)
+                    .HasForeignKey<TechnologicalProcess>(d => d.PartNumber)
+                    .HasPrincipalKey<Component>(p => p.PartNumber)
+                    .OnDelete(DeleteBehavior.ClientSetNull) 
+                    .HasConstraintName("FK_TechnologicalProcess_Component");
 
-            modelBuilder.Entity<Operation>()
-                .HasOne(op => op.Workstation)
-                .WithMany(w => w.Operations)
-                .HasForeignKey(op => op.WorkstationId);
+            });
+
+            modelBuilder.Entity<Operation>(entity => 
+            {
+                entity.HasOne(d => d.TechnologicalProcess)
+                    .WithMany(p => p.Operations) 
+                    .HasForeignKey(d => d.TechnologicalProcessId)
+                    .OnDelete(DeleteBehavior.ClientSetNull) 
+                    .HasConstraintName("FK_Operation_TechnologicalProcess");
+            });
+
+            modelBuilder.Entity<TemplateOperation>(entity =>
+            {
+                entity.HasOne(d => d.Workstation)
+                    .WithMany(p => p.TemplateOperations)
+                    .HasForeignKey(d => d.WorkstationId)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_TemplateOperation_Workstation");
+            });
 
         }
 

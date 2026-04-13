@@ -4,29 +4,108 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
-        xmlns:viewmodels="clr-namespace:AGR_PropManager.ViewModels"
+        xmlns:vmComp="clr-namespace:AGR_PropManager.ViewModels.Components"
+        xmlns:vmWindows="clr-namespace:AGR_PropManager.ViewModels.Windows"
+        xmlns:b="clr-namespace:AGR_PropManager.Infrastructure.Behaviors"
+        xmlns:AGR_Behavors="clr-namespace:Agrovent.Infrastructure.Behaviors;assembly=Agrovent.Infrastructure"
         xmlns:enums="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
+        xmlns:converters="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure"
         mc:Ignorable="d"
-        Title="Редактор технологического процесса" Height="720" Width="1280"
-        d:DataContext="{d:DesignInstance Type=viewmodels:MainWindowViewModel, IsDesignTimeCreatable=True}">
+        Title="Редактор технологического процесса"
+        WindowState="Maximized"
+        d:DataContext="{d:DesignInstance Type=vmWindows:OperationSelectionViewModel, IsDesignTimeCreatable=True}">
 
     <Window.Resources>
         <ObjectDataProvider MethodName="GetValues" ObjectType="{x:Type enums:AGR_ComponentType_e}" x:Key="ComponentTypeEnum"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+        <converters:AGR_EmptyCollectionToVisibilityConverter x:Key="AGR_EmptyCollectionToVisibilityConverter"/>
+        <converters:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
+
+        <!-- DataTemplate для отображения изображения в ячейке -->
+
+        <DataTemplate x:Key="OperationsTemplate" DataType="vmComp:ComponentItemViewModel">
+            <DataGrid x:Name="OperationsGrid"
+                      ItemsSource="{Binding Operations, NotifyOnSourceUpdated=True}"
+                      AutoGenerateColumns="False"
+                      HeadersVisibility="Column"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      SelectionMode="Single"
+                      RowHeight="25" MinHeight="30" MaxHeight="200"
+                      Visibility="{Binding Operations.Count, Converter={StaticResource AGR_EmptyCollectionToVisibilityConverter}}"
+                      >
+                
+                <DataGrid.Columns>
+                    <!-- Номер операции (SequenceNumber) -->
+                    <DataGridTextColumn Header="№" Binding="{Binding SequenceNumber}" Width="0.2*" IsReadOnly="True"/>
+                    <!-- Участок (предполагаем, что WorkstationName доступно в VM операции) -->
+                    <DataGridTextColumn Header="Участок" Binding="{Binding WorkstationName}" Width="*" IsReadOnly="True"/>
+                    <!-- Операция (OperationName) -->
+                    <DataGridTextColumn Header="Операция" Binding="{Binding Name}" Width="3*" IsReadOnly="True"/>
+                    <!-- Время (TotalTime) -->
+                    <DataGridTemplateColumn Header="Время" Width="1*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding CostPerHour, StringFormat='{}{0:F2} мин'}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding CostPerHour}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CostPerHour}" Value="0">
+                                <Setter Property="Background" Value="IndianRed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+                
+                <i:Interaction.Behaviors>
+                    <b:TestBehavior/>
+                </i:Interaction.Behaviors>
+                <DataGrid.InputBindings>
+                    <KeyBinding Key="Delete" Command="{Binding DeleteOperationCommand}" 
+                                    CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid, Mode=FindAncestor}}"/>
+                </DataGrid.InputBindings>
+                
+            </DataGrid>
+
+        </DataTemplate>
+
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <!-- Toolbar -->
             <RowDefinition Height="*"/>
             <!-- DataGrid -->
         </Grid.RowDefinitions>
 
+        <Menu Grid.Row="0">
+            <MenuItem Header="_Отчеты">
+                <MenuItem Header="Отчет импорта классификатора" Command="{Binding ShowImportClassifierReportCommand}" />
+                <MenuItem Header="Отчет импорта дерева" Command="{Binding ShowTreeImportReportCommand}" />
+                <MenuItem Header="Отчет импорта техопераций" Command="{Binding ShowTechOpsImportReportCommand}" />
+            </MenuItem>
+        </Menu>
+
         <!-- Toolbar -->
-        <ToolBar Grid.Row="0" ToolBarTray.IsLocked="True">
+        <ToolBar ToolBarTray.IsLocked="True" Grid.Row="1">
             <Label Content="PartNumber:"/>
-            <TextBox x:Name="PartNumberTextBox" Text="{Binding SearchPartNumber, UpdateSourceTrigger=PropertyChanged}" Width="200" Margin="0,0,10,0"/>
+            <TextBox x:Name="PartNumberTextBox" Text="{Binding SearchPartNumber, UpdateSourceTrigger=PropertyChanged}" Width="200" Margin="0,0,10,0">
+                <TextBox.InputBindings>
+                    <KeyBinding Key="Enter" Command="{Binding LoadStructureCommand}" CommandParameter="{Binding Text, ElementName=PartNumberTextBox}"/>
+                </TextBox.InputBindings>
+            </TextBox>
             <Button Content="Загрузить структуру" Command="{Binding LoadStructureCommand}" CommandParameter="{Binding Text, ElementName=PartNumberTextBox}" Margin="0,0,10,0"/>
             <Label Content="Группировка:"/>
             <ComboBox SelectedValue="{Binding SelectedGroupingMode}" SelectedValuePath="Content" Width="120" Margin="0,0,10,0">
@@ -36,32 +115,59 @@
             <Button Content="Редактировать процесс" Command="{Binding EditProcessCommand}"/>
         </ToolBar>
 
-        <!-- DataGrid -->
-        <DataGrid Grid.Row="1"
-                  x:Name="ComponentsDataGrid"
+        <DataGrid x:Name="ComponentsDataGrid"
+                  Grid.Row="2"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
                   ItemsSource="{Binding ComponentsView}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   HeadersVisibility="Column"
                   SelectionMode="Extended"
-                  IsReadOnly="True">
+                  IsReadOnly="True"
+                  AGR_Behavors:AGR_DataGridSelectedItemsBehavior.SelectedItems="{Binding SelectedComponents, Mode=TwoWay}"
+                  >
             <!-- Используем Interaction.Triggers для обработки KeyDown -->
             <DataGrid.InputBindings>
-                <KeyBinding Key="Insert" Command="{Binding HandleKeyDownCommand}"/>
+                <KeyBinding Key="Insert" Command="{Binding InsertTechProcessCommand}"/>
+                <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
             </DataGrid.InputBindings>
 
             <DataGrid.GroupStyle>
                 <GroupStyle>
-                    <GroupStyle.HeaderTemplate>
-                        <DataTemplate>
-                            <TextBlock FontWeight="Bold" Text="{Binding Name}"/>
-                        </DataTemplate>
-                    </GroupStyle.HeaderTemplate>
+                    <GroupStyle.ContainerStyle>
+                        <Style TargetType="GroupItem">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type GroupItem}">
+                                        <Expander IsExpanded="True">
+                                            <Expander.Header>
+                                                <DockPanel>
+                                                    <TextBlock FontWeight="SemiBold"
+                                                               FontSize="14"
+                                                               Text="{Binding Name, Converter={StaticResource ComponentTypeConverter}}"
+                                                               Margin="10,5,5,5"
+                                                               Foreground="#212121"/>
+                                                    <TextBlock FontWeight="Bold" 
+                                                               Margin="0 5"
+                                                               FontSize="14"
+                                                               Text="{Binding ItemCount, StringFormat='({0})'}"
+                                                               Foreground="#616161"/>
+                                                </DockPanel>
+                                            </Expander.Header>
+                                            <ItemsPresenter />
+                                        </Expander>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </GroupStyle.ContainerStyle>
                 </GroupStyle>
             </DataGrid.GroupStyle>
+            
             <DataGrid.Columns>
                 <!-- CheckBox Column -->
-                <DataGridTemplateColumn Header="Выбрать">
+                <DataGridTemplateColumn Width="25">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center"/>
@@ -70,55 +176,71 @@
                 </DataGridTemplateColumn>
 
                 <!-- Preview -->
-                <DataGridTemplateColumn Header="Превью">
+                <DataGridTemplateColumn Width="50">
+                    <DataGridTemplateColumn.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="ToolTip">
+                                <Setter.Value>
+                                    <Image Source="{Binding PreviewImage}" Width="800"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+                            <Setter Property="ToolTipService.Placement" Value="Mouse"/>
+                        </Style>
+                    </DataGridTemplateColumn.CellStyle>
                     <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
+                        <DataTemplate DataType="{x:Type vmComp:ComponentItemViewModel}">
+                            <!-- Контейнер для основного отображения в ячейке -->
                             <Image Source="{Binding PreviewImage}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
                 <!-- PartNumber -->
-                <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="0.8*" />
+                <DataGridTextColumn Header="Partnumber / Артикул" Binding="{Binding PartnumberOrArticle}" Width="130" />
 
                 <!-- Name -->
-                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="2*" />
+                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="1*"/>
 
                 <!-- Quantity -->
-                <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="0.5*" />
+                <!--<DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="0.5*"/>-->
 
                 <!-- Material -->
-                <DataGridTextColumn Header="Материал" Binding="{Binding Material}" Width="3*" />
+                <DataGridTextColumn Header="Материал" Binding="{Binding Material}" Width="1*"/>
 
                 <!-- Paint -->
-                <DataGridTextColumn Header="Покраска" Binding="{Binding Paint}" Width="1*" />
+                <DataGridTextColumn Header="Покраска" Binding="{Binding Paint}" Width="0.8*"/>
 
                 <!-- Bend Count -->
-                <DataGridTextColumn Header="Сгибы" Binding="{Binding BendCount}" Width="0.7*" />
+                <DataGridTextColumn Header="Сгибы" Binding="{Binding BendCount}" Width="0.8*"/>
 
                 <!-- Contour Length -->
-                <DataGridTextColumn Header="Контур" Binding="{Binding ContourLength}" Width="0.7*" />
+                <DataGridTextColumn Header="Контур" Binding="{Binding ContourLength}" Width="0.8*"/>
 
                 <!-- ComponentType -->
-                <DataGridTextColumn Header="Тип" Binding="{Binding ComponentTypeDisplay}" Width="1*" />
+                <!--<DataGridTextColumn Header="Тип" Binding="{Binding ComponentTypeDisplay}" Visibility="Collapsed"/>-->
 
-                <!-- Tech Process Summary -->
-                <DataGridTextColumn Header="Техпроцесс" Binding="{Binding TechProcessSummary}" Width="*" />
+                <!-- Tech Process Column -->
+                <DataGridTemplateColumn Header="Техпроцесс" CellTemplate="{StaticResource OperationsTemplate}" Width="4*" />
 
             </DataGrid.Columns>
+            
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                            <Setter Property="Background" Value="LightBlue"/>
-                        </DataTrigger>
                         <!-- Подсветка операций с TotalTime == 0 -->
                         <DataTrigger Binding="{Binding HasZeroTimeOperations}" Value="True">
-                            <Setter Property="Background" Value="Red"/>
+                            <Setter Property="Background" Value="IndianRed"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                            <Setter Property="Background" Value="LightBlue"/>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </DataGrid.RowStyle>
+            
         </DataGrid>
+
+
     </Grid>
 </Window>

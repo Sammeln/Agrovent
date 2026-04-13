@@ -6,31 +6,113 @@ using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Xarial.XCad.SolidWorks.Documents;
 using Xarial.XCad.SolidWorks;
+using System.Diagnostics;
+using System.Windows.Input;
+using AGR_PropManager.Infrastructure.Commands;
+using Agrovent.DAL.Entities.Components;
+using Agrovent.Infrastructure.Interfaces;
 
 namespace Agrovent.ViewModels.Specification
 {
+    [DebuggerDisplay("{" + nameof(Name) + "} - {" + nameof(Quantity) + "}")]
     public class AGR_SpecificationItemVM : BaseViewModel, IAGR_SpecificationItem
     {
         private readonly IAGR_BaseComponent _component;
         public IAGR_BaseComponent Component => _component;
         private readonly int _quantity;
+        public AGR_SpecificationItemVM(IAGR_BaseComponent component, int quantity)
+        {
+            _component = component;
+            _quantity = quantity;
 
+            InitItem();
+        }
+
+        private void InitItem()
+        {
+            if (_component is AGR_PartComponentVM part && _component.ComponentType != AGR_ComponentType_e.Purchased)
+            {
+                MaterialName = part.BaseMaterial?.Name;
+            }
+            AvaArticle = _component.AvaArticle;
+            ComponentAvaType = _component.AvaType;
+        }
+
+        #region Property - 
+        private bool _IsSelected = false;
+        public bool IsSelected
+        {
+            get => _IsSelected;
+            set => Set(ref _IsSelected, value); 
+        }
+        #endregion 
         public string Name => _component.Name;
         public string ConfigName => _component.ConfigName;
         public string PartNumber => Component.AvaType == AGR_AvaType_e.Purchased ? Component.AvaArticle?.Article.ToString() : _component.PartNumber;
         public int Quantity => _quantity;
-        public AGR_ComponentType_e ComponentType => _component.ComponentType;
-
-        // Общие свойства для деталей
-        public string MaterialName
+        public AGR_ComponentType_e ComponentType
         {
             get
             {
-                if (_component is AGR_PartComponentVM part && _component.ComponentType != AGR_ComponentType_e.Purchased)
-                {
-                    return part.BaseMaterial?.Name;
-                }
-                return null;
+                return Component.ComponentType;
+            }
+        }
+
+        #region Property - ComponentAvaType
+        private AGR_AvaType_e _ComponentAvaType;
+        public AGR_AvaType_e ComponentAvaType
+        {
+            get => _ComponentAvaType;
+            set
+            {
+                Set(ref _ComponentAvaType, value);
+                Component.AvaType = value;
+
+                OnPropertyChanged(nameof(ComponentType));
+            }
+        }
+        #endregion 
+
+        #region Property - IAGR_AvaArticleModel AvaArticle
+        private IAGR_AvaArticleModel? _AvaArticle;
+        public IAGR_AvaArticleModel? AvaArticle
+        {
+            get => _AvaArticle;
+            set
+            {
+                Set(ref _AvaArticle, value);
+                _component.AvaArticle = value;
+                OnPropertyChanged(nameof(Article));
+                OnPropertyChanged(nameof(PartnumberOrArticle));
+            }
+        }
+        #endregion 
+
+        // Общие свойства для деталей
+
+
+        #region Property - MaterialAvaModel
+        private AvaArticleModel? _MaterialAvaModel;
+        public AvaArticleModel? MaterialAvaModel
+        {
+            get => _MaterialAvaModel;
+            set
+            {
+                Set(ref _MaterialAvaModel, value);
+                AGR_Material newMaterial = new AGR_Material(value);
+                (Component as AGR_PartComponentVM).BaseMaterial = newMaterial;
+                MaterialName = newMaterial.Name;
+            }
+        }
+        #endregion 
+
+        private string _MaterialName;
+        public string MaterialName
+        {
+            get => _MaterialName;
+            set
+            {
+                Set(ref _MaterialName, value);
             }
         }
 
@@ -87,11 +169,26 @@ namespace Agrovent.ViewModels.Specification
             {
                 if (_component.ComponentType == AGR_ComponentType_e.Purchased)
                 {
-                    return _component.AvaArticle?.Article.ToString() ?? "N/A";
+                    return AvaArticle?.Article.ToString() ?? "";
                 }
                 return null;
             }
         }
+
+
+        #region Property - PartnumberOrArticle
+        public string PartnumberOrArticle
+        {
+            get
+            {
+                if (_component.ComponentType == AGR_ComponentType_e.Purchased)
+                {
+                    return Article;
+                }
+                return PartNumber;
+            }
+        }
+        #endregion 
 
         // Свойства для форматированного отображения
         public string MaterialInfo => MaterialName != null ? $"{MaterialName} ({MaterialCount:F2})" : null;
@@ -101,10 +198,9 @@ namespace Agrovent.ViewModels.Specification
 
         public byte[] Preview => Component.Preview;
 
-        public AGR_SpecificationItemVM(IAGR_BaseComponent component, int quantity)
-        {
-            _component = component;
-            _quantity = quantity;
-        }
+
+
+
+
     }
 }

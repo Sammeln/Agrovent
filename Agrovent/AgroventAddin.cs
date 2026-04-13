@@ -5,20 +5,28 @@ using Agrovent.DAL;
 using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
+using Agrovent.Infrastructure.Handlers;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Services;
+using Agrovent.TestMacroFeature;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Specification;
 using Agrovent.ViewModels.TaskPane;
+using Agrovent.Views.Pages;
 using Agrovent.Views.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NPOI.Util;
 using SolidWorks.Interop.sldworks;
 using Xarial.XCad.Base;
-using Xarial.XCad.Documents;
 using Xarial.XCad.Documents.Extensions;
+using Xarial.XCad.Features;
+using Xarial.XCad.Geometry;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
+using Xarial.XCad.SolidWorks.Features.CustomFeature;
+using Xarial.XCad.SolidWorks.Geometry;
 using Xarial.XCad.UI.Commands;
 
 namespace Agrovent
@@ -32,6 +40,10 @@ namespace Agrovent
         private IAGR_ComponentVersionService _versionService;
         private DataContext _dbContext;
         private IAGR_CommandService _commandService;
+        private IAGR_ViewModelCacheService _viewModelCache;
+        private IAGR_ComponentViewModelFactory _viewModelFactory;
+
+
         #endregion
 
         public override void OnConnect()
@@ -45,6 +57,8 @@ namespace Agrovent
                 _logger = AGR_ServiceContainer.GetService<ILogger<AgroventAddin>>();
                 _versionService = AGR_ServiceContainer.GetService<IAGR_ComponentVersionService>();
                 _dbContext = AGR_ServiceContainer.GetService<DataContext>();
+                _viewModelCache = AGR_ServiceContainer.GetService<IAGR_ViewModelCacheService>();
+                _viewModelFactory = AGR_ServiceContainer.GetService<IAGR_ComponentViewModelFactory>();
 
                 // Проверка и создание БД (если нужно)
                 EnsureDatabaseCreated();
@@ -61,8 +75,15 @@ namespace Agrovent
                 // Инициализация модели представления TaskPane
                 InitTaskPane();
 
+                InitComponentRegistryTaskPane();
+
+
                 //
                 (Application.Sw as SldWorks).ReferenceNotFoundNotify += AgroventAddin_ReferenceNotFoundNotify;
+
+
+                Application.Documents.RegisterHandler(
+                () => new AGR_DocumentHandler(this, _viewModelCache, _viewModelFactory));
 
                 _logger.LogInformation("AddIn успешно загружен.");
             }
@@ -119,7 +140,25 @@ namespace Agrovent
                 _logger.LogError(ex, "Ошибка при инициализации TaskPane");
             }
         }
+        private void InitComponentRegistryTaskPane()
+        {
+            try
+            {
+                var taskPane = AGR_ServiceContainer.GetService<AGR_ComponentRegistryTaskPaneVM>();
+                var taskPaneView = this.CreateTaskPaneWpf<AGR_ComponentRegistryTaskPaneView>();
 
+                taskPane.LoadDataCommand.Execute(null);
+                taskPaneView.Control.DataContext = taskPane;
+                taskPaneView.IsActive = true;
+                taskPaneView.Control.Focus();
+
+                _logger.LogInformation("Component Registry TaskPane инициализирован");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при инициализации Component Registry TaskPane");
+            }
+        }
         private void InitDI()
         {
             AGR_ServiceContainer.Initialize(services =>
@@ -138,53 +177,44 @@ namespace Agrovent
                 switch (command)
                 {
                     case AGR_Commands_e.Command1:
-                        ShowSpecificationWindow();
-                        break;
+                    ShowSpecificationWindow();
+                    break;
 
                     case AGR_Commands_e.ExportToIges:
 
-                        //CopyDocuments();
-                        //GetPackAndGO();
-                        //ShowAvaArticleInfo();
-                        ExportToIGES();
-                        break;
+                    //CopyDocuments();
+                    //GetPackAndGO();
+                    //ShowAvaArticleInfo();
+                    ExportToIGES();
+                    break;
 
                     case AGR_Commands_e.SaveComponent:
-                        _commandService.SaveActiveComponentAsync();
-                        break;
-                        if (Application.Documents.Active is ISwAssembly) SaveActiveAssembly();
-                        else SaveActiveComponent();
+                    _commandService.SaveActiveComponentAsync();
+                    break;
+                    if (Application.Documents.Active is ISwAssembly) SaveActiveAssembly();
+                    else SaveActiveComponent();
 
-                        break;
+                    break;
 
                     case AGR_Commands_e.UpdateProperties:
-                        _commandService.UpdatePropertiesAsync();
-                        break;
-                    case AGR_Commands_e.ComponentRegistry:
-                        _commandService.OpenComponentRegistryAsync();
-                        break;
+                    _commandService.UpdatePropertiesAsync();
+                    break;
+                    //case AGR_Commands_e.ComponentRegistry:
+                    //    _commandService.OpenComponentRegistryAsync();
+                    //    break;
                     case AGR_Commands_e.ProjectsExplorer:
+                    _commandService.OpenProjectExplorerWindowAsync();
+                    break;
+                    case AGR_Commands_e.MoveComponentWithTriade:
+                    Application.Sw.RunCommand(1993, string.Empty);
+                    break;
 
-                        //_commandService.OpenProjectExplorerWindowAsync();
+                    case AGR_Commands_e.TestCommand:
 
-                        var swAssembly = Application.Documents.Active as ISwAssembly;
-                        if (swAssembly != null)
-                        {
-                            var doc = Application.Documents.PreCreateFromPath(@"D:\Работа\3.3D модели\КВ Бок  570х280 #00000-1.SLDPRT") as IXDocument3D;
-                            var xComp = swAssembly.Configurations.Active.Components.PreCreate<IXComponent>();
-                            xComp.ReferencedDocument = doc;
-                            swAssembly.Configurations.Active.Components.Add(xComp);
+                    break;
 
-                            xComp.Select(false);
-
-                            Application.Sw.RunCommand(1993, "");
-                            Application.Sw.RunCommand(332, "");
-                        }
-
-
-                        break;
                     default:
-                        break;
+                    break;
                 }
             }
             catch (Exception ex)
@@ -204,14 +234,14 @@ namespace Agrovent
             return 0;
         }
 
-
         private void ShowSpecificationWindow()
         {
             if (Application.Documents.Active is ISwAssembly swAssembly)
             {
                 var assemblyVM = new AGR_AssemblyComponentVM(swAssembly);
                 var specWindow = new AGR_SpecificationWindow();
-                specWindow.DataContext = new AGR_SpecificationViewModel(assemblyVM);
+                var unitOfWork = AGR_ServiceContainer.GetService<IUnitOfWork>();
+                specWindow.DataContext = new AGR_SpecificationViewModel(assemblyVM, unitOfWork);
                 specWindow.ShowDialog();
             }
             else

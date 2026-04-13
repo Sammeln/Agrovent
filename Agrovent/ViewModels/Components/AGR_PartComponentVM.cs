@@ -347,7 +347,7 @@ namespace Agrovent.ViewModels.Components
 
                 // Создаем ViewModel
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
-
+                selectVm.SelectedAvaType = "Товар";
 
                 // Создаем View и устанавливаем DataContext
                 var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
@@ -401,6 +401,7 @@ namespace Agrovent.ViewModels.Components
                 // Создаем ViewModel
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
                 selectVm.SearchText = "Краска порошковая ";
+                selectVm.SelectedAvaType = "Товар";
 
                 // Создаем View и устанавливаем DataContext
                 var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };

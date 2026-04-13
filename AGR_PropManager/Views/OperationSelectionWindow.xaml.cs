@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using AGR_PropManager.ViewModels.Windows;
 
 namespace AGR_PropManager.Views
 {
@@ -23,5 +24,19 @@ namespace AGR_PropManager.Views
         {
             InitializeComponent();
         }
+        // Конструктор, принимающий ViewModel
+        public OperationSelectionWindow(OperationSelectionViewModel viewModel)
+        {
+            InitializeComponent();
+            DataContext = viewModel;
+            this.ShowDialog();
+
+            // Подписываемся на событие закрытия
+            if (viewModel != null)
+            {
+                viewModel.CloseRequested += (s, e) => this.Close();
+            }
+        }
     }
+
 }

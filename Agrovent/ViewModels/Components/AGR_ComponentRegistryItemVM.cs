@@ -27,6 +27,7 @@ namespace Agrovent.ViewModels.Components
         }
 
         // Свойства для отображения в DataGrid
+        public int Id => _entity.Component.Id;
         public BitmapImage? Preview
         {
             get
@@ -53,9 +54,19 @@ namespace Agrovent.ViewModels.Components
                 return null;
             }
         }
-
         public string Name => _entity.Name ?? "N/A";
-        public string PartNumber => _entity.Component?.PartNumber ?? "N/A";
+        //public string PartNumber => _entity.Component?.PartNumber ?? "N/A";
+
+        public string PartNumber
+        {
+            get
+            {
+                if (_entity?.AvaType == Infrastructure.Enums.AGR_AvaType_e.Component
+                    || _entity?.AvaType == Infrastructure.Enums.AGR_AvaType_e.Production) return _entity.Component.PartNumber;
+                return "";
+            }
+        }
+
         public DateTime CreatedAt => _entity.CreatedAt;
         public string ComponentTypeDisplay => GetDisplayString(_entity.ComponentType);
         public string AvaTypeDisplay => GetDisplayString(_entity.AvaType);

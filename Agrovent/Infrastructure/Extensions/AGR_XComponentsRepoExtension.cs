@@ -151,12 +151,12 @@ namespace Agrovent.Infrastructure.Extensions
         }
         public static IEnumerable<IAGR_BaseComponent> AGR_BaseComponents(this IXComponentRepository repo, bool OnlyActive)
         {
-            foreach (var xComp in repo.AGR_TryFlatten())
+            foreach (var xComp in repo)
             {
-                if (!xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Suppressed)
-                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.SuppressedIdMismatch)
-                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.ExcludedFromBom)
-                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Embedded)
+                if (!xComp.State.HasFlag(ComponentState_e.Suppressed)
+                   && !xComp.State.HasFlag(ComponentState_e.SuppressedIdMismatch)
+                   && !xComp.State.HasFlag(ComponentState_e.ExcludedFromBom)
+                   && !xComp.State.HasFlag(ComponentState_e.Envelope)
                    )
                 {
 
@@ -178,10 +178,10 @@ namespace Agrovent.Infrastructure.Extensions
         {
             foreach (var xComp in repo)
             {
-                if (!xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Suppressed)
-                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.SuppressedIdMismatch)
-                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.ExcludedFromBom)
-                   && !xComp.State.HasFlag(Xarial.XCad.Documents.Enums.ComponentState_e.Embedded)
+                if (!xComp.State.HasFlag(ComponentState_e.Suppressed)
+                   && !xComp.State.HasFlag(ComponentState_e.SuppressedIdMismatch)
+                   && !xComp.State.HasFlag(ComponentState_e.ExcludedFromBom)
+                   && !xComp.State.HasFlag(ComponentState_e.Envelope)
                    )
                 {
                     var agrComp = xComp.AGR_BaseComponent();

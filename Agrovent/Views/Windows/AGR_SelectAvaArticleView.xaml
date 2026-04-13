@@ -9,7 +9,7 @@
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Windows"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:AGR_SelectAvaArticleVM, IsDesignTimeCreatable=True}"
-        Title="Выбор AvaArticle" Height="600" Width="800"
+        Title="Выбор AvaArticle" Height="600" Width="1200"
         ResizeMode="CanResizeWithGrip"
         x:Name="ThisWindow">
 
@@ -39,6 +39,14 @@
                 <TextBox x:Name="SearchTextBox"
                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          MinWidth="200" />
+                <DockPanel>
+                    <Label Content="Тип компонента:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <ComboBox   
+                        ItemsSource="{Binding AvailableAvaTypes}"
+                        SelectedItem="{Binding SelectedAvaType}"
+                        MinWidth="120" Margin="0,0,10,0">
+                    </ComboBox>
+                </DockPanel>
             </StackPanel>
         </Border>
 
@@ -64,12 +72,28 @@
             </i:Interaction.Triggers>
             <DataGrid.Columns>
                 <!-- Article (PartNumber) -->
-                <DataGridTextColumn Header="Article" Binding="{Binding Article, StringFormat=D7}" Width="*" />
+                <DataGridTextColumn Header="Article" Binding="{Binding Article}" Width="*" />
                 <!-- Name -->
                 <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="2*" />
-                <!-- Description -->
-                <DataGridTextColumn Header="Описание" Binding="{Binding PartNumber}" Width="2*" />
+                <!-- PartNumber -->
+                <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="*" />
+                <!-- Остаток -->
+                <DataGridTextColumn Header="Остаток" Binding="{Binding Count}" Width="*" />
+                <!-- ЕИ -->
+                <DataGridTextColumn Header="ЕИ" Binding="{Binding MainUOM}" Width="*" />
+                <!-- Type -->
+                <DataGridTextColumn Header="Тип" Binding="{Binding Type}" Width="*" />
             </DataGrid.Columns>
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Type}" Value="(Не закупать)">
+                            <Setter Property="Background" Value="IndianRed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
+            
         </DataGrid>
     </Grid>
 </Window>

@@ -1,0 +1,143 @@
+﻿<UserControl x:Class="Agrovent.Views.Pages.AGR_ComponentRegistryTaskPaneView"
+            xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+            xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+            xmlns:local="clr-namespace:Agrovent.Views.Pages"
+            xmlns:vm="clr-namespace:Agrovent.ViewModels.TaskPane"
+            xmlns:components="clr-namespace:Agrovent.ViewModels.Components"
+            xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+            xmlns:behaviors="clr-namespace:Agrovent.Infrastructure.Behaviours"
+            mc:Ignorable="d"
+            d:DataContext="{d:DesignInstance Type=vm:AGR_ComponentRegistryTaskPaneVM, IsDesignTimeCreatable=True}"
+            d:DesignHeight="600" d:DesignWidth="800">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Подключаем стили из PartComponentStyles.xaml -->
+                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
+                <!-- Подключаем стили спецификации -->
+                <ResourceDictionary Source="../../Resources/Styles/SpecificationStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- DataTemplate для отображения изображения в ячейке -->
+            <DataTemplate x:Key="PreviewImageTemplate">
+                <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform" />
+            </DataTemplate>
+
+            <!-- ContextMenu -->
+            <ContextMenu  x:Key="RowMenu" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem 
+                    Header="Открыть" CommandParameter="{Binding}"
+                    Command="{Binding DataContext.OpenComponentCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                <MenuItem 
+                    Header="Вставить в сборку" CommandParameter="{Binding}"
+                    Command="{Binding DataContext.AddToAssemblyCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                <MenuItem 
+                    Header="Подробная информация" CommandParameter="{Binding}"
+                    Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+            </ContextMenu>
+            
+            <Style x:Key="DefaultRowStyle" TargetType="{x:Type DataGridRow}">
+                <Setter Property="ContextMenu" Value="{StaticResource RowMenu}" />
+            </Style>
+
+        </ResourceDictionary>
+
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Панель поиска -->
+        <!--<Border Grid.Row="0" Background="LightGray" Padding="10" Margin="5">
+            <StackPanel Orientation="Horizontal">
+                <Label Content="Поиск:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox x:Name="SearchTextBox"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 MinWidth="200" />
+            </StackPanel>
+        </Border>-->
+        <Border Grid.Row="0" Background="LightGray" Padding="10" Margin="5">
+            <StackPanel Orientation="Vertical">
+                <DockPanel>
+                    <Label Content="Поиск:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBox x:Name="SearchTextBox"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 MinWidth="150" Margin="0,0,10,0"/>
+                </DockPanel>
+                <DockPanel>
+                    <Label Content="Тип компонента:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <ComboBox x:Name="ComponentTypeFilterComboBox"
+                          ItemsSource="{Binding AvailableComponentTypes}"
+                          SelectedItem="{Binding SelectedComponentType}"
+                          MinWidth="120" Margin="0,0,10,0">
+                </ComboBox>
+                </DockPanel>
+                <DockPanel>
+                    <Label Content="Тип Ava:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <ComboBox x:Name="AvaTypeFilterComboBox"
+                          ItemsSource="{Binding AvailableAvaTypes}"
+                          SelectedItem="{Binding SelectedAvaType}"
+                          MinWidth="120" Margin="0,0,10,0">
+                    </ComboBox>
+                </DockPanel>
+                <Button Content="Перезагрузить" Command="{Binding LoadDataCommand}" Width="200" Height="30" Margin="0 5 0 0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- DataGrid -->
+        <DataGrid Grid.Row="1"
+                          x:Name="RegistryDataGrid"
+                          ItemsSource="{Binding RegistryItemsView}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          HeadersVisibility="Column"
+                          SelectionMode="Single"
+                          IsReadOnly="True"
+                          RowStyle="{StaticResource DefaultRowStyle}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" CanUserResize="False"/>
+                <!-- Превью -->
+                <DataGridTemplateColumn Width="45" CanUserResize="False">
+                    <DataGridTemplateColumn.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="ToolTip">
+                                <Setter.Value>
+                                    <Image Source="{Binding Preview}" Width="800"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+                            <Setter Property="ToolTipService.Placement" Value="Right"/>
+                        </Style>
+                    </DataGridTemplateColumn.CellStyle>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="{x:Type components:AGR_ComponentRegistryItemVM}">
+                            <!-- Контейнер для основного отображения в ячейке -->
+                            <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <!-- Наименование -->
+                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="3*" />
+                <!-- PartNumber -->
+                <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="*" />
+                <!-- Дата создания -->
+                <DataGridTextColumn Header="Дата сохранения" Binding="{Binding CreatedAt, StringFormat='dd.MM.yyyy'}" Width="*" />
+                <!-- ComponentType -->
+                <!--<DataGridTextColumn Header="Тип компонента" Binding="{Binding ComponentTypeDisplay, Converter={StaticResource ComponentTypeConverter}}" Width="*" />-->
+                <!-- AvaType -->
+                <!--<DataGridTextColumn Header="Тип Ava" Binding="{Binding AvaTypeDisplay, Converter={StaticResource AvaTypeConverter}}" Width="*" />-->
+                <!-- Версия -->
+                <!--<DataGridTextColumn Header="Версия" Binding="{Binding Version}" Width="*" />-->
+                <!-- Путь к файлу -->
+                <!--<DataGridTextColumn Header="Путь в хранилище" Binding="{Binding StoragePath}" Width="3*" />-->
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+
+
+</UserControl>

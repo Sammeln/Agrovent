@@ -1,8 +1,9 @@
 ﻿// File: ViewModels/Windows/AGR_ComponentRegistryVM.cs
+using Agrovent.DAL;
 using Agrovent.DAL.Entities.Components;
-using Agrovent.DAL.Repositories;
+using Agrovent.DAL.Services.Repositories;
+using Agrovent.Infrastructure;
 using Agrovent.Infrastructure.Commands;
-using Agrovent.Infrastructure.Configuration;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows.Details;
@@ -29,16 +30,13 @@ namespace Agrovent.ViewModels.Windows
     public class AGR_ComponentRegistryVM : BaseViewModel
     {
         private readonly IAGR_ComponentRepository _componentRepository;
-        private readonly AGR_FileStorageConfig _storageConfig; // Для формирования StoragePath
         private readonly ILogger<AGR_ComponentRegistryVM> _logger;
 
         public AGR_ComponentRegistryVM(
             IAGR_ComponentRepository componentRepository,
-            AGR_FileStorageConfig storageConfig,
             ILogger<AGR_ComponentRegistryVM> logger)
         {
             _componentRepository = componentRepository ?? throw new ArgumentNullException(nameof(componentRepository));
-            _storageConfig = storageConfig ?? throw new ArgumentNullException(nameof(storageConfig));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             // Инициализация CollectionViewSource
@@ -76,7 +74,7 @@ namespace Agrovent.ViewModels.Windows
                 // Преобразуем сущности в VM и добавляем в коллекцию
                 foreach (var version in versions)
                 {
-                    var itemVm = new AGR_ComponentRegistryItemVM(version, _storageConfig.StorageRootFolder);
+                    var itemVm = new AGR_ComponentRegistryItemVM(version, AGR_Options.StorageRootFolderPath);
                     RegistryItems.Add(itemVm);
                 }
 
@@ -249,9 +247,10 @@ namespace Agrovent.ViewModels.Windows
         private void OnShowDetailsCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
         {
             if (selectedItem == null) return;
+            var unitOfWork = AGR_ServiceContainer.GetService<IUnitOfWork>();
 
             // Создаем и открываем окно с деталями
-            var detailsVM = new AGR_ComponentDetailsVM(selectedItem); // Предполагаем, что ViewModel будет создана
+            var detailsVM = new AGR_ComponentDetailsVM(selectedItem, unitOfWork); // Предполагаем, что ViewModel будет создана
             var detailsView = new AGR_ComponentDetailsView { DataContext = detailsVM };
 
             var window = new Window
@@ -301,14 +300,15 @@ namespace Agrovent.ViewModels.Windows
             if (string.IsNullOrWhiteSpace(SearchText))
                 return true; // Если текст поиска пуст, показываем все
 
+            string[] splitSearch = SearchText.Split(' ').ToArray();
+
             var searchTextLower = SearchText.ToLowerInvariant();
 
-            // Проверяем совпадение по нескольким полям
-            return registryItem.Name.ToLowerInvariant().Contains(searchTextLower) ||
-                   registryItem.PartNumber.ToLowerInvariant().Contains(searchTextLower) ||
-                   registryItem.ComponentTypeDisplay.ToLowerInvariant().Contains(searchTextLower) ||
-                   registryItem.AvaTypeDisplay.ToLowerInvariant().Contains(searchTextLower);
-            // Добавьте другие поля по необходимости, например Version.ToString(), StoragePath и т.д.
+            if (registryItem.Name is null) return true;
+            if (splitSearch.All(s => registryItem.Name.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase))) return true;
+            if (registryItem.PartNumber != null && registryItem.PartNumber.Contains(SearchText)) return true;
+
+            return false;
         }
     }
 }

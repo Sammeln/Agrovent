@@ -1,7 +1,6 @@
 ﻿// File: ViewModels/Windows/ProjectExplorerVM.cs
 using Agrovent.DAL.Entities.Components;
 using Agrovent.DAL.Entities.Projects;
-using Agrovent.DAL.Repositories;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Tree;

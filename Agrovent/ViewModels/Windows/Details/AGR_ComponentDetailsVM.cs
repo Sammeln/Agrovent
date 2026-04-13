@@ -1,4 +1,5 @@
 ﻿// File: ViewModels/Windows/Details/AGR_ComponentDetailsVM.cs
+using Agrovent.DAL;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components; // Для AGR_ComponentRegistryItemVM
 using System.Collections.ObjectModel;
@@ -9,10 +10,13 @@ namespace Agrovent.ViewModels.Windows.Details
     public class AGR_ComponentDetailsVM : BaseViewModel
     {
         private readonly AGR_ComponentRegistryItemVM _registryItem;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public AGR_ComponentDetailsVM(AGR_ComponentRegistryItemVM registryItem)
+        public AGR_ComponentDetailsVM(AGR_ComponentRegistryItemVM registryItem, IUnitOfWork unitOfWork)
         {
             _registryItem = registryItem ?? throw new ArgumentNullException(nameof(registryItem));
+            _unitOfWork = unitOfWork;
+
 
             // Заполняем свойства из _registryItem
             Name = _registryItem.Name;
@@ -45,10 +49,10 @@ namespace Agrovent.ViewModels.Windows.Details
         public string PaintArticle { get; private set; } = "N/A";
         public ObservableCollection<string> TechProcessSteps { get; } = new();
 
-        private void LoadAdditionalDetails()
+        private async void LoadAdditionalDetails()
         {
             // Предположим, что _registryItem.ComponentVersion содержит все необходимые данные
-            var compVer = _registryItem.ComponentVersion; // Предполагаем, что это свойство есть в AGR_ComponentRegistryItemVM
+            var compVer = await _unitOfWork.ComponentRepository.GetLatestComponentVersion(PartNumber); // Предполагаем, что это свойство есть в AGR_ComponentRegistryItemVM
 
             if (compVer != null)
             {
@@ -72,15 +76,16 @@ namespace Agrovent.ViewModels.Windows.Details
                 //     PaintArticle = paintArticle.Article?.ToString();
                 // }
 
-                // Техпроцесс (предполагаем, что есть связь с TechnologicalProcess)
-                // var techProcess = compVer.TechProcess; // Замените на реальное свойство
-                // if (techProcess?.Operations != null)
-                // {
-                //     foreach(var op in techProcess.Operations.OrderBy(o => o.SequenceNumber))
-                //     {
-                //         TechProcessSteps.Add($"{op.Name} ({op.LaborIntensityMinutes} мин)");
-                //     }
-                // }
+                //Техпроцесс(предполагаем, что есть связь с TechnologicalProcess)
+                 var techProcess = compVer.Component.TechnologicalProcess; // Замените на реальное свойство
+                if (techProcess?.Operations != null)
+                {
+                    foreach (var op in techProcess.Operations.OrderBy(o => o.SequenceNumber))
+                    {
+                        TechProcessSteps.Add($"{op.Name} ({op.CostPerHour} мин)");
+                    }
+                    OnPropertyChanged(nameof(TechProcessSteps));
+                }
             }
         }
     }

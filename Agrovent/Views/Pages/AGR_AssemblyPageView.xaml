@@ -9,9 +9,11 @@
              xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
              xmlns:system="clr-namespace:System;assembly=mscorlib"
              xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
+             xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure"
              d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_AssemblyComponentVM}}"
              mc:Ignorable="d" 
              d:DesignHeight="800" d:DesignWidth="800">
+             <!--xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"-->
 
     <UserControl.Resources>
         <ResourceDictionary>
@@ -28,11 +30,11 @@
             </ObjectDataProvider>
 
             <converter:AGR_ComponentTypeToVisibilityConverter x:Key="ComponentTypeToVisibilityConverter"/>
-            <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+            <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
             <!-- Converter для видимости секций -->
-            <converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         </ResourceDictionary>
     </UserControl.Resources>
 

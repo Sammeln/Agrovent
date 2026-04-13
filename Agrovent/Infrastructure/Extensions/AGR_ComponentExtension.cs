@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Services;
 using Agrovent.ViewModels.Components;
 using Microsoft.VisualStudio.Shell.Interop;
 using Xarial.XCad.Data;
@@ -98,6 +99,13 @@ namespace Agrovent.Infrastructure.Extensions
         }
         public static IAGR_BaseComponent AGR_BaseComponent(this IXComponent xComp)
         {
+            var _viewModelCache = AGR_ServiceContainer.GetService<IAGR_ViewModelCacheService>();
+            var _viewModelFactory = AGR_ServiceContainer.GetService<IAGR_ComponentViewModelFactory>();
+
+            var viewModel = _viewModelCache.GetOrCreate(xComp.ReferencedDocument as ISwDocument3D, d => _viewModelFactory.CreateComponent(d));
+            return viewModel;
+
+
             try
             {
                 var xDoc = xComp.ReferencedDocument as ISwDocument3D;

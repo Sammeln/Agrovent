@@ -5,7 +5,7 @@ using Agrovent.Infrastructure.Enums;
 
 namespace Agrovent.DAL.Entities.Components
 {
-    public class ComponentFile : BaseEntity
+    public class ComponentFile : DateStampEntity
     {
         public int ComponentVersionId { get; set; }
         [ForeignKey("ComponentVersionId")]

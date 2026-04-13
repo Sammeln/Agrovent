@@ -69,6 +69,7 @@ namespace Agrovent.ViewModels.Components
         {
             // Получаем компоненты верхнего уровня
             //var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_ActiveComponents().AGR_BaseComponents();
+
             var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_BaseComponents(true);
             // Группируем и создаем SpecificationItemVM для верхнего уровня
             var groupedTop = topComponents
@@ -79,6 +80,7 @@ namespace Agrovent.ViewModels.Components
         }
         public IEnumerable<IAGR_SpecificationItem> GetFlatComponents()
         {
+
             // Получаем все компоненты (плоский список)
             //var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents();
             var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.TryFlatten().AGR_BaseComponents(true);
@@ -91,24 +93,7 @@ namespace Agrovent.ViewModels.Components
 
         public void Refresh()
         {
-            OnPropertyChanged(nameof(CurrentModelFilePath));
-            OnPropertyChanged(nameof(CurrentDrawFilePath));
-            OnPropertyChanged(nameof(StorageModelFilePath));
-            OnPropertyChanged(nameof(StorageDrawFilePath));
-            OnPropertyChanged(nameof(ProductionModelFilePath));
-            OnPropertyChanged(nameof(ProductionDrawFilePath));
-
-            OnPropertyChanged(nameof(Name));
-            OnPropertyChanged(nameof(ConfigName));
-            OnPropertyChanged(nameof(PartNumber));
-            OnPropertyChanged(nameof(Article));
-            OnPropertyChanged(nameof(FilePath));
-            OnPropertyChanged(nameof(Version));
-            OnPropertyChanged(nameof(HashSum));
-            OnPropertyChanged(nameof(Preview));
-            OnPropertyChanged(nameof(ComponentType));
-            OnPropertyChanged(nameof(AvaType));
-            OnPropertyChanged(nameof(PropertiesCollection));
+            GetChildComponents();
         }
 
         #endregion

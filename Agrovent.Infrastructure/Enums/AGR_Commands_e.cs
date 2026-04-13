@@ -18,10 +18,18 @@ namespace Agrovent.Infrastructure.Enums
         [Title("Обновить свойства")]
         UpdateProperties,
 
-        [Title("Реестр КД")]
-        ComponentRegistry,
+        //[Title("Реестр КД")]
+        //ComponentRegistry,
 
         [Title("Проводник проектов")]
-        ProjectsExplorer
+        ProjectsExplorer,
+
+        //1993
+        [Title("Переместить компонент")]
+        [CommandItemInfo(true, true, Xarial.XCad.UI.Commands.Enums.WorkspaceTypes_e.Assembly)]
+        MoveComponentWithTriade,
+        
+        [Title("Тестовая команда")]
+        TestCommand
     }
 }

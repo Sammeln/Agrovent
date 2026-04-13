@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics;
 using Agrovent.DAL.Entities.Base;
 using Agrovent.DAL.Entities.Projects;
 using Agrovent.Infrastructure.Enums;
@@ -7,7 +8,8 @@ using Agrovent.Infrastructure.Interfaces;
 
 namespace Agrovent.DAL.Entities.Components
 {
-    public class ComponentVersion : BaseEntity
+    [DebuggerDisplay("{" + nameof(Name) + "}")]
+    public class ComponentVersion : DateStampEntity
     {
         // Связь с компонентом
         public int ComponentId { get; set; }

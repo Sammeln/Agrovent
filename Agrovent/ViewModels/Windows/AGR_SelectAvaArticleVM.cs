@@ -21,6 +21,21 @@ namespace Agrovent.ViewModels.Windows
         private readonly DataContext _dataContext;
         private readonly ILogger<AGR_SelectAvaArticleVM> _logger;
 
+        #region CTOR
+        public AGR_SelectAvaArticleVM(DataContext dataContext, ILogger<AGR_SelectAvaArticleVM> logger)
+        {
+            _dataContext = dataContext ?? throw new ArgumentNullException(nameof(dataContext));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            LoadData();
+
+            // Создаем CollectionViewSource и привязываем его к коллекции
+            //Articles_CVS.Filter += (sender, e) => FilterAvaArticles(e.Item); // Подписываемся на событие фильтрации
+
+            // Инициализация SearchText
+            SearchText = string.Empty; // Убедимся, что изначально не фильтрует
+        }
+
+        #endregion
 
         #region CollectionViewSource
         private CollectionViewSource Articles_CVS = new CollectionViewSource();
@@ -67,6 +82,14 @@ namespace Agrovent.ViewModels.Windows
 
             string[] splitSearch = SearchText.Split(' ').ToArray();
 
+            if (!string.IsNullOrEmpty(SelectedAvaType))
+            {
+                if (SelectedAvaType == "Все типы") e.Accepted = true;
+                else
+                {
+                    if (src.Type != SelectedAvaType) e.Accepted = false;
+                }
+            }
             //else if (string.Compare(AvaArtText, src.Article) != 0)
             //if (src.Name.Contains(SearchBar, StringComparison.OrdinalIgnoreCase)) return;
             if (src.Name is null) return;
@@ -92,25 +115,9 @@ namespace Agrovent.ViewModels.Windows
 
         #endregion
 
-        #region CTOR
-        public AGR_SelectAvaArticleVM(DataContext dataContext, ILogger<AGR_SelectAvaArticleVM> logger)
-        {
-            _dataContext = dataContext ?? throw new ArgumentNullException(nameof(dataContext));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            LoadData();
-
-            // Создаем CollectionViewSource и привязываем его к коллекции
-            //Articles_CVS.Filter += (sender, e) => FilterAvaArticles(e.Item); // Подписываемся на событие фильтрации
-
-            // Инициализация SearchText
-            SearchText = string.Empty; // Убедимся, что изначально не фильтрует
-        }
-        #endregion
-
-
-
         #region Commands
         // Команда для загрузки данных
+
         #region LoadDataCommand
         private ICommand _LoadDataCommand;
         public ICommand LoadDataCommand => _LoadDataCommand
@@ -122,6 +129,7 @@ namespace Agrovent.ViewModels.Windows
         }
         #endregion
 
+        
         // Команда для подтверждения выбора (OK)
         #region AcceptSelectionCommand
         private ICommand _AcceptSelectionCommand;
@@ -174,8 +182,8 @@ namespace Agrovent.ViewModels.Windows
             IsDialogResultAccepted = true;
         }
         #endregion  
-        #endregion
 
+        #endregion
 
         // Коллекция для хранения данных
         private ObservableCollection<AvaArticleModel> _avaArticles;
@@ -242,7 +250,29 @@ namespace Agrovent.ViewModels.Windows
         public bool IsDialogResultAccepted { get; private set; }
 
         // Метод, вызываемый командой AcceptSelectionCommand (OK)
+        
+        #region AvailableAvaTypes
+        private ObservableCollection<string> _availableAvaTypes = new ObservableCollection<string> { "(Не закупать)", "Постоянная часть", "Продукция", "Комплектующие", "Товар", "Все типы" };
+        public ObservableCollection<string> AvailableAvaTypes 
+        {
+            get => _availableAvaTypes;
+        }
+        #endregion
 
+        #region SelectedAvaType
+        private string? _selectedAvaType = "Все типы";
+        public string? SelectedAvaType
+        {
+            get => _selectedAvaType;
+            set
+            {
+                if (Set(ref _selectedAvaType, value))
+                {
+                    AvaArticlesView.Refresh(); // Обновляем фильтр при изменении AvaType
+                }
+            }
+        }
+        #endregion
     }
-    
+
 }

@@ -9,6 +9,7 @@ using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
 using Microsoft.Extensions.Logging;
+using System.IO;
 using System.Threading;
 using System.Windows;
 using Xarial.XCad.Data;
@@ -167,214 +168,10 @@ namespace Agrovent.Services
             }
         }
         // --- НОВАЯ КОМАНДА: Сохранить активный компонент/сборку ---
-        public async Task<bool> SaveActiveComponentAsync2()
-        {
-            var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
-            try
-            {
-                // Проверяем активный документ
-                var activeDoc = swApp.Documents.Active;
-                if (activeDoc == null)
-                {
-                    swApp.ShowMessageBox("Нет активного документа.",
-                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
-                    return false;
-                }
-
-                ISwDocument3D swDoc = activeDoc as ISwDocument3D;
-                if (swDoc == null)
-                {
-                    swApp.ShowMessageBox("Активный документ не является 3D-моделью.",
-                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
-                    return false;
-                }
-
-                // Создаем ViewModel для компонента
-                IAGR_BaseComponent component = swDoc switch
-                {
-                    ISwPart part => new AGR_PartComponentVM(part),
-                    ISwAssembly assembly => new AGR_AssemblyComponentVM(assembly),
-                    _ => throw new InvalidOperationException("Неподдерживаемый тип документа")
-                };
-
-                var componentName = component.Name;
-                var componentType = activeDoc is ISwAssembly ? "Сборка" : "Деталь";
-
-                // Создаем ViewModel для диалога прогресса
-                var progressVM = new SaveProgressVM(); // Передаем логгер, если нужно
-
-                // Создаем и показываем диалог модально
-                var progressDialog = new SaveProgressView();
-                progressDialog.DataContext = progressVM;
-                //progressDialog.Owner = Application.Current.MainWindow; // Устанавливаем владельца (опционально)
-
-                // Запускаем процесс сохранения в фоновом потоке
-                var saveTask = Task.Run(async () =>
-                {
-                    try
-                    {
-                        progressVM.AddLogMessage($"Начало процесса сохранения {componentType}: {componentName}");
-                        _logger.LogInformation($"Начало процесса сохранения {componentType}: {componentName}");
-
-                        bool saved = false;
-                        if (activeDoc is ISwAssembly)
-                        {
-                            // Сохраняем как сборку
-                            saved = await _componentVersionService.CheckAndSaveAssemblyAsync((AGR_AssemblyComponentVM)component);
-                        }
-                        else
-                        {
-                            // Сохраняем как деталь
-                            saved = await _componentVersionService.CheckAndSaveComponentAsync(component);
-                        }
-
-                        if (saved)
-                        {
-                            progressVM.AddLogMessage($"Успешно сохранено: {componentName}");
-                            _logger.LogInformation($"Успешно сохранено: {componentName}");
-                        }
-                        else
-                        {
-                            progressVM.AddLogMessage($"Компонент {componentName} не изменился или уже существует.");
-                            _logger.LogInformation($"Компонент {componentName} не изменился или уже существует.");
-                        }
-
-                        progressVM.SetFinished(); // Устанавливаем флаг завершения
-                    }
-                    catch (Exception ex)
-                    {
-                        var errorMsg = $"Ошибка при сохранении {componentType} {componentName}: {ex.Message}";
-                        progressVM.AddLogMessage(errorMsg);
-                        _logger.LogError(ex, errorMsg);
-                        progressVM.SetFinished(); // Устанавливаем флаг и в случае ошибки
-                    }
-                });
-
-                // Показываем диалог
-                progressDialog.ShowDialog();
-
-                // Ждем завершения задачи сохранения (на всякий случай)
-                await saveTask;
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Неожиданная ошибка при вызове SaveActiveComponentAsync");
-                swApp.ShowMessageBox($"Ошибка: {ex.Message}",
-                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
-                return false;
-            }
-        }
-
-        public async Task<bool> SaveActiveComponentAsync3()
-        {
-            var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
-            try
-            {
-                var activeDoc = swApp.Documents.Active;
-                if (activeDoc == null)
-                {
-                    swApp.ShowMessageBox("Нет активного документа.",
-                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
-                    return false;
-                }
-
-                ISwDocument3D swDoc = activeDoc as ISwDocument3D;
-                if (swDoc == null)
-                {
-                    swApp.ShowMessageBox("Активный документ не является 3D-моделью.",
-                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
-                    return false;
-                }
-
-                IAGR_BaseComponent component = swDoc switch
-                {
-                    ISwPart part => new AGR_PartComponentVM(part),
-                    ISwAssembly assembly => new AGR_AssemblyComponentVM(assembly),
-                    _ => throw new InvalidOperationException("Неподдерживаемый тип документа")
-                };
-
-                var componentName = component.Name;
-                var componentType = activeDoc is ISwAssembly ? "Сборка" : "Деталь";
-
-                // --- ПОЛУЧАЕМ SynchronizationContext ИЗ ТЕКУЩЕГО ПОТОКА (UI) ---
-                var uiContext = SynchronizationContext.Current;
-                if (uiContext == null)
-                {
-                    // Если SynchronizationContext не установлен, попробуем получить его из Application.Current.Dispatcher
-                    // Это может не сработать в dll, но попробуем
-                    var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
-                    uiContext = new System.Windows.Threading.DispatcherSynchronizationContext(dispatcher);
-                }
-                // --- КОНЕЦ ПОЛУЧЕНИЯ ---
-
-                // Создаем ViewModel для диалога прогресса, передавая SynchronizationContext
-                var progressVM = new SaveProgressVM(/*_logger*/null, uiContext); // Передаем логгер и SynchronizationContext
-
-                // Создаем и показываем диалог модально
-                var progressDialog = new SaveProgressView(); // DataContext устанавливается в конструкторе SaveProgressView
-                progressDialog.DataContext = progressVM;
-                
-
-                var saveTask = Task.Run(async () =>
-                {
-                    try
-                    {
-                        progressVM.AddLogMessage($"Начало процесса сохранения {componentType}: {componentName}");
-                        _logger.LogInformation($"Начало процесса сохранения {componentType}: {componentName}");
-
-                        bool saved = false;
-                        if (activeDoc is ISwAssembly)
-                        {
-                            saved = await _componentVersionService.CheckAndSaveAssemblyAsync((AGR_AssemblyComponentVM)component);
-                        }
-                        else
-                        {
-                            saved = await _componentVersionService.CheckAndSaveComponentAsync(component);
-                        }
-
-                        if (saved)
-                        {
-                            progressVM.AddLogMessage($"Успешно сохранено: {componentName}");
-                            _logger.LogInformation($"Успешно сохранено: {componentName}");
-                        }
-                        else
-                        {
-                            progressVM.AddLogMessage($"Компонент {componentName} не изменился или уже существует.");
-                            _logger.LogInformation($"Компонент {componentName} не изменился или уже существует.");
-                        }
-
-                        progressVM.SetFinished();
-                    }
-                    catch (Exception ex)
-                    {
-                        var errorMsg = $"Ошибка при сохранении {componentType} {componentName}: {ex.Message}";
-                        progressVM.AddLogMessage(errorMsg);
-                        _logger.LogError(ex, errorMsg);
-                        progressVM.SetFinished();
-                    }
-                });
-
-                progressDialog.ShowDialog(); // Показываем диалог модально
-
-                await saveTask; // Ждем завершения задачи сохранения
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Неожиданная ошибка при вызове SaveActiveComponentAsync");
-                swApp.ShowMessageBox($"Ошибка: {ex.Message}",
-                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
-                return false;
-            }
-        }
         public async Task<bool> SaveActiveComponentAsync()
         {
             try
             {
-                // Получаем ISwApplication из DI
                 var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
                 if (swApp == null)
                 {
@@ -408,84 +205,97 @@ namespace Agrovent.Services
                 var componentName = component.Name;
                 var componentType = activeDoc is ISwAssembly ? "Сборка" : "Деталь";
 
-                // --- ПОЛУЧАЕМ SynchronizationContext ИЗ ТЕКУЩЕГО ПОТОКА (UI) ---
-                var uiContext = SynchronizationContext.Current;
-                if (uiContext == null)
+                // --- ПОЛУЧАЕМ SINGLETON SaveProgressVM ---
+                var progressVM = AGR_ServiceContainer.GetService<IAGR_SaveProgressVM>() as AGR_SaveProgressVM;
+                if (progressVM == null)
                 {
-                    // Если SynchronizationContext не установлен, попробуем получить его из Application.Current.Dispatcher
-                    // Это может не сработать в dll, но попробуем
-                    var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
-                    uiContext = new System.Windows.Threading.DispatcherSynchronizationContext(dispatcher);
+                    _logger.LogError("Не удалось получить SaveProgressVM из DI контейнера.");
+                    return false;
                 }
-                // --- КОНЕЦ ПОЛУЧЕНИЯ ---
 
-                // Создаем ViewModel для диалога прогресса, передавая SynchronizationContext
-                // Передаем null для ILogger, так как тип не совпадает и он опционален
-                var progressVM = new SaveProgressVM(logger: null, uiContext: uiContext);
+                // Очищаем лог перед началом
+                progressVM.LogMessages.Clear();
+                progressVM.AddLogMessage($"Начало процесса сохранения {componentType}: {componentName}");
+                _logger.LogInformation($"Начало процесса сохранения {componentType}: {componentName}");
 
-                // Создаем и показываем диалог модально
-                var progressDialog = new SaveProgressView(); // DataContext устанавливается в конструкторе SaveProgressView
+                // --- ПОКАЗЫВАЕМ ОКНО С ПРОГРЕССОМ (в UI-потоке SolidWorks) ---
+                var progressDialog = new SaveProgressView();
                 progressDialog.DataContext = progressVM;
+                
+                progressDialog.Show(); // Используем Show(), а не ShowDialog(), чтобы UI не блокировался *до* вызова сохранения
+                progressDialog.ShowInTaskbar = true;
+                // progressDialog.ShowDialog(); // Блокирует UI до закрытия окна, что может быть неудобно, если сохранение быстро.
 
-                var saveTask = Task.Run(async () =>
+                bool saved = false;
+                try
                 {
-                    try
+                    // --- ВЫПОЛНЯЕМ СОХРАНЕНИЕ В ТОМ ЖЕ ПОТОКЕ ---
+                    if (activeDoc is ISwAssembly)
                     {
-                        progressVM.AddLogMessage($"Начало процесса сохранения {componentType}: {componentName}");
-                        _logger.LogInformation($"Начало процесса сохранения {componentType}: {componentName}");
+                        var assembly = activeDoc as ISwAssembly;
+                        var docsReadOnly = assembly.Configurations.Active.Components.TryFlatten()
+                            .Where(x => (File.GetAttributes(x.ReferencedDocument.Path).HasFlag(FileAttributes.ReadOnly)) == true)
+                            .Select(x => Path.GetFileName(x.ReferencedDocument.Path)).Distinct()
+                            .ToList();
 
-                        bool saved = false;
-                        if (activeDoc is ISwAssembly)
+                        if (docsReadOnly.Count != 0)
                         {
-                            saved = await _componentVersionService.CheckAndSaveAssemblyAsync((AGR_AssemblyComponentVM)component);
-                        }
-                        else
-                        {
-                            saved = await _componentVersionService.CheckAndSaveComponentAsync(component);
-                        }
-
-                        if (saved)
-                        {
-                            progressVM.AddLogMessage($"Успешно сохранено: {componentName}");
-                            _logger.LogInformation($"Успешно сохранено: {componentName}");
-                        }
-                        else
-                        {
-                            progressVM.AddLogMessage($"Компонент {componentName} не изменился или уже существует.");
-                            _logger.LogInformation($"Компонент {componentName} не изменился или уже существует.");
+                            progressVM.AddLogMessage("В сборке есть файлы 'Только для чтения':");
+                            foreach (var item in docsReadOnly)
+                            {
+                                progressVM.AddLogMessage(item);
+                            }
+                            progressVM.AddLogMessage($"Сохранение отменено: {componentName}");
+                            return false;
                         }
 
-                        progressVM.SetFinished();
+                        // Сохраняем как сборку
+                        saved = await _componentVersionService.CheckAndSaveAssemblyAsync((AGR_AssemblyComponentVM)component);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        var errorMsg = $"Ошибка при сохранении {componentType} {componentName}: {ex.Message}";
-                        progressVM.AddLogMessage(errorMsg);
-                        _logger.LogError(ex, errorMsg);
-                        progressVM.SetFinished();
+                        // Сохраняем как деталь
+                        saved = await _componentVersionService.CheckAndSaveComponentAsync(component);
                     }
-                });
 
-                progressDialog.Show(); // Показываем диалог модально
+                    if (saved)
+                    {
+                        progressVM.AddLogMessage($"Успешно сохранено: {componentName}");
+                        _logger.LogInformation($"Успешно сохранено: {componentName}");
+                    }
+                    else
+                    {
+                        progressVM.AddLogMessage($"Компонент {componentName} не изменился или уже существует.");
+                        _logger.LogInformation($"Компонент {componentName} не изменился или уже существует.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var errorMsg = $"Ошибка при сохранении {componentType} {componentName}: {ex.Message}";
+                    progressVM.AddLogMessage(errorMsg);
+                    _logger.LogError(ex, errorMsg);
+                    // Можно добавить stack trace в лог, если нужно
+                    // progressVM.AddLogMessage($"Stack Trace: {ex.StackTrace}");
+                }
+                finally
+                {
+                    // Устанавливаем флаг завершения в любом случае (успешно или с ошибкой)
+                    // Это может быть вызван из UI-потока, так как метод выполняется в нём
+                    progressVM.SetFinished();
+                }
 
-                await saveTask; // Ждем завершения задачи сохранения
-
-                return true;
+                // progressDialog.Close(); // Опционально: закрыть окно после завершения
+                progressDialog.Activate();
+                return saved; // Возвращаем результат сохранения
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Неожиданная ошибка при вызове SaveActiveComponentAsync");
-                // Также используем swApp для показа ошибки
                 var swAppFallback = AGR_ServiceContainer.GetService<ISwApplication>();
                 if (swAppFallback != null)
                 {
                     swAppFallback.ShowMessageBox($"Ошибка: {ex.Message}",
                         Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
-                }
-                else
-                {
-                    // Если и fallback не сработал, логируем
-                    Console.WriteLine($"Ошибка: {ex.Message}"); // Или другой способ уведомления
                 }
                 return false;
             }

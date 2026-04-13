@@ -2,12 +2,9 @@
 using Agrovent.DAL.Entities.Base;
 using Agrovent.Infrastructure.Enums;
 
-
-
-
 namespace Agrovent.DAL.Entities.Components
 {
-    public class ComponentProperty : BaseEntity
+    public class ComponentProperty : DateStampEntity
     {
         public int ComponentVersionId { get; set; }
 
@@ -16,6 +13,5 @@ namespace Agrovent.DAL.Entities.Components
 
         public string Name { get; set; }
         public string Value { get; set; }
-        public AGR_PropertyType_e Type { get; set; }
     }
 }

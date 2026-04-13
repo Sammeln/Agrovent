@@ -9,6 +9,7 @@
              xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
              xmlns:system="clr-namespace:System;assembly=mscorlib"
              xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
+             xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure"
              d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_PartComponentVM}}"
              mc:Ignorable="d" 
              d:DesignHeight="800" d:DesignWidth="800">
@@ -26,12 +27,12 @@
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
 
-            <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+            <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
             <!-- Converter для видимости секций в зависимости от типа компонента -->
             <converter:AGR_ComponentTypeToVisibilityConverter x:Key="ComponentTypeToVisibilityConverter"/>
-            <converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -98,14 +99,12 @@
                     </DockPanel>
 
                     <!-- Хэш -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
-                                Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" Visibility="Collapsed">
                         <TextBlock Text="Хэш:" Style="{StaticResource PropertyLabelStyle}"/>
                         <TextBox Text="{Binding HashSum, Mode=OneWay}" Style="{StaticResource  ReadOnlyTextBox}"/>
                     </DockPanel>
                     <!-- Хэш -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
-                                Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                    <DockPanel Style="{StaticResource PropertyGroupStyle}" Visibility="Collapsed">
                         <TextBlock Text="Хэш(метод):" Style="{StaticResource PropertyLabelStyle}"/>
                         <TextBox Text="{Binding CalcHash, Mode=OneWay}" Style="{StaticResource  ReadOnlyTextBox}"/>
                     </DockPanel>

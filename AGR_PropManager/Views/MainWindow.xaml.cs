@@ -11,7 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
-using AGR_PropManager.ViewModels;
+using AGR_PropManager.ViewModels.Windows;
 using Microsoft.Extensions.Hosting;
 
 namespace AGR_PropManager.Views
@@ -25,7 +25,6 @@ namespace AGR_PropManager.Views
         {
             InitializeComponent();
             DataContext = viewModel;
-
         }
     }
 }

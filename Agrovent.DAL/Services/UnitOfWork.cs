@@ -1,4 +1,5 @@
-﻿using Agrovent.DAL.Repositories;
+﻿using Agrovent.DAL.Entities.Components;
+using Agrovent.DAL.Services.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Xarial.XCad.Documents;
@@ -8,6 +9,7 @@ namespace Agrovent.DAL
     public interface IUnitOfWork : IDisposable
     {
         IAGR_ComponentRepository ComponentRepository { get; }
+        IAGR_TechnologicalProcessRepository TechProcessRepository { get; }
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
         Task CommitTransactionAsync();
@@ -21,11 +23,13 @@ namespace Agrovent.DAL
         private bool _disposed = false;
 
         public IAGR_ComponentRepository ComponentRepository { get; }
+        public IAGR_TechnologicalProcessRepository TechProcessRepository { get; }
 
-        public UnitOfWork(DataContext context, IAGR_ComponentRepository componentRepository)
+        public UnitOfWork(DataContext context, IAGR_ComponentRepository componentRepository, IAGR_TechnologicalProcessRepository techProcessRepository)
         {
             _context = context;
             ComponentRepository = componentRepository;
+            TechProcessRepository = techProcessRepository;
         }
 
         public async Task<int> CompleteAsync()
@@ -40,7 +44,6 @@ namespace Agrovent.DAL
                 throw new Exception("Ошибка при сохранении изменений в базе данных", ex);
             }
         }
-
         public async Task<IDbContextTransaction> BeginTransactionAsync()
         {
             _transaction = await _context.Database.BeginTransactionAsync();
@@ -66,6 +69,8 @@ namespace Agrovent.DAL
                 _transaction = null;
             }
         }
+
+     
 
         public void Dispose()
         {

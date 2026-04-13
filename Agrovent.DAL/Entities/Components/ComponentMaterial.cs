@@ -4,7 +4,7 @@ using Agrovent.DAL.Entities.Base;
 
 namespace Agrovent.DAL.Entities.Components
 {
-    public class ComponentMaterial : BaseEntity
+    public class ComponentMaterial : DateStampEntity
     {
         // Связь с версией компонента
         public int ComponentVersionId { get; set; }

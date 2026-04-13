@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using Xarial.XCad.Base;
 using Xarial.XCad.Data;
 
@@ -18,8 +19,9 @@ namespace Agrovent.Infrastructure.Extensions
                 if (!xProperty.IsCommitted) xProperty.Commit(CancellationToken.None);
                 return xProperty;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                MessageBox.Show(ex.Message.ToString());
                 throw;
             }
         }

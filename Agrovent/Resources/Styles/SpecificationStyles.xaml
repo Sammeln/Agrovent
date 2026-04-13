@@ -1,14 +1,13 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:local="clr-namespace:Agrovent.Views.Windows"
                     xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
-                    >
+                    xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure">
                     
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="PartComponentStyles.xaml"/>
     </ResourceDictionary.MergedDictionaries>
-    <converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
-    <converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+    <AGR_converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
+    <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
     <converter:GroupHeaderColorConverter x:Key="GroupHeaderColorConverter"/>
 
 
@@ -46,7 +45,7 @@
         <Setter Property="CanUserAddRows" Value="False"/>
         <Setter Property="CanUserDeleteRows" Value="False"/>
         <Setter Property="IsReadOnly" Value="True"/>
-        <Setter Property="SelectionMode" Value="Single"/>
+        <Setter Property="SelectionMode" Value="Extended"/>
         <Setter Property="SelectionUnit" Value="FullRow"/>
         <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="HorizontalGridLinesBrush" Value="#F5F5F5"/>

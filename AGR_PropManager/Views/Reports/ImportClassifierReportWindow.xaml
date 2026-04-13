@@ -1,0 +1,68 @@
+﻿<!-- File: Views/Reports/ImportClassifierReportView.xaml -->
+<Window x:Class="AGR_PropManager.Views.Reports.ImportClassifierReportWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:AGR_PropManager.Views.Reports"
+             xmlns:vmRep="clr-namespace:AGR_PropManager.ViewModels.Reports"
+    mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vmRep:ImportClassifierReportViewModel, IsDesignTimeCreatable=True}"
+             d:DesignHeight="600" d:DesignWidth="1000">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Button and status bar -->
+            <RowDefinition Height="*"/>
+            <!-- DataGrid -->
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Vertical" Margin="10">
+            <TextBlock Text="Отчет импорта классификатора" FontSize="18" Margin="0,0,0,10"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,10">
+                <Button Content="Сохранить в Excel" Command="{Binding ExportToExcelCommand}"/>
+            </StackPanel>
+
+        </StackPanel>
+
+        <DataGrid Grid.Row="1" 
+                  ItemsSource="{Binding ReportData, Mode=OneWay}" 
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  IsReadOnly="True"
+                  Margin="10">
+            <DataGrid.Columns>
+                <!-- Column 0: Наименование -->
+                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="*" />
+                <!-- Column 1: Пусто -->
+                <DataGridTextColumn Header="" Width="SizeToHeader" IsReadOnly="True" />
+                <!-- Column 2: Пусто -->
+                <DataGridTextColumn Header=""  Width="SizeToHeader" IsReadOnly="True" />
+                <!-- Column 3: Пусто -->
+                <DataGridTextColumn Header=""  Width="SizeToHeader" IsReadOnly="True" />
+                <!-- Column 4: ТИП -->
+                <DataGridTextColumn Header="ТИП" Binding="{Binding Type}" Width="SizeToHeader" />
+                <!-- Column 5: Partnumber -->
+                <DataGridTextColumn Header="Partnumber" Binding="{Binding Partnumber}" Width="SizeToHeader" />
+                <!-- Column 6: Основная ЕИ -->
+                <DataGridTextColumn Header="Основная ЕИ" Binding="{Binding MainUnit}" Width="SizeToHeader" />
+                <!-- Column 7: URL -->
+                <DataGridTextColumn Header="URL" Binding="{Binding URL}" Width="2*" />
+                <!-- Column 8: Пусто -->
+                <DataGridTextColumn Header="" Width="SizeToHeader" IsReadOnly="True" />
+                <!-- Column 9: Пусто -->
+                <DataGridTextColumn Header="" Width="SizeToHeader" IsReadOnly="True" />
+                <!-- Column 10: Артикул -->
+                <DataGridTextColumn Header="Артикул" Binding="{Binding Article}" Width="*" />
+            </DataGrid.Columns>
+            <!-- Define dummy properties for empty columns if needed by binding -->
+            <DataGrid.Resources>
+                <!-- This style ensures empty cells display nothing visually if bound to non-existent properties -->
+                <Style TargetType="DataGridCell">
+                    <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Content.Text}"/>
+                </Style>
+            </DataGrid.Resources>
+        </DataGrid>
+
+    </Grid>
+</Window>
