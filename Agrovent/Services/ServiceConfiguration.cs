@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using Agrovent.ViewModels.Windows;
 using Agrovent.ViewModels;
 using Agrovent.DAL.Services.Repositories;
+using Agrovent.Models;
 
 namespace Agrovent
 {
@@ -31,8 +32,16 @@ namespace Agrovent
 
             services.AddSingleton<IConfiguration>(configuration);
 
+            // 2. Пользователь
+            services.Configure<User>(configuration.GetSection("User"));
+            services.AddSingleton(provider => 
+            {
+                var userOptions = provider.GetRequiredService<IOptions<User>>();
+                return userOptions.Value;
+            });
 
-            // 2. Логирование
+
+            // 3. Логирование
             services.AddLogging(configure =>
             {
                 configure.AddConsole();
@@ -40,7 +49,7 @@ namespace Agrovent
                 configure.SetMinimumLevel(LogLevel.Debug);
             });
 
-            // 3. База данных
+            // 4. База данных
             services.AddDbContext<DataContext>(options =>
             {
                 options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
@@ -48,14 +57,14 @@ namespace Agrovent
                 options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
             });
 
-            // 4. Репозитории
+            // 5. Репозитории
             services.AddScoped<IAGR_ComponentRepository, ComponentRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IAGR_ComponentVersionService, ComponentVersionService>();
             services.AddScoped<IAGR_TechnologicalProcessRepository, AGR_TechnologicalProcessRepository>();
 
 
-            // 5. Сервисы
+            // 6. Сервисы
             services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
             services.AddScoped<IComponentDataService, ComponentDataService>();
             services.AddScoped<IAGR_CommandService, AGR_CommandService>(provider =>
@@ -66,7 +75,7 @@ namespace Agrovent
                ));
             services.AddSingleton<IAGR_ViewModelCacheService, AGR_ViewModelCacheService>();
 
-            // 6. ViewModels (если нужно)
+            // 7. ViewModels (если нужно)
             services.AddSingleton<AGR_TaskPaneViewModel>();
             services.AddTransient<AGR_ComponentRegistryVM>();
             services.AddTransient<AGR_ProjectExplorerVM>();
