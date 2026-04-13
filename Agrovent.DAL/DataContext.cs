@@ -22,6 +22,7 @@ namespace Agrovent.DAL
         public DbSet<AvaArticleModel> AvaArticles { get; set; }
         public DbSet<Project> Projects { get; set; } 
         public DbSet<ProjectComponent> ProjectComponents { get; set; }
+        public DbSet<User> Users { get; set; }
 
         public DbSet<Workstation> Workstations { get; set; }
         public DbSet<Operation> Operations { get; set; }
@@ -158,6 +159,13 @@ namespace Agrovent.DAL
                 .HasMany(cv => cv.ProjectComponents) // Добавляем навигационное свойство
                 .WithOne(pc => pc.ComponentVersion)
                 .HasForeignKey(pc => pc.ComponentVersionId);
+
+            // Связь ComponentVersion с User (пользователь, сохранивший версию)
+            modelBuilder.Entity<ComponentVersion>()
+                .HasOne(cv => cv.SavedByUser)
+                .WithMany(u => u.SavedComponentVersions)
+                .HasForeignKey(cv => cv.SavedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // --- Техпроцессы ---
             modelBuilder.Entity<Workstation>(entity =>
