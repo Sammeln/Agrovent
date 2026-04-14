@@ -55,7 +55,7 @@ namespace AGR_PropManager.Views.Reports {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/AGR_PropManager;V1.0.0.0;component/views/reports/techopsimportreportwindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/AGR_PropManager;component/views/reports/techopsimportreportwindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Reports\TechOpsImportReportWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

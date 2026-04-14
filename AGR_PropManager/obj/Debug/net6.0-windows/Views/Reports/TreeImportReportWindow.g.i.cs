@@ -68,7 +68,7 @@ namespace AGR_PropManager.Views.Reports {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/AGR_PropManager;V1.0.0.0;component/views/reports/treeimportreportwindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/AGR_PropManager;component/views/reports/treeimportreportwindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Reports\TreeImportReportWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

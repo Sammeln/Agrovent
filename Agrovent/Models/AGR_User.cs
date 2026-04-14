@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Agrovent.Infrastructure.Interfaces;
 
-namespace Agrovent.DAL.Entities.Base
+namespace Agrovent.Models
 {
-    public class UserEntity : BaseEntity
+    public class AGR_User : IAGR_User
     {
         public string FirstName { get; set; }
         public string LastName { get; set; }
@@ -45,8 +41,5 @@ namespace Agrovent.DAL.Entities.Base
                 return string.Join(" ", parts);
             }
         }
-
-        // Навигационное свойство
-        public virtual ICollection<ComponentVersion> SavedComponentVersions { get; set; } = new List<ComponentVersion>();
     }
 }

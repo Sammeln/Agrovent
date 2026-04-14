@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.DAL.Entities.TechProcess;
 using Agrovent.DAL.Entities.Projects;
+using Agrovent.DAL.Entities.Base;
 
 namespace Agrovent.DAL
 {
@@ -22,7 +23,7 @@ namespace Agrovent.DAL
         public DbSet<AvaArticleModel> AvaArticles { get; set; }
         public DbSet<Project> Projects { get; set; } 
         public DbSet<ProjectComponent> ProjectComponents { get; set; }
-        public DbSet<User> Users { get; set; }
+        public DbSet<UserEntity> Users { get; set; }
 
         public DbSet<Workstation> Workstations { get; set; }
         public DbSet<Operation> Operations { get; set; }
