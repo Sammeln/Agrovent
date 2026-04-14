@@ -13,6 +13,7 @@ using Xarial.XCad.SolidWorks.Documents;
 using Agrovent.ViewModels.Windows;
 using System.Windows.Forms;
 using Agrovent.DAL.Entities.TechProcess;
+using Agrovent.DAL.Entities.Base;
 
 namespace Agrovent.DAL.Services.Repositories
 {
@@ -60,6 +61,7 @@ namespace Agrovent.DAL.Services.Repositories
         private readonly DataContext _context;
         private readonly ILogger<ComponentRepository> _logger;
         private readonly IAGR_SaveProgressVM _saveProgress;
+        private readonly IAGR_User _currentUser;
 
         public ComponentRepository(DataContext context, ILogger<ComponentRepository> logger, IAGR_SaveProgressVM saveProgress)
         {
@@ -71,6 +73,13 @@ namespace Agrovent.DAL.Services.Repositories
         {
             _context = context;
             _logger = logger;
+        }
+        public ComponentRepository(DataContext context, ILogger<ComponentRepository> logger, IAGR_SaveProgressVM saveProgress, IAGR_User currentUser)
+        {
+            _context = context;
+            _logger = logger;
+            _saveProgress = saveProgress;
+            _currentUser = currentUser;
         }
 
         #region Основные операции с компонентами
@@ -223,6 +232,10 @@ namespace Agrovent.DAL.Services.Repositories
                 _saveProgress.AddLogMessage($"Создание новой версии: {component.Name}_{component.PartNumber} v{nextVersion}");
 
                 // 4. Создаем новую версию компонента
+                if (_currentUser == null)
+                {
+                }
+
                 var componentVersion = new ComponentVersion
                 {
                     Component = existingComponent,
@@ -234,7 +247,10 @@ namespace Agrovent.DAL.Services.Repositories
                     AvaArticle = component.AvaArticle as AvaArticleModel,
                     ComponentType = component.ComponentType,
                     AvaType = component.AvaType,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    SavedByUser = _currentUser != null 
+                        ? await GetOrCreateUserAsync(_currentUser) 
+                        : null
                 };
 
                 _context.ComponentVersions.Add(componentVersion);
@@ -923,6 +939,43 @@ namespace Agrovent.DAL.Services.Repositories
                 _logger.LogError(ex, "Ошибка при получении всех шаблонных операций из БД");
                 throw; // Или возвращаем пустой список, в зависимости от требований
             }
+        }
+
+        #endregion
+
+        #region Вспомогательные методы для работы с пользователем
+
+        private async Task<UserEntity> GetOrCreateUserAsync(IAGR_User userDto)
+        {
+            if (userDto == null)
+                return null;
+
+            // Пытаемся найти пользователя по полному имени
+            var fullName = userDto.FullName;
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.FirstName == userDto.FirstName 
+                                       && u.LastName == userDto.LastName 
+                                       && u.Patronymic == userDto.Patronymic);
+
+            if (existingUser != null)
+            {
+                _logger.LogDebug($"Пользователь найден в БД: {fullName}");
+                return existingUser;
+            }
+
+            // Создаем нового пользователя
+            var newUser = new UserEntity
+            {
+                FirstName = userDto.FirstName,
+                LastName = userDto.LastName,
+                Patronymic = userDto.Patronymic
+            };
+
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"Создан новый пользователь: {fullName}");
+            return newUser;
         }
 
         #endregion

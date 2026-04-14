@@ -190,6 +190,8 @@ namespace Agrovent
                     break;
 
                     case AGR_Commands_e.SaveComponent:
+                        var user = AGR_ServiceContainer.GetService<IAGR_User>();
+
                     _commandService.SaveActiveComponentAsync();
                     break;
                     if (Application.Documents.Active is ISwAssembly) SaveActiveAssembly();

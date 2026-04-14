@@ -16,6 +16,7 @@ using Agrovent.ViewModels.Windows;
 using Agrovent.ViewModels;
 using Agrovent.DAL.Services.Repositories;
 using Agrovent.Models;
+using System.Runtime.CompilerServices;
 
 namespace Agrovent
 {
@@ -33,13 +34,12 @@ namespace Agrovent
             services.AddSingleton<IConfiguration>(configuration);
 
             // 2. Пользователь
-            services.Configure<User>(configuration.GetSection("User"));
-            services.AddSingleton(provider => 
+            services.Configure<AGR_User>(configuration.GetSection("User"));
+            services.AddSingleton<IAGR_User>(provider =>
             {
-                var userOptions = provider.GetRequiredService<IOptions<User>>();
+                var userOptions = provider.GetRequiredService<IOptions<AGR_User>>();
                 return userOptions.Value;
             });
-
 
             // 3. Логирование
             services.AddLogging(configure =>

@@ -37,6 +37,11 @@ namespace Agrovent.DAL.Entities.Components
         public AGR_ComponentType_e ComponentType { get; set; }
         public AGR_AvaType_e AvaType { get; set; }
 
+        // Пользователь, сохранивший эту версию
+        public int SavedByUserId { get; set; }
+        [ForeignKey("SavedByUserId")]
+        public virtual UserEntity SavedByUser { get; set; }
+
         // Навигационные свойства
         public ComponentMaterial? Material { get; set; }
         public ICollection<ComponentProperty> Properties { get; set; } = new List<ComponentProperty>();
