@@ -40,7 +40,7 @@ namespace Agrovent.DAL.Entities.Components
         // Пользователь, сохранивший эту версию
         public int SavedByUserId { get; set; }
         [ForeignKey("SavedByUserId")]
-        public virtual User SavedByUser { get; set; }
+        public virtual UserEntity SavedByUser { get; set; }
 
         // Навигационные свойства
         public ComponentMaterial? Material { get; set; }

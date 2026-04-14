@@ -13,6 +13,7 @@ using Xarial.XCad.SolidWorks.Documents;
 using Agrovent.ViewModels.Windows;
 using System.Windows.Forms;
 using Agrovent.DAL.Entities.TechProcess;
+using Agrovent.DAL.Entities.Base;
 
 namespace Agrovent.DAL.Services.Repositories
 {
@@ -60,7 +61,7 @@ namespace Agrovent.DAL.Services.Repositories
         private readonly DataContext _context;
         private readonly ILogger<ComponentRepository> _logger;
         private readonly IAGR_SaveProgressVM _saveProgress;
-        private readonly Models.User _currentUser;
+        private readonly IAGR_User _currentUser;
 
         public ComponentRepository(DataContext context, ILogger<ComponentRepository> logger, IAGR_SaveProgressVM saveProgress)
         {
@@ -73,7 +74,7 @@ namespace Agrovent.DAL.Services.Repositories
             _context = context;
             _logger = logger;
         }
-        public ComponentRepository(DataContext context, ILogger<ComponentRepository> logger, IAGR_SaveProgressVM saveProgress, Models.User currentUser)
+        public ComponentRepository(DataContext context, ILogger<ComponentRepository> logger, IAGR_SaveProgressVM saveProgress, IAGR_User currentUser)
         {
             _context = context;
             _logger = logger;
@@ -231,6 +232,10 @@ namespace Agrovent.DAL.Services.Repositories
                 _saveProgress.AddLogMessage($"Создание новой версии: {component.Name}_{component.PartNumber} v{nextVersion}");
 
                 // 4. Создаем новую версию компонента
+                if (_currentUser == null)
+                {
+                }
+
                 var componentVersion = new ComponentVersion
                 {
                     Component = existingComponent,
@@ -940,7 +945,7 @@ namespace Agrovent.DAL.Services.Repositories
 
         #region Вспомогательные методы для работы с пользователем
 
-        private async Task<User> GetOrCreateUserAsync(Models.User userDto)
+        private async Task<UserEntity> GetOrCreateUserAsync(IAGR_User userDto)
         {
             if (userDto == null)
                 return null;
@@ -959,7 +964,7 @@ namespace Agrovent.DAL.Services.Repositories
             }
 
             // Создаем нового пользователя
-            var newUser = new User
+            var newUser = new UserEntity
             {
                 FirstName = userDto.FirstName,
                 LastName = userDto.LastName,
