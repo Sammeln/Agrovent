@@ -1,6 +1,6 @@
 namespace Agrovent.Models
 {
-    public class User
+    public class AGR_User : IAGR_User
     {
         public string FirstName { get; set; }
         public string LastName { get; set; }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Agrovent.DAL.Entities.Base
 {
-    public class User : BaseEntity
+    public class UserEntity : BaseEntity
     {
         public string FirstName { get; set; }
         public string LastName { get; set; }
