@@ -402,13 +402,25 @@ namespace Agrovent.ViewModels.TaskPane
                 string[] splitSearch = SearchText.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToArray();
 
                 if (registryItem.Name is null) return false;
-                if (!splitSearch.All(s => registryItem.Name.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)))
+                if (!splitSearch.All
+                        (s => registryItem.Name.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)
+                            || registryItem.SavedByUserInitials.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)
+                            || registryItem.PartNumber.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)
+                        ))
                 {
-                    if (registryItem.PartNumber == null || !registryItem.PartNumber.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return false; // Ни по имени, ни по PartNumber не совпало
-                    }
+                    return false;
                 }
+                //if (!splitSearch.All(s => registryItem.Name.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)))
+                //{
+                //    if (
+                //        (registryItem.PartNumber == null || !registryItem.PartNumber.Contains(SearchText, StringComparison.OrdinalIgnoreCase)) &&
+                //        (string.IsNullOrEmpty(registryItem.SavedByUserInitials) || !registryItem.SavedByUserInitials.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                //        )
+                //    {
+                //        return false; // Ни по имени, ни по PartNumber, ни по SavedByUserInitials не совпало
+                //    }
+                //}
+
                 // Если прошло проверку по SearchText, продолжаем
             }
             // Если SearchText пустой, пропускаем проверку выше

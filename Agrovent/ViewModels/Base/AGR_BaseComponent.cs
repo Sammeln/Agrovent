@@ -22,8 +22,8 @@ namespace Agrovent.ViewModels.Base
     {
         #region FIELDS
         internal ISwDocument3D? mDocument;
-        internal ISwConfiguration? mConfiguration;
-        internal ISwCustomPropertiesCollection? mProperties;
+        internal ISwConfiguration? mConfiguration => mDocument.IsAlive ? mDocument.Configurations.Active : null;
+        internal ISwCustomPropertiesCollection? mProperties => mDocument.IsAlive ? mConfiguration.Properties : null;
         #endregion
 
         #region PROPS
@@ -312,9 +312,6 @@ namespace Agrovent.ViewModels.Base
         public AGR_BaseComponent(ISwDocument3D swDocument3D)
         {
             mDocument = swDocument3D;
-            mConfiguration = mDocument.Configurations.Active;
-            mProperties = mConfiguration.Properties;
-
             ComponentType = mDocument.ComponentType();
 
         } 

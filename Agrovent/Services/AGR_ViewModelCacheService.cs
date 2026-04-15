@@ -2,8 +2,10 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Base;
 using Xarial.XCad.SolidWorks.Documents;
@@ -45,14 +47,14 @@ namespace Agrovent.Services
         {
             try
             {
-                if (document != null && _viewModelCache.Count > 0)
+                if (document.IsAlive != false && _viewModelCache.Count > 0)
                 {
                     _viewModelCache.TryRemove(document.Title, out _);
                 }
             }
-            catch (Exception)
+            catch (COMException ex)
             {
-                throw;
+                MessageBox.Show(ex.Message);
             }
         }
 

@@ -67,6 +67,8 @@ namespace Agrovent.ViewModels.Components
             }
         }
 
+        public string SavedByUserInitials => _entity.SavedByUser?.Initials ?? "N/A";
+
         public DateTime CreatedAt => _entity.CreatedAt;
         public string ComponentTypeDisplay => GetDisplayString(_entity.ComponentType);
         public string AvaTypeDisplay => GetDisplayString(_entity.AvaType);

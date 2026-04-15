@@ -19,9 +19,9 @@ namespace Agrovent.Infrastructure.Extensions
                 if (!xProperty.IsCommitted) xProperty.Commit(CancellationToken.None);
                 return xProperty;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                MessageBox.Show(ex.Message.ToString());
+                //MessageBox.Show(ex.Message.ToString());
                 throw;
             }
         }

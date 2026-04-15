@@ -213,7 +213,7 @@ namespace Agrovent
                     break;
 
                     case AGR_Commands_e.TestCommand:
-                        var user = AGR_ServiceContainer.GetService<User>();
+                        
                     break;
 
                     default:

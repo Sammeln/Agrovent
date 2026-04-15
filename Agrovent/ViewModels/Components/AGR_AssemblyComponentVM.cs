@@ -69,26 +69,36 @@ namespace Agrovent.ViewModels.Components
         {
             // Получаем компоненты верхнего уровня
             //var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_ActiveComponents().AGR_BaseComponents();
+            if (mDocument.IsAlive)
+            {
 
-            var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_BaseComponents(true);
-            // Группируем и создаем SpecificationItemVM для верхнего уровня
-            var groupedTop = topComponents
-                .GroupBy(c => new { c.Name, c.ConfigName })
-                .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
-            AGR_TopComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
-            return AGR_TopComponents;
+                var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_BaseComponents(true);
+
+                // Группируем и создаем SpecificationItemVM для верхнего уровня
+                var groupedTop = topComponents
+                    .GroupBy(c => new { c.Name, c.ConfigName })
+                    .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
+                AGR_TopComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
+                return AGR_TopComponents;
+            }
+            return new List<AGR_SpecificationItemVM>();
         }
         public IEnumerable<IAGR_SpecificationItem> GetFlatComponents()
         {
+            if (mDocument.IsAlive)
+            {
 
-            // Получаем все компоненты (плоский список)
-            //var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents();
-            var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.TryFlatten().AGR_BaseComponents(true);
-            // Группируем и создаем SpecificationItemVM для плоского списка
-            var groupedFlat = flatComponents
-                .GroupBy(c => new { c.Name, c.ConfigName })
-                .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
-            return groupedFlat;
+
+                // Получаем все компоненты (плоский список)
+                //var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents();
+                var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.TryFlatten().AGR_BaseComponents(true);
+                // Группируем и создаем SpecificationItemVM для плоского списка
+                var groupedFlat = flatComponents
+                    .GroupBy(c => new { c.Name, c.ConfigName })
+                    .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
+                return groupedFlat;
+            }
+            return new List<AGR_SpecificationItemVM>();
         }
 
         public void Refresh()
@@ -182,7 +192,7 @@ namespace Agrovent.ViewModels.Components
         {
             Paint = new AGR_Paint(doc3D); // Предполагаем, что AGR_Paint может быть создан так
             PaintCount = 0; // Инициализация
-        } 
+        }
         #endregion
     }
 }

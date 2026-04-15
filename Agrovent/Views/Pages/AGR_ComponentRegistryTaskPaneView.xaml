@@ -125,6 +125,8 @@
                 <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="3*" />
                 <!-- PartNumber -->
                 <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="*" />
+                <!-- Кто сохранил -->
+                <DataGridTextColumn Header="Сохранил" Binding="{Binding SavedByUserInitials}" Width="*" />
                 <!-- Дата создания -->
                 <DataGridTextColumn Header="Дата сохранения" Binding="{Binding CreatedAt, StringFormat='dd.MM.yyyy'}" Width="*" />
                 <!-- ComponentType -->

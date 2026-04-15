@@ -766,6 +766,7 @@ namespace Agrovent.DAL.Services.Repositories
                 var latestVersions = await _context.ComponentVersions
                     .Include(v => v.Component) // Подгружаем связанный компонент
                     .Include(v => v.Files)     // Подгружаем связанный файл
+                    .Include(v => v.SavedByUser) //Загружаем пользователя, который сохранил версию
                     .AsNoTracking() // Оптимизация для чтения
                     .GroupBy(v => v.ComponentId)
                     .Select(g => g.OrderByDescending(v => v.Version).First())
