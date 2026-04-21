@@ -35,17 +35,49 @@ namespace Agrovent.Infrastructure.Handlers
             m_Doc = doc;
 
             m_AddIn.Application.Documents.DocumentActivated += Application_DocumentActivated;
+            
             if (doc is ISwPart part)
             {
                 var swPart = part.Part as PartDoc;
                 swPart.FileSaveAsNotify2 += OnFileSaveAsNotify2;
                 swPart.FileSaveNotify += OnFileSaveNotify;
+                swPart.FeatureManagerTreeRebuildNotify += SwPart_FeatureManagerTreeRebuildNotify;
+                swPart.FeatureEditPreNotify += SwPart_FeatureEditPreNotify;
+                part.Features.FeatureCreated += Features_FeatureCreated;
             }
             if (doc is ISwAssembly assembly)
             {
                 var swAssembly = assembly.Assembly as AssemblyDoc;
                 swAssembly.FileSaveAsNotify2 += OnFileSaveAsNotify2;
             }
+        }
+
+        private void Features_FeatureCreated(IXDocument doc, Xarial.XCad.Features.IXFeature feature)
+        {
+            if (true)
+            {
+
+            }
+        }
+
+        private int SwPart_FeatureEditPreNotify(object EditFeature)
+        {
+            if (true)
+            {
+
+            }
+            return 0;
+        }
+
+        private int SwPart_FeatureManagerTreeRebuildNotify()
+        {
+            if (true)
+            {
+                var doc = m_AddIn.Application.Documents.Active as ISwDocument3D;
+                var vm = _viewModelCache.GetOrCreate(doc, d => _viewModelFactory.CreateComponent(d));
+                
+            }
+            return 0;
         }
 
         private int OnFileSaveNotify(string FileName)

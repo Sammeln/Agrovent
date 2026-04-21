@@ -25,6 +25,7 @@ using System.Windows.Data;
 using System.Windows.Input; // Для CollectionViewSource
 using Xarial.XCad.Base;
 using Xarial.XCad.Documents;
+using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
 
@@ -184,13 +185,14 @@ namespace Agrovent.ViewModels.TaskPane
                 {
                     // Документ уже открыт, делаем его активным
                     swApp.Documents.Active = openDoc as ISwDocument;
+                    
                     _logger.LogDebug($"Команда 'Открыть': Документ уже открыт, активирован: {filePath}");
                 }
                 else
                 {
                     // Документ не открыт, открываем
-                    var newDoc = swApp.Documents.PreCreateFromPath(filePath);
-                    newDoc.Commit(CancellationToken.None);
+                    var newDoc = swApp.Documents.Open(filePath, Xarial.XCad.Documents.Enums.DocumentState_e.ReadOnly);// PreCreateFromPath(filePath);
+                    //newDoc.Commit(CancellationToken.None);
                     _logger.LogDebug($"Команда 'Открыть': Документ открыт: {filePath}");
                 }
             }
@@ -221,6 +223,8 @@ namespace Agrovent.ViewModels.TaskPane
             if (selectedItem == null || string.IsNullOrEmpty(selectedItem.StoragePath)) return;
 
             var filePath = selectedItem.StoragePath;
+            var drawPath = Path.ChangeExtension(filePath, ".slddrw");
+            var fileTitle = Path.GetFileNameWithoutExtension(filePath);
 
             if (!File.Exists(filePath))
             {
@@ -244,27 +248,44 @@ namespace Agrovent.ViewModels.TaskPane
                     _logger.LogWarning("Команда 'Добавить в сборку': Активный документ не является сборкой.");
                     return;
                 }
-
-                // Проверяем, открыт ли документ компонента
-                IXDocument3D? compDoc = swApp.Documents.FirstOrDefault(x => x.Path == filePath) as IXDocument3D;
-                if (compDoc == null)
+                //Папка текущей сборки
+                var assemblyFolderPath = Path.GetDirectoryName(swAssembly.Path);
+                if (string.IsNullOrEmpty(assemblyFolderPath))
                 {
+                    assemblyFolderPath = @"D:\Работа";
+                }
+                //Путь к файлу компонента для копирования из хранилища
+                var destFilePath = Path.Combine(assemblyFolderPath, Path.GetFileName(filePath));
+                var destDrawPath = Path.ChangeExtension(destFilePath, ".slddrw");
+                // Проверяем, открыт ли документ компонента
+                IXDocument3D? compDoc = swApp.Documents.FirstOrDefault(x => x.Title == fileTitle) as IXDocument3D;
+                if (compDoc == null)
+                { 
+                    // Нельзя открывать документы из центрального хранилища, копируем файл в папку с активной сборкой
+                    File.Copy(filePath, destFilePath, true);
+                    //Если есть чертеж копируемого  компонента, то копируем его в папку тоже
+                    if (File.Exists(drawPath))
+                    {
+                        File.Copy(drawPath, destDrawPath, true);
+                    }
+
+
                     // Документ не открыт, открываем его
-                    compDoc = swApp.Documents.PreCreateFromPath(filePath) as IXDocument3D;
+                    compDoc = swApp.Documents.PreCreateFromPath(destFilePath) as IXDocument3D;
                     if (compDoc == null)
                     {
-                        _logger.LogError($"Команда 'Добавить в сборку': Не удалось открыть документ компонента: {filePath}");
+                        _logger.LogError($"Команда 'Добавить в сборку': Не удалось открыть документ компонента: {destFilePath}");
                         return;
                     }
                     //compDoc.Commit(CancellationToken.None);
-                    _logger.LogDebug($"Команда 'Добавить в сборку': Документ компонента открыт: {filePath}");
+                    _logger.LogDebug($"Команда 'Добавить в сборку': Документ компонента открыт: {destFilePath}");
                 }
 
                 // Создаем шаблон компонента
                 var xComp = swAssembly.Configurations.Active.Components.PreCreate<IXComponent>();
                 if (xComp == null)
                 {
-                    _logger.LogError($"Команда 'Добавить в сборку': Не удалось создать шаблон компонента для {filePath}");
+                    _logger.LogError($"Команда 'Добавить в сборку': Не удалось создать шаблон компонента для {destFilePath}");
                     return;
                 }
 

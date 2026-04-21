@@ -76,7 +76,11 @@ namespace Agrovent.ViewModels.Properties
             if (!string.IsNullOrEmpty(Volume.Value.ToString())) Properties.Add(Volume);
             if (!string.IsNullOrEmpty(Mass.Value.ToString())) Properties.Add(Mass);
             if (!string.IsNullOrEmpty(SurfaceArea.Value.ToString())) Properties.Add(SurfaceArea);
+
         }
+
+
+
         public AGR_BasePropertiesCollection(ISwDocument3D document3D)
         {
             mDocument = document3D;

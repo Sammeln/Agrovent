@@ -24,15 +24,21 @@ namespace Agrovent.Services
         private readonly ILogger<AGR_CommandService> _logger;
         private readonly IAGR_ComponentVersionService _componentVersionService; // Возможно, нужен для AvaArticle
         private readonly IServiceProvider _serviceProvider; // Необходим для получения VM
+        private readonly IAGR_ViewModelCacheService _viewModelCache;
+        private readonly IAGR_ComponentViewModelFactory _ComponentViewModelFactory;
 
         public AGR_CommandService(
             ILogger<AGR_CommandService> logger,
             IAGR_ComponentVersionService componentVersionService,
-            IServiceProvider serviceProvider) // Принимаем IServiceProvider
+            IServiceProvider serviceProvider,
+            IAGR_ViewModelCacheService viewModelCache,
+            IAGR_ComponentViewModelFactory viewModelFactory) // Принимаем IServiceProvider
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _componentVersionService = componentVersionService ?? throw new ArgumentNullException(nameof(componentVersionService));
             _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _viewModelCache = viewModelCache ?? throw new ArgumentNullException(nameof(viewModelCache));
+            _ComponentViewModelFactory = viewModelFactory ?? throw new ArgumentNullException(nameof(viewModelFactory));
         }
 
         public async Task<bool> UpdatePropertiesAsync()
@@ -195,12 +201,14 @@ namespace Agrovent.Services
                     return false;
                 }
 
-                IAGR_BaseComponent component = swDoc switch
-                {
-                    ISwPart part => new AGR_PartComponentVM(part),
-                    ISwAssembly assembly => new AGR_AssemblyComponentVM(assembly),
-                    _ => throw new InvalidOperationException("Неподдерживаемый тип документа")
-                };
+
+                IAGR_BaseComponent component = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
+                //IAGR_BaseComponent component = swDoc switch
+                //{
+                //    ISwPart part =>  _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d)),
+                //    ISwAssembly assembly => _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d)),
+                //    _ => throw new InvalidOperationException("Неподдерживаемый тип документа")
+                //};
 
                 var componentName = component.Name;
                 var componentType = activeDoc is ISwAssembly ? "Сборка" : "Деталь";
