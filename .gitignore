@@ -1,43 +1,34 @@
-# Build artifacts
-bin/
-obj/
-*.dll
+```
+# Compiled and build artifacts
+*.o
+*.obj
 *.exe
-*.pdb
-*.config
-*.csproj.user
+*.dll
+*.so
+*.a
+*.out
+*.pyc
+__pycache__/
 
 # Dependencies
-packages/
 node_modules/
-
-# Logs
-*.log
-
-# Environment
+venv/
+.venv/
 .env
 .env.local
-*.env.*
+.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
 
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Tests
-TestResults/
-
-# User-specific files
-*.user
-*.userosscache
-*.suo
-
-# Temporary files
-*.tmp
-temp/
-tmp/
+# Build directories
+dist/
+build/
+target/
+```

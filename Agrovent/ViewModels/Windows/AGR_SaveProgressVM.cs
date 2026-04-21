@@ -26,8 +26,6 @@ namespace Agrovent.ViewModels.Windows
 
 
             LogMessages = new ObservableCollection<string>();
-            CloseCommand = new RelayCommand(OnCloseCommandExecuted, CanCloseCommandExecute);
-            SaveLogCommand = new RelayCommand(OnSaveLogCommandExecuted, CanSaveLogCommandExecute);
         }
 
         #region Properties
@@ -63,7 +61,9 @@ namespace Agrovent.ViewModels.Windows
         #region Commands
 
         #region CloseCommand
-        public ICommand CloseCommand { get; }
+        private ICommand _CloseCommand;
+        public ICommand CloseCommand => _CloseCommand
+            ??= new RelayCommand(OnCloseCommandExecuted, CanCloseCommandExecute);
         private bool CanCloseCommandExecute(object p) => true; // Всегда можно закрыть
         private void OnCloseCommandExecuted(object p)
         {
@@ -79,7 +79,9 @@ namespace Agrovent.ViewModels.Windows
         #endregion
 
         #region SaveLogCommand
-        public ICommand SaveLogCommand { get; }
+        private ICommand _SaveLogCommand;
+        public ICommand SaveLogCommand => _SaveLogCommand
+            ??= new RelayCommand(OnSaveLogCommandExecuted, CanSaveLogCommandExecute);
         private bool CanSaveLogCommandExecute(object p) => IsFinished; // Доступна только после завершения
         private void OnSaveLogCommandExecuted(object p)
         {

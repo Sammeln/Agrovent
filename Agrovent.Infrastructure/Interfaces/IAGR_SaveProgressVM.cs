@@ -5,6 +5,11 @@ namespace Agrovent.ViewModels.Windows
 {
     public interface IAGR_SaveProgressVM
     {
-        abstract void AddLogMessage(string message);
+        void AddLogMessage(string message);
+    }
+    
+    public interface IAGR_SaveConfirmationVM
+    {
+        bool? ShowDialog();
     }
 }

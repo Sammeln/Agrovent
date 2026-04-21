@@ -203,15 +203,26 @@ namespace Agrovent.Services
 
 
                 IAGR_BaseComponent component = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
-                //IAGR_BaseComponent component = swDoc switch
-                //{
-                //    ISwPart part =>  _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d)),
-                //    ISwAssembly assembly => _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d)),
-                //    _ => throw new InvalidOperationException("Неподдерживаемый тип документа")
-                //};
-
+                
                 var componentName = component.Name;
                 var componentType = activeDoc is ISwAssembly ? "Сборка" : "Деталь";
+
+                // --- ПОКАЗЫВАЕМ ОКНО ПОДТВЕРЖДЕНИЯ СОХРАНЕНИЯ ---
+                var confirmationVM = new AGR_SaveConfirmationVM(component, _logger);
+                var confirmationDialog = new SaveConfirmationView
+                {
+                    DataContext = confirmationVM,
+                    Owner = Application.Current?.MainWindow
+                };
+
+                var? dialogResult = confirmationDialog.ShowDialog();
+                
+                // Если пользователь нажал "Отмена" или закрыл окно - прерываем сохранение
+                if (dialogResult != true)
+                {
+                    _logger.LogInformation("Сохранение отменено пользователем.");
+                    return false;
+                }
 
                 // --- ПОЛУЧАЕМ SINGLETON SaveProgressVM ---
                 var progressVM = AGR_ServiceContainer.GetService<IAGR_SaveProgressVM>() as AGR_SaveProgressVM;
@@ -232,7 +243,6 @@ namespace Agrovent.Services
                 
                 progressDialog.Show(); // Используем Show(), а не ShowDialog(), чтобы UI не блокировался *до* вызова сохранения
                 progressDialog.ShowInTaskbar = true;
-                // progressDialog.ShowDialog(); // Блокирует UI до закрытия окна, что может быть неудобно, если сохранение быстро.
 
                 bool saved = false;
                 try
@@ -282,17 +292,13 @@ namespace Agrovent.Services
                     var errorMsg = $"Ошибка при сохранении {componentType} {componentName}: {ex.Message}";
                     progressVM.AddLogMessage(errorMsg);
                     _logger.LogError(ex, errorMsg);
-                    // Можно добавить stack trace в лог, если нужно
-                    // progressVM.AddLogMessage($"Stack Trace: {ex.StackTrace}");
                 }
                 finally
                 {
                     // Устанавливаем флаг завершения в любом случае (успешно или с ошибкой)
-                    // Это может быть вызван из UI-потока, так как метод выполняется в нём
                     progressVM.SetFinished();
                 }
 
-                // progressDialog.Close(); // Опционально: закрыть окно после завершения
                 progressDialog.Activate();
                 return saved; // Возвращаем результат сохранения
             }
