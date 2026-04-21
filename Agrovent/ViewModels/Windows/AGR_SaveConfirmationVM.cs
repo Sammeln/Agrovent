@@ -86,6 +86,20 @@ namespace Agrovent.ViewModels.Windows
             }
         }
 
+        private bool _noPaint;
+        public bool NoPaint
+        {
+            get => _noPaint;
+            set
+            {
+                if (Set(ref _noPaint, value))
+                {
+                    OnPropertyChanged(nameof(HasErrors));
+                    ((RelayCommand)SaveCommand).NotifyCanExecuteChanged();
+                }
+            }
+        }
+
         public string MaterialName => BaseMaterial?.Name ?? string.Empty;
         public string ColorName => Paint?.Name ?? string.Empty;
         #endregion
@@ -218,6 +232,9 @@ namespace Agrovent.ViewModels.Windows
                 BaseMaterial = part.BaseMaterial;
                 Paint = part.Paint;
                 
+                // Если цвет не установлен, по умолчанию ставим "без покрытия"
+                NoPaint = Paint == null;
+                
                 // Load blank properties based on component type
                 LoadBlankProperties(part.PropertiesCollection);
             }
@@ -229,6 +246,9 @@ namespace Agrovent.ViewModels.Windows
                     Paint = hasPaint.Paint;
                     AssemblyColor = Paint?.Name ?? string.Empty;
                 }
+                
+                // Для сборок тоже устанавливаем флаг "без покрытия" если краски нет
+                NoPaint = Paint == null;
 
                 // Load specification items
                 LoadSpecificationItems(assembly);
@@ -279,7 +299,8 @@ namespace Agrovent.ViewModels.Windows
                     ErrorMessages.Add("Не указан материал");
                 }
 
-                if (IsPart && string.IsNullOrEmpty(ColorName))
+                // Проверяем цвет только если не установлен флаг "без покрытия"
+                if (IsPart && !NoPaint && string.IsNullOrEmpty(ColorName))
                 {
                     ErrorMessages.Add("Не указан цвет/покрытие");
                 }
@@ -389,6 +410,8 @@ namespace Agrovent.ViewModels.Windows
                 if (result == true && selectVm.SelectedArticle != null)
                 {
                     Paint = new AGR_Material(selectVm.SelectedArticle);
+                    // При выборе цвета снимаем флаг "без покрытия"
+                    NoPaint = false;
                     if (IsAssembly)
                     {
                         AssemblyColor = Paint.Name;

@@ -1,32 +1,34 @@
 ```
-# Build artifacts
-bin/
-obj/
+# Compiled and build artifacts
+*.o
+*.obj
 *.exe
 *.dll
-*.pdb
-*.userprefs
+*.so
+*.a
+*.out
+*.pyc
+__pycache__/
 
 # Dependencies
-packages/
 node_modules/
-
-# Logs
-*.log
-
-# User-specific files
-.vs/
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# Environment specific settings
+venv/
+.venv/
 .env
 .env.local
-*.local
+.env.*
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Editors
+.vscode/
+.idea/
+
+# Build directories
+dist/
+build/
+target/
 ```

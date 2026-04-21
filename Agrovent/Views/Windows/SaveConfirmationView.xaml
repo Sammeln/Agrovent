@@ -18,6 +18,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <converters:AGR_NullToVisibilityConverter x:Key="NullToVis"/>
+        <converters:AGR_InverseBooleanConverter x:Key="InverseBool"/>
         <Style x:Key="ErrorBorderStyle" TargetType="Border">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding HasErrors}" Value="True">
@@ -76,13 +77,16 @@
                     </StackPanel>
                     
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
-                                Visibility="{Binding IsPart, Converter={StaticResource BoolToVis}}">
+                                Visibility="{Binding IsProduced, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="Цвет/Покрытие:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <Button Content="Выбрать" Command="{Binding SelectColorCommand}" 
-                                Padding="5,2" Margin="0,0,10,0"/>
+                                Padding="5,2" Margin="0,0,10,0"
+                                IsEnabled="{Binding NoPaint, Converter={StaticResource InverseBool}}"/>
                         <TextBlock Text="{Binding ColorName}" FontSize="12" VerticalAlignment="Center"
                                    Foreground="{Binding ColorName, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
+                        <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint, UpdateSourceTrigger=PropertyChanged}"
+                                  Margin="15,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <!-- Article for Purchased -->
@@ -165,7 +169,7 @@
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
             <Button Content="Сохранить" Command="{Binding SaveCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Padding="15,5" FontSize="14" MinWidth="100"
-                    IsEnabled="{Binding HasErrors, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+                    IsEnabled="{Binding HasErrors, Converter={StaticResource InverseBool}}"/>
             <Button Content="Отмена" Command="{Binding CancelCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Padding="15,5" FontSize="14" MinWidth="100" Margin="10,0,0,0"/>
         </StackPanel>
