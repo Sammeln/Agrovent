@@ -1,11 +1,11 @@
+```
 # Build artifacts
 bin/
 obj/
-*.dll
 *.exe
+*.dll
 *.pdb
-*.config
-*.csproj.user
+*.userprefs
 
 # Dependencies
 packages/
@@ -14,30 +14,19 @@ node_modules/
 # Logs
 *.log
 
-# Environment
+# User-specific files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Environment specific settings
 .env
 .env.local
-*.env.*
+*.local
 
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
+# OS generated files
 .DS_Store
 Thumbs.db
-
-# Tests
-TestResults/
-
-# User-specific files
-*.user
-*.userosscache
-*.suo
-
-# Temporary files
-*.tmp
-temp/
-tmp/
+```

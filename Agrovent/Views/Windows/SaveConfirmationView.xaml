@@ -1,0 +1,173 @@
+<!-- File: Views/Windows/SaveConfirmationView.xaml -->
+<Window x:Class="Agrovent.Views.Windows.SaveConfirmationView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:Agrovent.Views.Windows"
+        xmlns:vm="clr-namespace:Agrovent.ViewModels.Windows"
+        xmlns:converters="clr-namespace:Agrovent.Infrastructure.Converters"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:AGR_SaveConfirmationVM, IsDesignTimeCreatable=False}"
+        Title="Подтверждение сохранения" 
+        Height="700" Width="900"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False">
+    
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <converters:AGR_NullToVisibilityConverter x:Key="NullToVis"/>
+        <Style x:Key="ErrorBorderStyle" TargetType="Border">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasErrors}" Value="True">
+                    <Setter Property="BorderBrush" Value="Red"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ErrorTextBoxStyle" TargetType="TextBox">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasErrors}" Value="True">
+                    <Setter Property="BorderBrush" Value="Red"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Section -->
+        <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Preview Image -->
+                <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Background="White" 
+                        Height="120" Width="120" HorizontalAlignment="Left">
+                    <Image Source="{Binding Preview, Converter={StaticResource NullToVis}}" 
+                           Stretch="Uniform" Margin="5"/>
+                </Border>
+
+                <!-- Component Info -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
+                    <TextBlock Text="{Binding ComponentName}" FontSize="20" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBlock Text="{Binding PartNumber, StringFormat='Обозначение: {0}'}" FontSize="14" Margin="0,0,0,3"/>
+                    <TextBlock Text="{Binding ConfigName, StringFormat='Конфигурация: {0}'}" FontSize="12" FontStyle="Italic" Margin="0,0,0,3"/>
+                    
+                    <!-- Material and Color for Parts -->
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <TextBlock Text="Материал:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <Button Content="Выбрать" Command="{Binding SelectMaterialCommand}" 
+                                Padding="5,2" Margin="0,0,10,0"
+                                Visibility="{Binding IsProduced, Converter={StaticResource BoolToVis}}"/>
+                        <TextBlock Text="{Binding MaterialName}" FontSize="12" VerticalAlignment="Center" 
+                                   Foreground="{Binding MaterialName, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
+                                   MinWidth="150"/>
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                                Visibility="{Binding IsPart, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Цвет/Покрытие:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <Button Content="Выбрать" Command="{Binding SelectColorCommand}" 
+                                Padding="5,2" Margin="0,0,10,0"/>
+                        <TextBlock Text="{Binding ColorName}" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{Binding ColorName, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
+                                   MinWidth="150"/>
+                    </StackPanel>
+
+                    <!-- Article for Purchased -->
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                                Visibility="{Binding IsPurchased, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Артикул:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Text="{Binding Article, UpdateSourceTrigger=PropertyChanged}" 
+                                 Width="150" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Section -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Side: Properties or Specification -->
+            <TabControl Grid.Column="0" Margin="0,0,10,0">
+                
+                <!-- Blank Properties Tab (for Parts) -->
+                <TabItem Header="Свойства заготовки" Visibility="{Binding IsPart, Converter={StaticResource BoolToVis}}">
+                    <DataGrid ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
+                              CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
+                            <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Sheet Metal Properties Tab -->
+                <TabItem Header="Свойства листовой заготовки" Visibility="{Binding IsSheetMetal, Converter={StaticResource BoolToVis}}">
+                    <DataGrid ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
+                              CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
+                            <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Assembly Specification Tab -->
+                <TabItem Header="Спецификация" Visibility="{Binding IsAssembly, Converter={StaticResource BoolToVis}}">
+                    <DataGrid ItemsSource="{Binding SpecificationItems}" AutoGenerateColumns="False" 
+                              CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="120"/>
+                            <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="60"/>
+                            <DataGridTextColumn Header="Тип" Binding="{Binding ComponentType}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+            </TabControl>
+
+            <!-- Right Side: Error Messages -->
+            <Border Grid.Column="1" BorderBrush="Red" BorderThickness="1" CornerRadius="3" 
+                    Padding="10" MinWidth="250"
+                    Visibility="{Binding HasErrors, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <TextBlock Text="Ошибки:" FontWeight="Bold" Foreground="Red" Margin="0,0,0,5"/>
+                    <ItemsControl ItemsSource="{Binding ErrorMessages}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Foreground="Red" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Footer Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="Сохранить" Command="{Binding SaveCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                    Padding="15,5" FontSize="14" MinWidth="100"
+                    IsEnabled="{Binding HasErrors, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+            <Button Content="Отмена" Command="{Binding CancelCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                    Padding="15,5" FontSize="14" MinWidth="100" Margin="10,0,0,0"/>
+        </StackPanel>
+    </Grid>
+</Window>
