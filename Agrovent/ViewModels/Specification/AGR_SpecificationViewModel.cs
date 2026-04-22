@@ -463,6 +463,85 @@ namespace Agrovent.ViewModels.Specification
         }
         #endregion
 
+
+        #region SetPaintCommand
+        private ICommand _SetPaintCommand;
+        public ICommand SetPaintCommand => _SetPaintCommand
+            ??= new RelayCommand(OnSetPaintCommandExecuted, CanSetPaintCommandExecute);
+        private bool CanSetPaintCommandExecute(object p)
+        {
+            var _selectedComponents = Components.Where(x => x.IsSelected == true);
+            if (_selectedComponents.Count() == 0) _selectedComponents = SelectedComponents;
+            //if (_selectedComponents.Any(p => p.Component.ComponentType != AGR_ComponentType_e.Part && p.Component.ComponentType != AGR_ComponentType_e.SheetMetallPart))
+            //{
+            //    return false;
+            //}
+            return true;
+        }
+        private void OnSetPaintCommandExecuted(object p)
+        {
+            var _selectedComponents = Components.Where(x => x.IsSelected == true) ?? SelectedComponents;
+            if (p.ToString() == "NoPaint")
+            {
+                foreach (var item in _selectedComponents)
+                {
+                    item.PaintAvaModel = null;
+                }
+                DeselectAllComponents();
+                return;
+            }
+
+            try
+            {
+                // Получаем нужные сервисы для VM
+                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
+
+                // Создаем ViewModel
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
+                selectVm.SearchText = "Краска порошковая";
+                selectVm.SelectedAvaType = "Товар";
+
+                // Создаем View и устанавливаем DataContext
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+
+                selectView.ShowActivated = true;
+                // Открываем окно модально
+                selectView.ShowDialog();
+
+                // Если окно закрыто с результатом OK и элемент выбран
+                if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
+                {
+                    foreach (var item in _selectedComponents)
+                    {
+                        item.PaintAvaModel = selectVm.SelectedArticle;
+                        OnPropertyChanged(nameof(item.PartnumberOrArticle));
+                        //var part = item.Component as AGR_PartComponentVM;
+                        // Присваиваем выбранный AvaArticleModel в BaseMaterial.AvaModel
+                        //part.BaseMaterial = new AGR_Material(selectVm.SelectedArticle);
+                        //part.mProperties.FirstOrDefault(p => p.Name == AGR_PropertyNames.Material).Value = part.BaseMaterial.Name;
+                        _logger?.LogInformation("Выбран AvaArticle {Article} для компонента {PartNumber}", selectVm.SelectedArticle.Article, item.PartNumber);
+
+                        //OnPropertyChanged(nameof(part.BaseMaterial));
+                        //OnPropertyChanged(nameof(item.MaterialName));
+                    }
+
+                    // Обновляем свойства, если это влияет на них (например, BaseMaterialCount)
+                    //Task.Run(async () => await UpdatePropertiesAsync()).ConfigureAwait(false); // Вызов асинхронного метода
+                }
+                else
+                {
+                    _logger?.LogDebug("Окно выбора AvaArticle закрыто без выбора.");
+                }
+                DeselectAllComponents();
+            }
+            catch (Exception ex)
+            {
+                //_logger?.LogError(ex, "Ошибка при открытии окна выбора AvaArticle для компонента {PartNumber}", PartNumber);
+            }
+        }
+        #endregion
+
         #region SetAvaArticleCommand
         private ICommand _SetAvaArticleCommand;
         public ICommand SetAvaArticleCommand => _SetAvaArticleCommand

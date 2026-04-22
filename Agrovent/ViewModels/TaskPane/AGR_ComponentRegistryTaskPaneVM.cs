@@ -260,7 +260,19 @@ namespace Agrovent.ViewModels.TaskPane
                 // Проверяем, открыт ли документ компонента
                 IXDocument3D? compDoc = swApp.Documents.FirstOrDefault(x => x.Title == fileTitle) as IXDocument3D;
                 if (compDoc == null)
-                { 
+                {
+                    //Проверяем есть ли файл в рабочей папке, если есть убираем для чтения
+                    if (File.Exists(destFilePath))
+                    {
+                        File.SetAttributes(destFilePath, FileAttributes.Normal);
+                    }
+
+                    //Проверяем есть ли файл чертежа в рабочей папке, если есть убираем для чтения
+                    if (File.Exists(destDrawPath))
+                    {
+                        File.SetAttributes(destDrawPath, FileAttributes.Normal);
+                    }
+
                     // Нельзя открывать документы из центрального хранилища, копируем файл в папку с активной сборкой
                     File.Copy(filePath, destFilePath, true);
                     //Если есть чертеж копируемого  компонента, то копируем его в папку тоже

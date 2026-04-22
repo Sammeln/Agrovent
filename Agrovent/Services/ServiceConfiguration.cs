@@ -67,13 +67,15 @@ namespace Agrovent
             // 6. Сервисы
             services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
             services.AddScoped<IComponentDataService, ComponentDataService>();
+            services.AddSingleton<IAGR_ViewModelCacheService, AGR_ViewModelCacheService>();
             services.AddScoped<IAGR_CommandService, AGR_CommandService>(provider =>
                new AGR_CommandService(
                    provider.GetRequiredService<ILogger<AGR_CommandService>>(),
                    provider.GetRequiredService<IAGR_ComponentVersionService>(),
-                   provider // Передаем IServiceProvider
+                   provider, // Передаем IServiceProvider
+                   provider.GetRequiredService<IAGR_ViewModelCacheService>(),
+                   provider.GetRequiredService<IAGR_ComponentViewModelFactory>()
                ));
-            services.AddSingleton<IAGR_ViewModelCacheService, AGR_ViewModelCacheService>();
 
             // 7. ViewModels (если нужно)
             services.AddSingleton<AGR_TaskPaneViewModel>();

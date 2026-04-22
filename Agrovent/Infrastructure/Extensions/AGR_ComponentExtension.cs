@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Services;
 using Agrovent.ViewModels.Components;
@@ -9,6 +10,7 @@ using Xarial.XCad.Documents;
 using Xarial.XCad.Documents.Enums;
 using Xarial.XCad.SolidWorks.Documents;
 using static System.Windows.Forms.AxHost;
+using Xarial.XCad.Base.Enums;
 
 namespace Agrovent.Infrastructure.Extensions
 {
@@ -16,41 +18,55 @@ namespace Agrovent.Infrastructure.Extensions
     {
         public static AGR_AvaType_e AvaType(this ISwDocument3D xDoc)
         {
-            var prop = xDoc.Configurations.Active.Properties.GetOrPreCreate(AGR_PropertyNames.AvaType);
-            if (!prop.IsCommitted) prop.Commit(CancellationToken.None);
-            if (!string.IsNullOrEmpty(prop.Value.ToString()))
+            try
             {
-                var avaType = Convert.ToInt32(xDoc.Configurations.Active.Properties[AGR_PropertyNames.AvaType].Value);
-                if ((AGR_AvaType_e)avaType != null)
-                {
-                    return (AGR_AvaType_e)avaType;
+                    var prop = xDoc.Configurations.Active.Properties.GetOrPreCreate(AGR_PropertyNames.AvaType);
+                    if (!prop.IsCommitted) prop.Commit(CancellationToken.None);
+                    if (!string.IsNullOrEmpty(prop.Value.ToString()))
+                    {
+                        var avaType = Convert.ToInt32(xDoc.Configurations.Active.Properties[AGR_PropertyNames.AvaType].Value);
+                        if ((AGR_AvaType_e)avaType != null)
+                        {
+                            return (AGR_AvaType_e)avaType;
+                        }
                 }
+            }
+            catch (Exception ex)
+            {
+                AGR_Helper.ShowMessage(ex.Message, MessageBoxIcon_e.Error, MessageBoxButtons_e.Ok);
             }
             return AGR_AvaType_e.Component;
         }
         public static AGR_ComponentType_e ComponentType(this ISwDocument3D xDoc)
         {
-            var avaType = xDoc.AvaType();
-            if (avaType is AGR_AvaType_e.Purchased)
+            try
             {
-                return AGR_ComponentType_e.Purchased;
-            }
-
-            else
-            {
-                if (xDoc is ISwPart part)
+                var avaType = xDoc.AvaType();
+                if (avaType is AGR_AvaType_e.Purchased)
                 {
-                    if (part.Model.GetBendState() != 0)
+                    return AGR_ComponentType_e.Purchased;
+                }
+
+                else
+                {
+                    if (xDoc is ISwPart part)
                     {
-                        return AGR_ComponentType_e.SheetMetallPart;
-                    }
-                    else return AGR_ComponentType_e.Part;
+                        if (part.Model.GetBendState() != 0)
+                        {
+                            return AGR_ComponentType_e.SheetMetallPart;
+                        }
+                        else return AGR_ComponentType_e.Part;
 
+                    }
+                    else if (xDoc is ISwAssembly)
+                    {
+                        return AGR_ComponentType_e.Assembly;
+                    }
                 }
-                else if (xDoc is ISwAssembly)
-                {
-                    return AGR_ComponentType_e.Assembly;
-                }
+            }
+            catch (Exception ex)
+            {
+                AGR_Helper.ShowMessage(ex.Message, MessageBoxIcon_e.Error, MessageBoxButtons_e.Ok);
             }
 
             return AGR_ComponentType_e.NA;

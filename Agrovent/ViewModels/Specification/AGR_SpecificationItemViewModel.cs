@@ -30,20 +30,28 @@ namespace Agrovent.ViewModels.Specification
 
         private void InitItem()
         {
-            if (_component is AGR_PartComponentVM part && _component.ComponentType != AGR_ComponentType_e.Purchased)
+            if (_component.ComponentType != AGR_ComponentType_e.Purchased)
             {
-                MaterialName = part.BaseMaterial?.Name;
+                if (_component is AGR_PartComponentVM part)
+                {
+                    MaterialName = part.BaseMaterial?.Name;
+                    PaintName = part.Paint?.Name;
+                }
+                if (_component is AGR_AssemblyComponentVM assembly)
+                {
+                    PaintName = assembly.Paint?.Name;
+                }
             }
             AvaArticle = _component.AvaArticle;
             ComponentAvaType = _component.AvaType;
         }
 
-        #region Property - 
+        #region Property - IsSelected
         private bool _IsSelected = false;
         public bool IsSelected
         {
             get => _IsSelected;
-            set => Set(ref _IsSelected, value); 
+            set => Set(ref _IsSelected, value);
         }
         #endregion 
         public string Name => _component.Name;
@@ -128,20 +136,38 @@ namespace Agrovent.ViewModels.Specification
             }
         }
 
+
+        #region Property - PaintAvaModel
+        private AvaArticleModel? _PaintAvaModel;
+        public AvaArticleModel? PaintAvaModel
+        {
+            get => _PaintAvaModel;
+            set
+            {
+                Set(ref _PaintAvaModel, value);
+                AGR_Material newMaterial = new AGR_Material(value);
+                (Component as AGR_PartComponentVM).Paint = newMaterial;
+                PaintName = newMaterial.Name;
+            }
+        }
+        #endregion 
+        private string _PaintName;
         public string PaintName
         {
-            get
-            {
-                if (_component is AGR_PartComponentVM part)
-                    return part.Paint?.Name;
-                if (_component is AGR_AssemblyComponentVM assembly)
-                {
-                    // Для сборки можно попробовать получить покраску
-                    // Или вернуть null, если не применимо
-                    return null;
-                }
-                return null;
-            }
+            get => _PaintName;
+            //{
+            //    return _PaintName;
+            //    if (_component is AGR_PartComponentVM part)
+            //        return part.Paint?.Name;
+            //    if (_component is AGR_AssemblyComponentVM assembly)
+            //    {
+            //        // Для сборки можно попробовать получить покраску
+            //        // Или вернуть null, если не применимо
+            //        return null;
+            //    }
+            //    return null;
+            //}
+            set => Set(ref _PaintName, value);
         }
 
         // Свойство для толщины (только для листовых деталей)

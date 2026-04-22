@@ -29,12 +29,12 @@
             <converter:GroupHeaderColorConverter x:Key="GroupHeaderColorConverter"/>
             <!--<converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>-->
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-            
-            
+
+
             <DataTemplate DataType="{x:Type ImageSource}">
                 <Image Source="{Binding}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
             </DataTemplate>
-            
+
             <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
                 <Image Source="{Binding Preview}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
             </DataTemplate>
@@ -45,19 +45,29 @@
                      Header="Установить материал" CommandParameter="{Binding}"
                      Command="{Binding DataContext.SetBaseMaterialCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
                 <MenuItem 
+                     Header="Установить покрытие...">
+                    <MenuItem 
+                         Header="Найти артикул" CommandParameter="{Binding}"
+                         Command="{Binding DataContext.SetPaintCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}"/>
+                    <MenuItem 
+                         Header="Без покрытия" CommandParameter="NoPaint"
+                         Command="{Binding DataContext.SetPaintCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}"/>
+                        
+                </MenuItem>
+                    <MenuItem 
                      Header="Установить артикул" CommandParameter="{Binding}"
                      Command="{Binding DataContext.SetAvaArticleCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                <MenuItem 
+                    <MenuItem 
                      Header="Установить тип...">
-                    <MenuItem Header="Покупное" CommandParameter="20021" 
+                        <MenuItem Header="Покупное" CommandParameter="20021" 
                               Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                    <MenuItem Header="Комплектующая" CommandParameter="5" 
+                        <MenuItem Header="Комплектующая" CommandParameter="5" 
                               Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                    <MenuItem Header="Продукция" CommandParameter="3" 
+                        <MenuItem Header="Продукция" CommandParameter="3" 
                               Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                    <MenuItem Header="Виртуальный компонент" CommandParameter="50625" 
+                        <MenuItem Header="Виртуальный компонент" CommandParameter="50625" 
                               Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                </MenuItem>
+                    </MenuItem>
             </ContextMenu>
 
             <!-- Конвертеры видимости для разных типов компонентов -->
@@ -107,7 +117,7 @@
             </Grid.Resources>
 
             <!-- DataGrid с группировкой -->
-                <!--ItemsSource="{Binding  Source={StaticResource GroupedComponents}}"-->
+            <!--ItemsSource="{Binding  Source={StaticResource GroupedComponents}}"-->
             <DataGrid ItemsSource="{Binding GroupedComponentsView}"
                       Style="{StaticResource SpecificationDataGrid}"
                       AutoGenerateColumns="False"
@@ -119,7 +129,9 @@
 
                 <DataGrid.InputBindings>
                     <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
+                    <MouseBinding Gesture="RightClick" Command="{Binding SelectComponentCommand}"/>
                 </DataGrid.InputBindings>
+                
 
                 <!-- Настройка группировки -->
                 <DataGrid.GroupStyle>
@@ -132,7 +144,7 @@
 
                 <!-- Колонки DataGrid -->
                 <DataGrid.Columns>
-                    
+
                     <DataGridTemplateColumn Width="25">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -140,7 +152,7 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    
+
                     <!-- Preview Column -->
                     <DataGridTemplateColumn Width="50" MinWidth="50">
                         <DataGridTemplateColumn.CellStyle>
@@ -157,7 +169,7 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
                                 <!-- Контейнер для основного отображения в ячейке -->
-                                    <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
+                                <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -205,7 +217,7 @@
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 </DataGrid.Columns>
-                
+
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
                         <Style.Triggers>

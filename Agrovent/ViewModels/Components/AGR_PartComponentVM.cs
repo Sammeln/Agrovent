@@ -73,7 +73,11 @@ namespace Agrovent.ViewModels.Components
         public IAGR_Material? Paint
         {
             get => _paint;
-            set => Set(ref _paint, value);
+            set
+            {
+                Set(ref _paint, value);
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.Color).Value =  value?.Name ?? "";
+            }
         }
         #endregion
 

@@ -6,7 +6,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:local="clr-namespace:Agrovent.Views.Windows"
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Windows"
-        xmlns:converters="clr-namespace:Agrovent.Infrastructure.Converters"
+        xmlns:converters="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:AGR_SaveConfirmationVM, IsDesignTimeCreatable=False}"
         Title="Подтверждение сохранения" 
@@ -18,6 +18,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <converters:AGR_NullToVisibilityConverter x:Key="NullToVis"/>
+        <converters:AGR_InverseBooleanConverter x:Key="InverseBool"/>
         <Style x:Key="ErrorBorderStyle" TargetType="Border">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding HasErrors}" Value="True">
@@ -33,6 +34,15 @@
                     <Setter Property="BorderThickness" Value="2"/>
                 </DataTrigger>
             </Style.Triggers>
+        </Style>
+        <Style TargetType="Image" x:Key="PreviewImage"> 
+            <Setter Property="ToolTip">
+                <Setter.Value>
+                    <Image Source="{Binding Preview}" Width="500"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+            <Setter Property="ToolTipService.Placement" Value="Right"/>
         </Style>
     </Window.Resources>
 
@@ -53,9 +63,9 @@
 
                 <!-- Preview Image -->
                 <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Background="White" 
-                        Height="120" Width="120" HorizontalAlignment="Left">
-                    <Image Source="{Binding Preview, Converter={StaticResource NullToVis}}" 
-                           Stretch="Uniform" Margin="5"/>
+                        Height="150" Width="150" HorizontalAlignment="Left">
+
+                    <Image Source="{Binding Preview}" Stretch="Uniform" Style="{StaticResource PreviewImage}"/>
                 </Border>
 
                 <!-- Component Info -->
@@ -65,7 +75,8 @@
                     <TextBlock Text="{Binding ConfigName, StringFormat='Конфигурация: {0}'}" FontSize="12" FontStyle="Italic" Margin="0,0,0,3"/>
                     
                     <!-- Material and Color for Parts -->
-                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                                Visibility="{Binding IsPart, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="Материал:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <Button Content="Выбрать" Command="{Binding SelectMaterialCommand}" 
                                 Padding="5,2" Margin="0,0,10,0"
@@ -74,15 +85,18 @@
                                    Foreground="{Binding MaterialName, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
                     </StackPanel>
-                    
+
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
-                                Visibility="{Binding IsPart, Converter={StaticResource BoolToVis}}">
+                                Visibility="{Binding IsProduced, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="Цвет/Покрытие:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <Button Content="Выбрать" Command="{Binding SelectColorCommand}" 
-                                Padding="5,2" Margin="0,0,10,0"/>
+                        <Button Content="Выбрать" Command="{Binding SelectColorCommand}"
+                                Padding="5,2" Margin="0,0,10,0"
+                                IsEnabled="{Binding NoPaint, Converter={StaticResource InverseBool}}"/>
                         <TextBlock Text="{Binding ColorName}" FontSize="12" VerticalAlignment="Center"
                                    Foreground="{Binding ColorName, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
+                        <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint, UpdateSourceTrigger=PropertyChanged}"
+                                  Margin="15,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <!-- Article for Purchased -->
@@ -107,19 +121,19 @@
             <TabControl Grid.Column="0" Margin="0,0,10,0">
                 
                 <!-- Blank Properties Tab (for Parts) -->
-                <TabItem Header="Свойства заготовки" Visibility="{Binding IsPart, Converter={StaticResource BoolToVis}}">
+                <TabItem Header="Свойства заготовки">
                     <DataGrid ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
-                              CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column">
+                              CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column" SelectionMode="Single">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
                             <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
-                            <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80"/>
+                            <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80" Visibility="Hidden"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </TabItem>
 
                 <!-- Sheet Metal Properties Tab -->
-                <TabItem Header="Свойства листовой заготовки" Visibility="{Binding IsSheetMetal, Converter={StaticResource BoolToVis}}">
+                <!--<TabItem Header="Свойства листовой заготовки" Visibility="{Binding IsSheetMetal, Converter={StaticResource BoolToVis}}">
                     <DataGrid ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
                               CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column">
                         <DataGrid.Columns>
@@ -128,7 +142,7 @@
                             <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                </TabItem>
+                </TabItem>-->
 
                 <!-- Assembly Specification Tab -->
                 <TabItem Header="Спецификация" Visibility="{Binding IsAssembly, Converter={StaticResource BoolToVis}}">
@@ -165,7 +179,7 @@
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
             <Button Content="Сохранить" Command="{Binding SaveCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Padding="15,5" FontSize="14" MinWidth="100"
-                    IsEnabled="{Binding HasErrors, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+                    IsEnabled="{Binding HasErrors, Converter={StaticResource InverseBool}}"/>
             <Button Content="Отмена" Command="{Binding CancelCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Padding="15,5" FontSize="14" MinWidth="100" Margin="10,0,0,0"/>
         </StackPanel>

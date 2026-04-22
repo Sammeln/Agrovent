@@ -21,7 +21,7 @@ namespace Agrovent.Services
 {
     public class AGR_CommandService : IAGR_CommandService
     {
-        private readonly ILogger<AGR_CommandService> _logger;
+        private readonly ILogger _logger;
         private readonly IAGR_ComponentVersionService _componentVersionService; // Возможно, нужен для AvaArticle
         private readonly IServiceProvider _serviceProvider; // Необходим для получения VM
         private readonly IAGR_ViewModelCacheService _viewModelCache;
@@ -212,13 +212,14 @@ namespace Agrovent.Services
                 var confirmationDialog = new SaveConfirmationView
                 {
                     DataContext = confirmationVM,
-                    Owner = Application.Current?.MainWindow
+                    ShowInTaskbar = true
                 };
 
-                var? dialogResult = confirmationDialog.ShowDialog();
+
+                var dialogResult = confirmationDialog.ShowDialog();
                 
                 // Если пользователь нажал "Отмена" или закрыл окно - прерываем сохранение
-                if (dialogResult != true)
+                if (confirmationVM.DialogResult != true)
                 {
                     _logger.LogInformation("Сохранение отменено пользователем.");
                     return false;
