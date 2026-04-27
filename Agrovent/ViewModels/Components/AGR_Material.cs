@@ -22,7 +22,6 @@ namespace Agrovent.ViewModels.Components
             // Инициализация Name из документа
             Name = doc3D.Configurations.Active.Properties.AGR_TryGetProp(AGR_PropertyNames.Material).Value?.ToString() ?? string.Empty;
             // Article и UOM остаются пустыми или null до тех пор, пока AvaModel не будет установлен
-            //TryLoadAvaModelFromNameAsync().Wait();
         }
 
         public AGR_Material(AvaArticleModel avaArticle, ILogger<AGR_Material>? logger = null)
@@ -34,7 +33,7 @@ namespace Agrovent.ViewModels.Components
 
         public AGR_Material(string materialName)
         {
-            Name = materialName; 
+            Name = materialName;
         }
         #endregion
 

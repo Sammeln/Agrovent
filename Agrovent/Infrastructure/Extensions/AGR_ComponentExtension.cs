@@ -18,6 +18,7 @@ namespace Agrovent.Infrastructure.Extensions
     {
         public static AGR_AvaType_e AvaType(this ISwDocument3D xDoc)
         {
+            if (!xDoc.IsAlive) return AGR_AvaType_e.Component;
             try
             {
                     var prop = xDoc.Configurations.Active.Properties.GetOrPreCreate(AGR_PropertyNames.AvaType);
