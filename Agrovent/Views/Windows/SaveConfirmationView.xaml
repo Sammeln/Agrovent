@@ -19,6 +19,8 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <converters:AGR_NullToVisibilityConverter x:Key="NullToVis"/>
         <converters:AGR_InverseBooleanConverter x:Key="InverseBool"/>
+        <converters:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
+        
         <Style x:Key="ErrorBorderStyle" TargetType="Border">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding HasErrors}" Value="True">
@@ -154,13 +156,25 @@
 
                 <!-- Assembly Specification Tab -->
                 <TabItem Header="Спецификация" Visibility="{Binding IsAssembly, Converter={StaticResource BoolToVis}}">
-                    <DataGrid ItemsSource="{Binding SpecificationItems}" AutoGenerateColumns="False" 
+                    <DataGrid ItemsSource="{Binding SpecificationItemsView}" AutoGenerateColumns="False" 
                               CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column">
+                        
+                        <DataGrid.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name, Converter={StaticResource ComponentTypeConverter}}"
+                                                   FontWeight="Bold" FontSize="14" Margin="5,10,5,5"/>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
+                        
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="120"/>
-                            <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="60"/>
-                            <DataGridTextColumn Header="Тип" Binding="{Binding ComponentType}" Width="80"/>
+                            <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="3*"/>
+                            <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="*"/>
+                            <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="*"/>
+                            
                         </DataGrid.Columns>
                     </DataGrid>
                 </TabItem>

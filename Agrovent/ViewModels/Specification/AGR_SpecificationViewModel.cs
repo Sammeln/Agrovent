@@ -588,6 +588,7 @@ namespace Agrovent.ViewModels.Specification
                 //_logger?.LogError(ex, "Ошибка при открытии окна выбора AvaArticle для компонента {PartNumber}", PartNumber);
             }
 
+            DeselectAllComponents();
         }
         #endregion
 

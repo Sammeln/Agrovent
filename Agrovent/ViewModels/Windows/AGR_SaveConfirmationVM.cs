@@ -23,6 +23,8 @@ using Agrovent.DAL;
 using Agrovent.Views.Windows;
 using Agrovent.Infrastructure.Interfaces.Properties;
 using Xarial.XCad.Data;
+using System.ComponentModel;
+using System.Windows.Data;
 
 namespace Agrovent.ViewModels.Windows
 {
@@ -215,7 +217,28 @@ namespace Agrovent.ViewModels.Windows
         public ObservableCollection<AGR_SpecificationItemVM> SpecificationItems
         {
             get => _specificationItems;
-            set => Set(ref _specificationItems, value);
+            set
+            {
+                if (Set(ref _specificationItems, value))
+                {
+                    OnPropertyChanged(nameof(SpecificationItemsView));
+                }
+            }
+        }
+
+        private CollectionViewSource _specificationItemsViewSource;
+        public ICollectionView SpecificationItemsView
+        {
+            get
+            {
+                if (_specificationItemsViewSource == null && SpecificationItems != null)
+                {
+                    _specificationItemsViewSource = new CollectionViewSource();
+                    _specificationItemsViewSource.Source = SpecificationItems;
+                    _specificationItemsViewSource.GroupDescriptions.Add(new PropertyGroupDescription(nameof(AGR_SpecificationItemVM.ComponentType)));
+                }
+                return _specificationItemsViewSource?.View;
+            }
         }
 
         #endregion
@@ -475,7 +498,7 @@ namespace Agrovent.ViewModels.Windows
 
             if (IsPart)
             {
-                if (string.IsNullOrEmpty(MaterialName))
+                if (string.IsNullOrEmpty(MaterialName) || string.IsNullOrWhiteSpace(MaterialName))
                 {
                     ErrorMessages.Add(AGR_SaveConfirmationErrors.NoMaterial);
                 }
@@ -483,11 +506,11 @@ namespace Agrovent.ViewModels.Windows
             if (IsProduced)
             {
 
-                if (string.IsNullOrEmpty(ColorName))
+                if (string.IsNullOrEmpty(ColorName) || string.IsNullOrWhiteSpace(ColorName))
                 {
                     ErrorMessages.Add(AGR_SaveConfirmationErrors.NoColor);
                 }
-                if (string.IsNullOrEmpty(Article))
+                if (string.IsNullOrEmpty(Article) || string.IsNullOrWhiteSpace(Article))
                 {
                     ErrorMessages.Add(AGR_SaveConfirmationErrors.NoArticle);
                 }
@@ -495,10 +518,53 @@ namespace Agrovent.ViewModels.Windows
 
             if (IsPurchased)
             {
-                if (string.IsNullOrEmpty(Article))
+                if (string.IsNullOrEmpty(Article) || string.IsNullOrWhiteSpace(Article))
                 {
                     ErrorMessages.Add(AGR_SaveConfirmationErrors.NoArticle);
                 }
+            }
+
+            // Validate specification items for assemblies
+            if (IsAssembly && SpecificationItems != null)
+            {
+                foreach (var item in SpecificationItems)
+                {
+                    // Check material for parts and sheet metal parts
+                    if (item.ComponentType == AGR_ComponentType_e.Part ||
+                        item.ComponentType == AGR_ComponentType_e.SheetMetallPart)
+                    {
+                        if (string.IsNullOrEmpty(item.MaterialName))
+                        {
+                            string errorMsg = $"{item.Name}: не указан материал компонента";
+                            if (!ErrorMessages.Contains(errorMsg))
+                            {
+                                ErrorMessages.Add(errorMsg);
+                            }
+                        }
+                    }
+
+                    // Check article for purchased components
+                    if (item.ComponentType == AGR_ComponentType_e.Purchased)
+                    {
+                        if (item.AvaArticle == null)
+                        {
+                            string errorMsg = $"{item.Name}: не указан артикул покупного компонента";
+                            if (!ErrorMessages.Contains(errorMsg))
+                            {
+                                ErrorMessages.Add(errorMsg);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (NoPaint)
+            {
+                ErrorMessages.Remove(AGR_SaveConfirmationErrors.NoColor);
+            }
+            if (NoArticle)
+            {
+                ErrorMessages.Remove(AGR_SaveConfirmationErrors.NoArticle);
             }
 
             OnPropertyChanged(nameof(HasErrors));
