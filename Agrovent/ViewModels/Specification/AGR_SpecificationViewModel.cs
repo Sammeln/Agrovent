@@ -23,13 +23,12 @@ namespace Agrovent.ViewModels.Specification
     public class AGR_SpecificationViewModel : BaseViewModel
     {
         private readonly AGR_AssemblyComponentVM _baseComponent;
-        private readonly ILogger _logger; // Добавляем логгер
+        private readonly ILogger _logger;
         private readonly IUnitOfWork _unitOfWork;
 
         #region CTOR
         public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent, IUnitOfWork unitOfWork)
         {
-
             //_logger = AGR_ServiceContainer.GetService<ILogger>();
             _baseComponent = baseComponent;
             _unitOfWork = unitOfWork;
@@ -44,6 +43,11 @@ namespace Agrovent.ViewModels.Specification
             GroupedComponentsView = CollectionViewSource.GetDefaultView(Components);
             UpdateGroupedView();
 
+            // Инициализируем свойства главной сборки
+            BaseAssemblyPreview = _baseComponent.Preview;
+            BaseAssemblyName = _baseComponent.Name;
+            BaseAssemblyPartNumber = _baseComponent.PartNumber;
+
             // Загружаем компоненты асинхронно
             await LoadComponentsAsync(); 
             // Загружаем материалы асинхронно
@@ -55,7 +59,6 @@ namespace Agrovent.ViewModels.Specification
         #endregion
 
         #region Публичные свойства
-        //public ICollectionView GroupedComponentsView => _groupedComponentsView?.View;
         public ICollectionView GroupedComponentsView { get; private set; }
 
         private ObservableCollection<AGR_SpecificationItemVM> _components;
@@ -93,17 +96,102 @@ namespace Agrovent.ViewModels.Specification
             get => _hasComponents;
             private set => Set(ref _hasComponents, value);
         }
+
+        #region Свойства главной сборки
+        private byte[] _baseAssemblyPreview;
+        public byte[] BaseAssemblyPreview
+        {
+            get => _baseAssemblyPreview;
+            set => Set(ref _baseAssemblyPreview, value);
+        }
+
+        private string _baseAssemblyName;
+        public string BaseAssemblyName
+        {
+            get => _baseAssemblyName;
+            set => Set(ref _baseAssemblyName, value);
+        }
+
+        private string _baseAssemblyPartNumber;
+        public string BaseAssemblyPartNumber
+        {
+            get => _baseAssemblyPartNumber;
+            set => Set(ref _baseAssemblyPartNumber, value);
+        }
+
+        private bool _noPaint;
+        public bool NoPaint
+        {
+            get => _noPaint;
+            set => Set(ref _noPaint, value);
+        }
+
+        private bool _noArticle;
+        public bool NoArticle
+        {
+            get => _noArticle;
+            set => Set(ref _noArticle, value);
+        }
+
+        private string _errors;
+        public string Errors
+        {
+            get => _errors;
+            set => Set(ref _errors, value);
+        }
+
+        private bool _hasErrors;
+        public bool HasErrors
+        {
+            get => _hasErrors;
+            set => Set(ref _hasErrors, value);
+        }
+        #endregion
         #endregion
 
         #region Команды
         private RelayCommand _closeCommand;
         public RelayCommand CloseCommand => _closeCommand ??= new RelayCommand(
-            _ => CloseWindow?.Invoke(),
+            _ => 
+            {
+                DialogResult = false;
+                CloseWindow?.Invoke();
+            },
             _ => true);
+
+        private RelayCommand _saveCommand;
+        public RelayCommand SaveCommand => _saveCommand ??= new RelayCommand(
+            async _ => await SaveAsync(),
+            _ => true);
+
+        private RelayCommand _selectArticleCommand;
+        public RelayCommand SelectArticleCommand => _selectArticleCommand ??= new RelayCommand(
+            _ => SelectArticle(),
+            _ => true);
+
+        private RelayCommand _selectPaintCommand;
+        public RelayCommand SelectPaintCommand => _selectPaintCommand ??= new RelayCommand(
+            _ => SelectPaint(),
+            _ => true);
+
         #endregion
 
         #region События
         public event Action CloseWindow;
+        public event Action<bool?> DialogResultChanged;
+        
+        private bool? _dialogResult;
+        public bool? DialogResult
+        {
+            get => _dialogResult;
+            set
+            {
+                if (Set(ref _dialogResult, value))
+                {
+                    DialogResultChanged?.Invoke(_dialogResult);
+                }
+            }
+        }
         #endregion
 
         #region Статистические свойства
@@ -627,7 +715,113 @@ namespace Agrovent.ViewModels.Specification
             UpdateGroupedView();
 
         }
-        #endregion 
+        #endregion
+
+        #region SaveAsync - Сохранение с валидацией
+        private async Task SaveAsync()
+        {
+            Errors = null;
+            HasErrors = false;
+            var errorList = new List<string>();
+
+            // Проверка: есть ли артикул у главной сборки (если не установлен чекбокс "без артикула")
+            if (!NoArticle && string.IsNullOrEmpty(_baseComponent.AvaArticle?.Article?.ToString()))
+            {
+                errorList.Add("У главной сборки отсутствует артикул.");
+            }
+
+            // Проверка: материал у деталей и листовых деталей
+            foreach (var comp in Components)
+            {
+                if (comp.ComponentType == AGR_ComponentType_e.Part || comp.ComponentType == AGR_ComponentType_e.SheetMetallPart)
+                {
+                    if (comp.MaterialAvaModel == null && string.IsNullOrEmpty(comp.MaterialName))
+                    {
+                        errorList.Add($"У компонента \"{comp.Name}\" ({comp.PartNumber}) не установлен материал.");
+                    }
+                }
+
+                // Проверка: артикул у покупных компонентов
+                if (comp.ComponentType == AGR_ComponentType_e.Purchased)
+                {
+                    if (comp.AvaArticle == null && string.IsNullOrEmpty(comp.Article))
+                    {
+                        errorList.Add($"У покупного компонента \"{comp.Name}\" отсутствует артикул.");
+                    }
+                }
+            }
+
+            if (errorList.Any())
+            {
+                Errors = string.Join("\n", errorList);
+                HasErrors = true;
+                return;
+            }
+
+            // Если все проверки пройдены, устанавливаем DialogResult = true и закрываем окно
+            DialogResult = true;
+            CloseWindow?.Invoke();
+        }
+        #endregion
+
+        #region SelectArticle - Выбор артикула для главной сборки
+        private void SelectArticle()
+        {
+            try
+            {
+                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
+
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
+                selectVm.SearchText = _baseComponent.Name;
+
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+                selectView.ShowActivated = true;
+                selectView.ShowDialog();
+
+                if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
+                {
+                    _baseComponent.AvaArticle = selectVm.SelectedArticle;
+                    BaseAssemblyPartNumber = selectVm.SelectedArticle.Article.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Ошибка при выборе артикула для главной сборки.");
+            }
+        }
+        #endregion
+
+        #region SelectPaint - Выбор покрытия для главной сборки
+        private void SelectPaint()
+        {
+            try
+            {
+                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
+
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
+                selectVm.SearchText = "Краска порошковая";
+                selectVm.SelectedAvaType = "Товар";
+
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+                selectView.ShowActivated = true;
+                selectView.ShowDialog();
+
+                if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
+                {
+                    if (_baseComponent is IAGR_HasPaint hasPaint)
+                    {
+                        hasPaint.Paint = new AGR_Material(selectVm.SelectedArticle);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Ошибка при выборе покрытия для главной сборки.");
+            }
+        }
+        #endregion
 
         #endregion
     }
