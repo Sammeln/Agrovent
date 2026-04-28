@@ -1,36 +1,78 @@
-# Build artifacts
-bin/
-obj/
+```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
 *.exe
 *.dll
-*.pdb
-*.userprefs
+*.so
+*.class
+*.out
+*.a
 
 # Dependencies
-packages/
 node_modules/
-
-# Logs
-*.log
-
-# Environment
+venv/
+.venv/
 .env
 .env.local
-*.env.*
+.env.*
+
+# Build directories
+dist/
+build/
+target/
+*.egg-info/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
 
 # Editors
-.vs/
 .vscode/
 .idea/
-*.user
-*.userosscache
-*.suo
-*.userprefs
+*.iml
+*.ipr
+*.iws
 
 # OS generated files
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Test results
-TestResults/
+# Testing and coverage
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.nyc_output/
+coverage-final.json
+
+# Compression and archives
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```

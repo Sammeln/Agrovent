@@ -144,27 +144,17 @@
 
                     <!-- Чекбокс "Без артикула" -->
                     <CheckBox Grid.Row="3" Grid.Column="0" Content="Без артикула" IsChecked="{Binding NoArticle}" Margin="0,0,0,8"/>
-
-                    <!-- Ошибки валидации -->
-                    <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" 
-                            Background="#FFEBEE" 
-                            BorderBrush="#F44336" 
-                            BorderThickness="1" 
-                            Padding="8" 
-                            Margin="0,8,0,0"
-                            CornerRadius="4"
-                            Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <TextBlock Text="{Binding Errors}" 
-                                   TextWrapping="Wrap" 
-                                   Foreground="#D32F2F"
-                                   FontWeight="Bold"/>
-                    </Border>
                 </Grid>
             </Grid>
         </Border>
 
-        <!-- Основной контент - DataGrid с группировкой -->
+        <!-- Основной контент - DataGrid с группировкой и панель ошибок -->
         <Grid Grid.Row="2" Margin="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
             <Grid.Resources>
                 <!-- CollectionViewSource для группировки компонентов -->
                 <CollectionViewSource x:Key="1GroupedComponents" 
@@ -181,7 +171,8 @@
 
             <!-- DataGrid с группировкой -->
             <!--ItemsSource="{Binding  Source={StaticResource GroupedComponents}}"-->
-            <DataGrid ItemsSource="{Binding GroupedComponentsView}"
+            <DataGrid Grid.Column="0"
+                      ItemsSource="{Binding GroupedComponentsView}"
                       Style="{StaticResource SpecificationDataGrid}"
                       AutoGenerateColumns="False"
                       CanUserSortColumns="True"
@@ -294,6 +285,27 @@
 
             </DataGrid>
 
+            <!-- Панель ошибок справа -->
+            <Border Grid.Column="1" 
+                    Background="#FFEBEE" 
+                    BorderBrush="#F44336" 
+                    BorderThickness="1" 
+                    Padding="12" 
+                    Margin="16,0,0,0"
+                    CornerRadius="4"
+                    MinWidth="250"
+                    Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="Ошибки валидации:" 
+                               FontWeight="Bold" 
+                               Foreground="#D32F2F"
+                               Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding Errors}" 
+                               TextWrapping="Wrap" 
+                               Foreground="#D32F2F"/>
+                </StackPanel>
+            </Border>
+
             <!-- Сообщение при отсутствии компонентов -->
             <!--<TextBlock Text="Нет компонентов для отображения" 
                        Style="{StaticResource EmptySpecificationStyle}"
@@ -316,7 +328,8 @@
                 <Button Content="Отмена" 
                         Style="{StaticResource ActionButtonStyle}"
                         Margin="12,0,0,0"
-                        Command="{Binding CloseCommand}"
+                        Command="{Binding CancelCommand}"
+                        CommandParameter="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=Window}}"
                         Background="#F44336" 
                         Foreground="White"/>
             </StackPanel>

@@ -150,19 +150,27 @@ namespace Agrovent.ViewModels.Specification
         #endregion
 
         #region Команды
-        private RelayCommand _closeCommand;
-        public RelayCommand CloseCommand => _closeCommand ??= new RelayCommand(
-            _ => 
-            {
-                DialogResult = false;
-                CloseWindow?.Invoke();
-            },
-            _ => true);
+        #region CancelCommand
+        private ICommand _CancelCommand;
+        public ICommand CancelCommand => _CancelCommand
+            ??= new RelayCommand(OnCancelExecuted);
+        private void OnCancelExecuted(object p)
+        {
+            DialogResult = false;
+            var view = p as Window;
+            view?.Close();
+        }
+        #endregion
 
         private RelayCommand _saveCommand;
         public RelayCommand SaveCommand => _saveCommand ??= new RelayCommand(
-            async _ => await SaveAsync(),
+            _ => OnSaveExecuted(),
             _ => true);
+        private void OnSaveExecuted()
+        {
+            DialogResult = true;
+            CloseWindow?.Invoke();
+        }
 
         private RelayCommand _selectArticleCommand;
         public RelayCommand SelectArticleCommand => _selectArticleCommand ??= new RelayCommand(
@@ -233,6 +241,72 @@ namespace Agrovent.ViewModels.Specification
 
 
         #region METHODS
+        /// <summary>
+        /// Метод валидации данных спецификации
+        /// </summary>
+        private void ValidateSpecification()
+        {
+            Errors = null;
+            HasErrors = false;
+            var errorList = new List<string>();
+
+            // Проверка: есть ли артикул у главной сборки (если не установлен чекбокс "без артикула")
+            if (!NoArticle && string.IsNullOrEmpty(_baseComponent.AvaArticle?.Article?.ToString()))
+            {
+                errorList.Add("У главной сборки отсутствует артикул.");
+            }
+
+            // Проверка: материал у деталей и листовых деталей
+            foreach (var comp in Components)
+            {
+                if (comp.ComponentType == AGR_ComponentType_e.Part || comp.ComponentType == AGR_ComponentType_e.SheetMetallPart)
+                {
+                    if (comp.MaterialAvaModel == null && string.IsNullOrEmpty(comp.MaterialName))
+                    {
+                        errorList.Add($"У компонента \"{comp.Name}\" ({comp.PartNumber}) не установлен материал.");
+                    }
+                }
+
+                // Проверка: артикул у покупных компонентов
+                if (comp.ComponentType == AGR_ComponentType_e.Purchased)
+                {
+                    if (comp.AvaArticle == null && string.IsNullOrEmpty(comp.Article))
+                    {
+                        errorList.Add($"У покупного компонента \"{comp.Name}\" отсутствует артикул.");
+                    }
+                }
+            }
+
+            if (errorList.Any())
+            {
+                Errors = string.Join("\n", errorList);
+                HasErrors = true;
+            }
+        }
+
+        private async void Initialize()
+        {
+            // Инициализируем пустую коллекцию
+            Components = new ObservableCollection<AGR_SpecificationItemVM>();
+            GroupedComponentsView = CollectionViewSource.GetDefaultView(Components);
+            UpdateGroupedView();
+
+            // Инициализируем свойства главной сборки
+            BaseAssemblyPreview = _baseComponent.Preview;
+            BaseAssemblyName = _baseComponent.Name;
+            BaseAssemblyPartNumber = _baseComponent.PartNumber;
+
+            // Загружаем компоненты асинхронно
+            await LoadComponentsAsync(); 
+            // Загружаем материалы асинхронно
+            await LoadMaterialsForComponentsAsync();
+            // Загружаем AvaArticle для покупных компонентов асинхронно
+            await LoadAvaArticlesForPurchasedComponentsAsync();
+
+            // Выполняем валидацию после загрузки всех данных
+            ValidateSpecification();
+        }
+
         private void LoadComponents()
         {
             if (_baseComponent.GetChildComponents() == null)
@@ -714,53 +788,6 @@ namespace Agrovent.ViewModels.Specification
 
             UpdateGroupedView();
 
-        }
-        #endregion
-
-        #region SaveAsync - Сохранение с валидацией
-        private async Task SaveAsync()
-        {
-            Errors = null;
-            HasErrors = false;
-            var errorList = new List<string>();
-
-            // Проверка: есть ли артикул у главной сборки (если не установлен чекбокс "без артикула")
-            if (!NoArticle && string.IsNullOrEmpty(_baseComponent.AvaArticle?.Article?.ToString()))
-            {
-                errorList.Add("У главной сборки отсутствует артикул.");
-            }
-
-            // Проверка: материал у деталей и листовых деталей
-            foreach (var comp in Components)
-            {
-                if (comp.ComponentType == AGR_ComponentType_e.Part || comp.ComponentType == AGR_ComponentType_e.SheetMetallPart)
-                {
-                    if (comp.MaterialAvaModel == null && string.IsNullOrEmpty(comp.MaterialName))
-                    {
-                        errorList.Add($"У компонента \"{comp.Name}\" ({comp.PartNumber}) не установлен материал.");
-                    }
-                }
-
-                // Проверка: артикул у покупных компонентов
-                if (comp.ComponentType == AGR_ComponentType_e.Purchased)
-                {
-                    if (comp.AvaArticle == null && string.IsNullOrEmpty(comp.Article))
-                    {
-                        errorList.Add($"У покупного компонента \"{comp.Name}\" отсутствует артикул.");
-                    }
-                }
-            }
-
-            if (errorList.Any())
-            {
-                Errors = string.Join("\n", errorList);
-                HasErrors = true;
-                return;
-            }
-
-            // Если все проверки пройдены, устанавливаем DialogResult = true и закрываем окно
-            DialogResult = true;
-            CloseWindow?.Invoke();
         }
         #endregion
 
