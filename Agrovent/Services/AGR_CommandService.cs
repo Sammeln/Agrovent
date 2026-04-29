@@ -225,15 +225,19 @@ namespace Agrovent.Services
                     {
                         DataContext = specificationVM,
                         Title = specificationVM.WindowTitle,
-                        Width = 1200,
-                        Height = 800,
+                        WindowState = WindowState.Maximized,
                         ResizeMode = ResizeMode.CanResizeWithGrip,
                         ShowInTaskbar = true
                     };
 
                     specificationWindow.ShowDialog();
 
-                    // После показа спецификации продолжаем сохранение без подтверждения
+                    var dialogResult = specificationVM.DialogResult;
+                    if (dialogResult != true)
+                    {
+                        _logger.LogInformation("Сохранение отменено пользователем.");
+                        return false;
+                    }
                     // Пользователь уже просмотрел спецификацию, значит подтверждает сохранение
                 }
                 else

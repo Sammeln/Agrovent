@@ -1,19 +1,17 @@
 ﻿using Xarial.XCad.Base.Attributes;
 using Xarial.XCad.UI.Commands.Attributes;
+using Xarial.XCad.UI.Commands.Enums;
 
 namespace Agrovent.Infrastructure.Enums
 {
     public enum AGR_Commands_e
     {
-        [Title("Спецификация")]
-        [CommandItemInfo(true, true, Xarial.XCad.UI.Commands.Enums.WorkspaceTypes_e.Assembly)]
-        Command1,
+        [Title("Информация / сохранить")]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly | WorkspaceTypes_e.Part, true, RibbonTabTextDisplay_e.TextBelow)]
+        SaveComponent,
 
         [Title("Экспорт в Iges")]
         ExportToIges,
-
-        [Title("Сохранить")]
-        SaveComponent,
 
         [Title("Обновить свойства")]
         UpdateProperties,
@@ -26,7 +24,7 @@ namespace Agrovent.Infrastructure.Enums
 
         //1993
         [Title("Переместить компонент")]
-        [CommandItemInfo(true, true, Xarial.XCad.UI.Commands.Enums.WorkspaceTypes_e.Assembly)]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly)]
         MoveComponentWithTriade,
         
         [Title("Тестовая команда")]

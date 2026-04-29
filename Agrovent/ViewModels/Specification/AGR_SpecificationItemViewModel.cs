@@ -35,11 +35,11 @@ namespace Agrovent.ViewModels.Specification
                 if (_component is AGR_PartComponentVM part)
                 {
                     MaterialName = part.BaseMaterial?.Name;
-                    PaintName = part.Paint?.Name;
+                    //PaintName = part.Paint?.Name;
                 }
                 if (_component is AGR_AssemblyComponentVM assembly)
                 {
-                    PaintName = assembly.Paint?.Name;
+                    //PaintName = assembly.Paint?.Name;
                 }
             }
             AvaArticle = _component.AvaArticle;
@@ -145,29 +145,42 @@ namespace Agrovent.ViewModels.Specification
             set
             {
                 Set(ref _PaintAvaModel, value);
-                AGR_Material newMaterial = new AGR_Material(value);
-                (Component as AGR_PartComponentVM).Paint = newMaterial;
-                PaintName = newMaterial.Name;
+                if (value != null)
+                {
+                    AGR_Material newMaterial = new AGR_Material(value);
+                    if (Component is AGR_PartComponentVM partComp)
+                    {
+                        partComp.Paint = newMaterial;
+                    }
+                    if (Component is AGR_AssemblyComponentVM assemComp)
+                    {
+                        assemComp.Paint = newMaterial;
+                    }
+                }
+                else
+                {
+                    (Component as AGR_PartComponentVM).Paint = null;
+                }
+                OnPropertyChanged(nameof(PaintName));
             }
         }
         #endregion 
         private string _PaintName;
         public string PaintName
         {
-            get => _PaintName;
-            //{
-            //    return _PaintName;
-            //    if (_component is AGR_PartComponentVM part)
-            //        return part.Paint?.Name;
-            //    if (_component is AGR_AssemblyComponentVM assembly)
-            //    {
-            //        // Для сборки можно попробовать получить покраску
-            //        // Или вернуть null, если не применимо
-            //        return null;
-            //    }
-            //    return null;
-            //}
-            set => Set(ref _PaintName, value);
+            get
+            {
+                if (PaintAvaModel is null)
+                {
+                    Set(ref _PaintName, "Без покрытия");
+                    return _PaintName;
+                }
+                else
+                {
+                    Set(ref _PaintName, PaintAvaModel.Name);
+                    return _PaintName;
+                }
+            }
         }
 
         // Свойство для толщины (только для листовых деталей)

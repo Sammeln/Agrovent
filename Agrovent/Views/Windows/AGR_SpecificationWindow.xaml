@@ -103,7 +103,7 @@
         <Border Grid.Row="1" Background="#F5F5F5" Padding="16" Margin="16,8,16,8" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="160"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
@@ -113,38 +113,42 @@
                 </Border>
 
                 <!-- Информация о главной сборке и настройки -->
-                <Grid Grid.Column="1">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="1" Orientation="Vertical">
 
                     <!-- Наименование -->
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
-                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding BaseAssemblyName}" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
+                        <TextBlock Grid.Column="1" Text="{Binding BaseAssemblyName}" Margin="0,0,0,8"/>
+                    </StackPanel>
 
+                    <!-- Partnumber -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Обозначение (Partnumber):" FontWeight="Bold" Margin="0,0,8,8"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BaseAssemblyPartNumber}" Margin="0,0,8,8"/>
+                    </StackPanel>
+                    
                     <!-- Артикул -->
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Артикул:" FontWeight="Bold" Margin="0,0,8,8"/>
-                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BaseAssemblyPartNumber}" Margin="0,0,8,8"/>
-                    <Button Grid.Row="1" Grid.Column="2" Content="Выбрать артикул" Command="{Binding SelectArticleCommand}" Padding="8,4" Margin="0,0,0,8"/>
-
-                    <!-- Чекбокс "Без покрытия" -->
-                    <CheckBox Grid.Row="2" Grid.Column="0" Content="Без покрытия" IsChecked="{Binding NoPaint}" Margin="0,0,0,8"/>
-
-                    <!-- Кнопка выбора покрытия -->
-                    <Button Grid.Row="2" Grid.Column="1" Content="Выбрать покрытие" Command="{Binding SelectPaintCommand}" Padding="8,4" Margin="8,0,0,8" HorizontalAlignment="Left"/>
-
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Артикул:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <Button Content="Выбрать" Command="{Binding SelectArticleCommand}" Padding="8,4" Margin="0,0,0,8"/>
+                            <TextBlock Text="{Binding ArticleString}" Margin="10,0,8,8"/>
+                        </StackPanel>
                     <!-- Чекбокс "Без артикула" -->
                     <CheckBox Grid.Row="3" Grid.Column="0" Content="Без артикула" IsChecked="{Binding NoArticle}" Margin="0,0,0,8"/>
-                </Grid>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Покрытие:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <Button Content="Выбрать" Command="{Binding SelectPaintCommand}" Padding="8,4" Margin="8,0,0,8" HorizontalAlignment="Left"/>
+                            <TextBlock Text="{Binding BaseAssemblyArticle}" Margin="0,0,8,8"/>
+                        </StackPanel>
+                    <!-- Чекбокс "Без покрытия" -->
+                    <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint}" Margin="0,0,0,8"/>
+                    </StackPanel>
+
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -183,7 +187,7 @@
 
                 <DataGrid.InputBindings>
                     <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
-                    <MouseBinding Gesture="RightClick" Command="{Binding SelectComponentCommand}"/>
+                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectComponentCommand}"/>
                 </DataGrid.InputBindings>
                 
 
@@ -326,10 +330,10 @@
                         Foreground="White"/>
 
                 <Button Content="Отмена" 
+                        Command="{Binding CancelCommand}"
+                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                         Style="{StaticResource ActionButtonStyle}"
                         Margin="12,0,0,0"
-                        Command="{Binding CancelCommand}"
-                        CommandParameter="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=Window}}"
                         Background="#F44336" 
                         Foreground="White"/>
             </StackPanel>

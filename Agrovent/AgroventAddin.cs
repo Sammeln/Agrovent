@@ -177,10 +177,6 @@ namespace Agrovent
             {
                 switch (command)
                 {
-                    case AGR_Commands_e.Command1:
-                    ShowSpecificationWindow();
-                    break;
-
                     case AGR_Commands_e.ExportToIges:
 
                     //CopyDocuments();

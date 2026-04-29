@@ -142,6 +142,64 @@ namespace Agrovent.ViewModels.Windows
             ?? string.Empty;
         #endregion
 
+        #region Article (for purchased parts)
+
+
+        #region Property - IAGR_AvaArticleModel AvaArticle
+        private IAGR_AvaArticleModel? _AvaArticle;
+        public IAGR_AvaArticleModel? AvaArticle
+        {
+            get => _AvaArticle;
+            set
+            {
+                Set(ref _AvaArticle, value);
+                if (_component is AGR_PartComponentVM partComponent)
+                {
+                    partComponent.AvaArticle = value;
+                }
+                if (_component is AGR_AssemblyComponentVM assemComponent)
+                {
+                    assemComponent.AvaArticle = value;
+                }
+                OnPropertyChanged(nameof(Article));
+                OnPropertyChanged(nameof(HasErrors));
+            }
+        }
+        #endregion
+
+        #region Property - NoArticle
+        private bool _NoArticle;
+        public bool NoArticle
+        {
+            get => _NoArticle;
+            set
+            {
+                Set(ref _NoArticle, value);
+                if (NoArticle)
+                {
+                    //Если есть ошибка "нет артикула" удаляем
+                    if (ErrorMessages.Contains(AGR_SaveConfirmationErrors.NoArticle)) ErrorMessages.Remove(AGR_SaveConfirmationErrors.NoArticle);
+
+                    //Если поставили "нет артикула" убираем артикул из компонента
+                    AvaArticle = null;
+                }
+                else
+                {
+                    //Если убрали галочку, проверяем, нет ли ошибки "нет артикула" в списке
+                    //если нет, добавляем
+                    if (!ErrorMessages.Contains(AGR_SaveConfirmationErrors.NoArticle)) ErrorMessages.Add(AGR_SaveConfirmationErrors.NoArticle);
+                }
+
+                OnPropertyChanged(nameof(Article));
+                OnPropertyChanged(nameof(HasErrors));
+            }
+        }
+        #endregion
+        public string Article =>
+            (AvaArticle?.Article.ToString() + " " + AvaArticle?.Name)
+            ?? string.Empty;
+
+        #endregion
 
         #region Properties Collection (for blank properties)
         private ObservableCollection<IXProperty> _blankProperties;
@@ -284,8 +342,6 @@ namespace Agrovent.ViewModels.Windows
                 _logger?.LogError(ex, "Ошибка при выборе цвета/покрытия");
             }
         }
-        #endregion
-
         #endregion
 
         #endregion
