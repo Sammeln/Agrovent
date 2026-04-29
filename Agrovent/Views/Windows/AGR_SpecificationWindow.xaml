@@ -92,7 +92,6 @@
         <!-- Заголовок окна -->
         <Border Grid.Row="0" Style="{StaticResource WindowHeaderStyle}">
             <StackPanel Orientation="Horizontal">
-
                 <TextBlock Text="{Binding WindowTitle}" 
                            Foreground="White" 
                            FontSize="16" 
@@ -100,8 +99,66 @@
             </StackPanel>
         </Border>
 
-        <!-- Основной контент - DataGrid с группировкой -->
+        <!-- Панель с превью главной сборки и настройками -->
+        <Border Grid.Row="1" Background="#F5F5F5" Padding="16" Margin="16,8,16,8" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="160"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Превью главной сборки -->
+                <Border Grid.Column="0" Width="150" Height="150" Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Margin="0,0,16,0">
+                    <Image Source="{Binding BaseAssemblyPreview}" Stretch="Uniform" />
+                </Border>
+
+                <!-- Информация о главной сборке и настройки -->
+                <StackPanel Grid.Column="1" Orientation="Vertical">
+
+                    <!-- Наименование -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
+                        <TextBlock Grid.Column="1" Text="{Binding BaseAssemblyName}" Margin="0,0,0,8"/>
+                    </StackPanel>
+
+                    <!-- Partnumber -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Обозначение (Partnumber):" FontWeight="Bold" Margin="0,0,8,8"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BaseAssemblyPartNumber}" Margin="0,0,8,8"/>
+                    </StackPanel>
+                    
+                    <!-- Артикул -->
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Артикул:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <Button Content="Выбрать" Command="{Binding SelectArticleCommand}" Padding="8,4" Margin="0,0,0,8"/>
+                            <TextBlock Text="{Binding ArticleString}" Margin="10,0,8,8"/>
+                        </StackPanel>
+                    <!-- Чекбокс "Без артикула" -->
+                    <CheckBox Grid.Row="3" Grid.Column="0" Content="Без артикула" IsChecked="{Binding NoArticle}" Margin="0,0,0,8"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Vertical">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Покрытие:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <Button Content="Выбрать" Command="{Binding SelectPaintCommand}" Padding="8,4" Margin="8,0,0,8" HorizontalAlignment="Left"/>
+                            <TextBlock Text="{Binding BaseAssemblyArticle}" Margin="0,0,8,8"/>
+                        </StackPanel>
+                    <!-- Чекбокс "Без покрытия" -->
+                    <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint}" Margin="0,0,0,8"/>
+                    </StackPanel>
+
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Основной контент - DataGrid с группировкой и панель ошибок -->
         <Grid Grid.Row="2" Margin="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
             <Grid.Resources>
                 <!-- CollectionViewSource для группировки компонентов -->
                 <CollectionViewSource x:Key="1GroupedComponents" 
@@ -118,7 +175,8 @@
 
             <!-- DataGrid с группировкой -->
             <!--ItemsSource="{Binding  Source={StaticResource GroupedComponents}}"-->
-            <DataGrid ItemsSource="{Binding GroupedComponentsView}"
+            <DataGrid Grid.Column="0"
+                      ItemsSource="{Binding GroupedComponentsView}"
                       Style="{StaticResource SpecificationDataGrid}"
                       AutoGenerateColumns="False"
                       CanUserSortColumns="True"
@@ -129,7 +187,7 @@
 
                 <DataGrid.InputBindings>
                     <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
-                    <MouseBinding Gesture="RightClick" Command="{Binding SelectComponentCommand}"/>
+                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectComponentCommand}"/>
                 </DataGrid.InputBindings>
                 
 
@@ -231,6 +289,27 @@
 
             </DataGrid>
 
+            <!-- Панель ошибок справа -->
+            <Border Grid.Column="1" 
+                    Background="#FFEBEE" 
+                    BorderBrush="#F44336" 
+                    BorderThickness="1" 
+                    Padding="12" 
+                    Margin="16,0,0,0"
+                    CornerRadius="4"
+                    MinWidth="250"
+                    Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="Ошибки валидации:" 
+                               FontWeight="Bold" 
+                               Foreground="#D32F2F"
+                               Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding Errors}" 
+                               TextWrapping="Wrap" 
+                               Foreground="#D32F2F"/>
+                </StackPanel>
+            </Border>
+
             <!-- Сообщение при отсутствии компонентов -->
             <!--<TextBlock Text="Нет компонентов для отображения" 
                        Style="{StaticResource EmptySpecificationStyle}"
@@ -243,27 +322,18 @@
                 Padding="16,12" 
                 BorderBrush="#E0E0E0" 
                 BorderThickness="0,1,0,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="Collapsed">
-                <Button Content="Обновить" 
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Сохранить" 
                         Style="{StaticResource ActionButtonStyle}"
-                        Command="{Binding RefreshCommand}"/>
-
-                <Button Content="Экспорт в Excel" 
-                        Style="{StaticResource ActionButtonStyle}"
-                        Margin="12,0,0,0"
+                        Command="{Binding SaveCommand}"
                         Background="#4CAF50" 
                         Foreground="White"/>
 
-                <Button Content="Печать" 
+                <Button Content="Отмена" 
+                        Command="{Binding CancelCommand}"
+                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                         Style="{StaticResource ActionButtonStyle}"
                         Margin="12,0,0,0"
-                        Background="#2196F3" 
-                        Foreground="White"/>
-
-                <Button Content="Закрыть" 
-                        Style="{StaticResource ActionButtonStyle}"
-                        Margin="12,0,0,0"
-                        Command="{Binding CloseCommand}"
                         Background="#F44336" 
                         Foreground="White"/>
             </StackPanel>

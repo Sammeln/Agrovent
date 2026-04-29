@@ -1,11 +1,13 @@
 ﻿// File: Services/AGR_CommandService.cs
 using Agrovent.DAL.Entities.Components; // Если нужно для AvaArticle
+using Agrovent.DAL; // Для IUnitOfWork
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions; // Для AGR_TryGetProp и т.д.
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.Specification; // Для AGR_SpecificationViewModel
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
 using Microsoft.Extensions.Logging;
@@ -207,22 +209,56 @@ namespace Agrovent.Services
                 var componentName = component.Name;
                 var componentType = activeDoc is ISwAssembly ? "Сборка" : "Деталь";
 
-                // --- ПОКАЗЫВАЕМ ОКНО ПОДТВЕРЖДЕНИЯ СОХРАНЕНИЯ ---
-                var confirmationVM = new AGR_SaveConfirmationVM(component, _logger);
-                var confirmationDialog = new SaveConfirmationView
+                // --- Проверяем тип компонента и показываем соответствующее окно ---
+                if (component.ComponentType == AGR_ComponentType_e.Assembly)
                 {
-                    DataContext = confirmationVM,
-                    ShowInTaskbar = true
-                };
+                    // Для сборки показываем спецификацию
+                    var unitOfWork = AGR_ServiceContainer.GetService<IUnitOfWork>();
+                    if (unitOfWork == null)
+                    {
+                        _logger.LogError("Не удалось получить IUnitOfWork из DI контейнера.");
+                        return false;
+                    }
+
+                    var specificationVM = new AGR_SpecificationViewModel((AGR_AssemblyComponentVM)component, unitOfWork);
+                    var specificationWindow = new AGR_SpecificationWindow
+                    {
+                        DataContext = specificationVM,
+                        Title = specificationVM.WindowTitle,
+                        WindowState = WindowState.Maximized,
+                        ResizeMode = ResizeMode.CanResizeWithGrip,
+                        ShowInTaskbar = true
+                    };
+
+                    specificationWindow.ShowDialog();
+
+                    var dialogResult = specificationVM.DialogResult;
+                    if (dialogResult != true)
+                    {
+                        _logger.LogInformation("Сохранение отменено пользователем.");
+                        return false;
+                    }
+                    // Пользователь уже просмотрел спецификацию, значит подтверждает сохранение
+                }
+                else
+                {
+                    // Для детали показываем окно подтверждения сохранения
+                    var confirmationVM = new AGR_SaveConfirmationVM(component, _logger);
+                    var confirmationDialog = new SaveConfirmationView
+                    {
+                        DataContext = confirmationVM,
+                        ShowInTaskbar = true
+                    };
 
 
-                var dialogResult = confirmationDialog.ShowDialog();
-                
-                // Если пользователь нажал "Отмена" или закрыл окно - прерываем сохранение
-                if (confirmationVM.DialogResult != true)
-                {
-                    _logger.LogInformation("Сохранение отменено пользователем.");
-                    return false;
+                    var dialogResult = confirmationDialog.ShowDialog();
+                    
+                    // Если пользователь нажал "Отмена" или закрыл окно - прерываем сохранение
+                    if (confirmationVM.DialogResult != true)
+                    {
+                        _logger.LogInformation("Сохранение отменено пользователем.");
+                        return false;
+                    }
                 }
 
                 // --- ПОЛУЧАЕМ SINGLETON SaveProgressVM ---

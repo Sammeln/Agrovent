@@ -127,12 +127,12 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Left Side: Properties or Specification -->
-            <TabControl Grid.Column="0" Margin="0,0,10,0">
-                
                 <!-- Blank Properties Tab (for Parts) -->
-                <TabItem Header="Свойства заготовки">
-                    <DataGrid ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
+            <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" CornerRadius="3" 
+                    Padding="10" MinWidth="250">
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="Свойства заготовки"  Margin="0,0,0,5" FontWeight="Bold"/>
+                    <DataGrid  ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
                               CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column" SelectionMode="Single">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
@@ -140,45 +140,8 @@
                             <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80" Visibility="Hidden"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                </TabItem>
-
-                <!-- Sheet Metal Properties Tab -->
-                <!--<TabItem Header="Свойства листовой заготовки" Visibility="{Binding IsSheetMetal, Converter={StaticResource BoolToVis}}">
-                    <DataGrid ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
-                              CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
-                            <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </TabItem>-->
-
-                <!-- Assembly Specification Tab -->
-                <TabItem Header="Спецификация" Visibility="{Binding IsAssembly, Converter={StaticResource BoolToVis}}">
-                    <DataGrid ItemsSource="{Binding SpecificationItemsView}" AutoGenerateColumns="False" 
-                              CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column">
-                        
-                        <DataGrid.GroupStyle>
-                            <GroupStyle>
-                                <GroupStyle.HeaderTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Name, Converter={StaticResource ComponentTypeConverter}}"
-                                                   FontWeight="Bold" FontSize="14" Margin="5,10,5,5"/>
-                                    </DataTemplate>
-                                </GroupStyle.HeaderTemplate>
-                            </GroupStyle>
-                        </DataGrid.GroupStyle>
-                        
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="3*"/>
-                            <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="*"/>
-                            <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="*"/>
-                            
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </TabItem>
-            </TabControl>
+                </StackPanel>
+            </Border>
 
             <!-- Right Side: Error Messages -->
             <Border Grid.Column="1" BorderBrush="Red" BorderThickness="1" CornerRadius="3" 
@@ -199,10 +162,14 @@
 
         <!-- Footer Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-            <Button Content="Сохранить" Command="{Binding SaveCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+            <Button Content="Сохранить" 
+                    Command="{Binding SaveCommand}" 
+                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Padding="15,5" FontSize="14" MinWidth="100"
                     IsEnabled="{Binding HasErrors, Converter={StaticResource InverseBool}}"/>
-            <Button Content="Отмена" Command="{Binding CancelCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+            <Button Content="Отмена" 
+                    Command="{Binding CancelCommand}" 
+                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Padding="15,5" FontSize="14" MinWidth="100" Margin="10,0,0,0"/>
         </StackPanel>
     </Grid>
