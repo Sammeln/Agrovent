@@ -222,7 +222,7 @@ namespace AGR_PropManager.ViewModels.Components
             {
                 if (ComponentType == AGR_ComponentType_e.Purchased) return false;
                 if (Operations?.Count == 0) return true;
-                if (TechnologicalProcessModel.Operations.Count == 0) return true;
+                if (TechnologicalProcessModel?.Operations?.Count == 0) return true;
                 return false;
             }
         }

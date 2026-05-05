@@ -5,7 +5,7 @@ using Agrovent.DAL;
 
 namespace AGR_PropManager.ViewModels.Windows
 {
-    public abstract class TabItemViewModel : BaseViewModel
+    public abstract class TabItemViewModel : BaseViewModel, IDisposable
     {
         private string _tabHeader;
         private bool _isClassifierTab;
@@ -20,6 +20,11 @@ namespace AGR_PropManager.ViewModels.Windows
         {
             get => _isClassifierTab;
             set => Set(ref _isClassifierTab, value);
+        }
+
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
         }
     }
 
@@ -61,6 +66,11 @@ namespace AGR_PropManager.ViewModels.Windows
 
         public void InitializeView()
         {
+            if (ClassifierItems == null)
+            {
+                ClassifierItems = new ObservableCollection<ClassifierItemViewModel>();
+            }
+
             var cvs = new System.Windows.Data.CollectionViewSource();
             cvs.Source = ClassifierItems;
             cvs.Filter += ClassifierItems_Filter;
@@ -112,6 +122,7 @@ namespace AGR_PropManager.ViewModels.Windows
     {
         private readonly UnitOfWork _unitOfWork;
         private readonly Microsoft.Extensions.Logging.ILogger? _logger;
+        private bool _isDisposed = false;
 
         public TechProcessEditorTabViewModel(ComponentItemViewModel component, 
                                              UnitOfWork unitOfWork,
@@ -137,14 +148,36 @@ namespace AGR_PropManager.ViewModels.Windows
 
         private void InitializeView()
         {
-            Component.PropertyChanged += (s, e) => Validate();
+            if (_isDisposed) return;
+
+            Component.PropertyChanged += Component_PropertyChanged;
             if (Component.Operations != null)
             {
-                ((System.Collections.Specialized.INotifyCollectionChanged)Component.Operations).CollectionChanged += (s, e) => Validate();
+                ((System.Collections.Specialized.INotifyCollectionChanged)Component.Operations).CollectionChanged += Operations_CollectionChanged;
             }
             Validate();
         }
+        private void Component_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (!_isDisposed) Validate();
+        }
 
+        private void Operations_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (!_isDisposed) Validate();
+        }
+
+        public void Dispose()
+        {
+            if (_isDisposed) return;
+
+            _isDisposed = true;
+            Component.PropertyChanged -= Component_PropertyChanged;
+            if (Component.Operations != null)
+            {
+                ((System.Collections.Specialized.INotifyCollectionChanged)Component.Operations).CollectionChanged -= Operations_CollectionChanged;
+            }
+        }
         public void Validate()
         {
             ValidationErrors.Clear();

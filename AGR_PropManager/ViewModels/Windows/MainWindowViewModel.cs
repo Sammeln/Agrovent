@@ -93,17 +93,23 @@ namespace AGR_PropManager.ViewModels.Windows
                     OpenTabs.Add(classifierTab);
                 }
 
-                foreach (var cv in latestVersions)
+                // Очищаем коллекцию перед загрузкой, чтобы избежать дублирования
+                classifierTab.ClassifierItems?.Clear();
+
+                if (classifierTab.ClassifierItems != null)
                 {
-                    var item = new ClassifierItemViewModel
+                    foreach (var cv in latestVersions)
                     {
-                        Id = cv.Id,
-                        PartNumber = cv.Component.PartNumber,
-                        Name = cv.Name,
-                        SavedDate = cv.CreatedAt,
-                        PreviewImage = cv.PreviewImage != null ? LoadImageFromBytes(cv.PreviewImage) : null
-                    };
-                    classifierTab.ClassifierItems.Add(item);
+                        var item = new ClassifierItemViewModel
+                        {
+                            Id = cv.Id,
+                            PartNumber = cv.Component.PartNumber,
+                            Name = cv.Name,
+                            SavedDate = cv.CreatedAt,
+                            PreviewImage = cv.PreviewImage != null ? LoadImageFromBytes(cv.PreviewImage) : null
+                        };
+                        classifierTab.ClassifierItems.Add(item);
+                    }
                 }
 
                 classifierTab.InitializeView();
@@ -632,7 +638,17 @@ namespace AGR_PropManager.ViewModels.Windows
         public TabItemViewModel SelectedTab
         {
             get => _selectedTab;
-            set => Set(ref _selectedTab, value);
+            set
+            {
+                if (Set(ref _selectedTab, value))
+                {
+                    // При активации вкладки классификатора убеждаемся, что данные загружены
+                    if (value is ClassifierTabViewModel classifierTab && classifierTab.ClassifierItems?.Count == 0)
+                    {
+                        _ = LoadClassifierDataAsync();
+                    }
+                }
+            }
         }
         #endregion
 
@@ -719,7 +735,10 @@ namespace AGR_PropManager.ViewModels.Windows
                 {
                     var operationsList = techProcess.Operations.Select(op => new TechOperationViewModel(op) { ParentComponent = componentVM }).ToList();
                     componentVM.Operations = new ObservableCollection<TechOperationViewModel>(operationsList);
-                    componentVM.TechnologicalProcessModel.Operations = componentVM.Operations;
+                    if (componentVM.TechnologicalProcessModel != null)
+                    {
+                        componentVM.TechnologicalProcessModel.Operations = componentVM.Operations;
+                    }
                 }
 
                 // Проверяем, есть ли уже вкладка для этого компонента
@@ -758,6 +777,10 @@ namespace AGR_PropManager.ViewModels.Windows
         {
             if (tab == null || tab.IsClassifierTab) return;
 
+            if (tab is TechProcessEditorTabViewModel techTab)
+            {
+                techTab.Dispose();
+            }
             // Если закрыли текущую вкладку, переключаемся на другую
             if (SelectedTab == tab && OpenTabs.Count > 0)
             {
