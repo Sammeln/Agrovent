@@ -25,6 +25,12 @@ namespace AGR_PropManager.Views
         {
             InitializeComponent();
             DataContext = viewModel;
+            
+            // Загружаем данные классификатора при инициализации окна
+            if (viewModel != null)
+            {
+                _ = viewModel.LoadClassifierDataAsync();
+            }
         }
     }
 }

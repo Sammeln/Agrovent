@@ -1,41 +1,53 @@
 ```
 # Build artifacts
-*.o
 *.obj
 *.exe
 *.dll
-*.so
-*.a
-*.out
-
-# Dependencies
-packages/
-lib/
-bin/
-obj/
-
-# Logs
+*.pdb
+*.user
+*.userosscache
+*.suo
+*.cache
+*.ilk
+*.exp
+*.lib
+*.iobj
+*.ipdb
+*.builds
+*.built
 *.log
 
-# Temp files
+# Dependency directories
+packages/
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+*.VC.db
+*.VC.VC.opendb
+
+# Visual Studio files
+.vs/
+*.userprefs
+
+# Temporary files
 *.tmp
-*.swp
+*.temp
+*.cache
+*.autosave
 
 # Environment
 .env
 .env.local
 *.env.*
 
-# Editors
-.vscode/
-.idea/
-*.userprefs
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# OS
+# OS generated files
 .DS_Store
 Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+Icon?
 ```
