@@ -1,5 +1,5 @@
-﻿<!-- File: Views/MainWindow.xaml -->
-<Window x:Class="AGR_PropManager.Views.MainWindow"
+<!-- File: Views/TechProcessEditorWindow.xaml -->
+<Window x:Class="AGR_PropManager.Views.TechProcessEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -13,22 +13,15 @@
         xmlns:converters="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure"
         mc:Ignorable="d"
         Title="Редактор технологического процесса"
-        WindowState="Maximized"
-        d:DataContext="{d:DesignInstance Type=vmWindows:MainWindowViewModel, IsDesignTimeCreatable=True}">
+        Height="600" Width="1000"
+        WindowStartupLocation="CenterOwner"
+        d:DataContext="{d:DesignInstance Type=vmWindows:TechProcessEditorViewModel, IsDesignTimeCreatable=True}">
 
     <Window.Resources>
         <ObjectDataProvider MethodName="GetValues" ObjectType="{x:Type enums:AGR_ComponentType_e}" x:Key="ComponentTypeEnum"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
         <converters:AGR_EmptyCollectionToVisibilityConverter x:Key="AGR_EmptyCollectionToVisibilityConverter"/>
         <converters:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
-
-        <!-- ContextMenu для строки DataGrid -->
-        <ContextMenu x:Key="ClassifierRowMenu">
-            <MenuItem Header="Открыть"
-                      CommandParameter="{Binding}"
-                      Command="{Binding DataContext.OpenItemTechProcessEditorCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=Window}}" 
-                      />
-        </ContextMenu>
 
         <!-- DataTemplate для отображения операций в ячейке -->
         <DataTemplate x:Key="OperationsTemplate" DataType="vmComp:ComponentItemViewModel">
@@ -75,8 +68,8 @@
                 </DataGrid.RowStyle>
                 
                 <DataGrid.InputBindings>
-                    <KeyBinding Key="Delete" Command="{Binding DeleteOperationCommand}" 
-                                CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid, Mode=FindAncestor}}"/>
+                    <KeyBinding Key="Delete" Command="{Binding DataContext.DeleteOperationCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
                 </DataGrid.InputBindings>
                 
             </DataGrid>
@@ -90,17 +83,18 @@
             <!-- Toolbar -->
             <RowDefinition Height="*"/>
             <!-- DataGrid -->
+            <RowDefinition Height="Auto"/>
+            <!-- Buttons -->
         </Grid.RowDefinitions>
 
         <!-- Toolbar -->
         <ToolBar Grid.Row="0">
-            <Label Content="PartNumber:"/>
-            <TextBox x:Name="PartNumberTextBox" Text="{Binding SearchPartNumber, UpdateSourceTrigger=PropertyChanged}" Width="200" Margin="0,0,10,0">
-                <TextBox.InputBindings>
-                    <KeyBinding Key="Enter" Command="{Binding LoadStructureCommand}" CommandParameter="{Binding Text, ElementName=PartNumberTextBox}"/>
-                </TextBox.InputBindings>
-            </TextBox>
-            <Button Content="Загрузить структуру" Command="{Binding LoadStructureCommand}" CommandParameter="{Binding Text, ElementName=PartNumberTextBox}" Margin="0,0,10,0"/>
+            <Label Content="Группировка:"/>
+            <ComboBox SelectedValue="{Binding SelectedGroupingMode}" SelectedValuePath="Content" Width="120" Margin="0,0,10,0">
+                <ComboBoxItem Content="По материалу"/>
+                <ComboBoxItem Content="По типу"/>
+            </ComboBox>
+            <Button Content="Редактировать процесс" Command="{Binding InsertTechProcessCommand}" Margin="0,0,10,0"/>
         </ToolBar>
 
         <!-- Main DataGrid with grouping -->
@@ -114,8 +108,12 @@
                   HeadersVisibility="Column"
                   SelectionMode="Extended"
                   IsReadOnly="True"
-                  ContextMenu="{StaticResource ClassifierRowMenu}"
                   AGR_Behavors:AGR_DataGridSelectedItemsBehavior.SelectedItems="{Binding SelectedComponents, Mode=TwoWay}">
+            
+            <DataGrid.InputBindings>
+                <KeyBinding Key="Insert" Command="{Binding InsertTechProcessCommand}"/>
+                <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
+            </DataGrid.InputBindings>
 
             <DataGrid.GroupStyle>
                 <GroupStyle>
@@ -218,5 +216,10 @@
             
         </DataGrid>
 
+        <!-- Buttons Panel -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="10">
+            <Button Content="Сохранить" Command="{Binding SaveCommand}" Width="100" Margin="0,0,10,0"/>
+            <Button Content="Закрыть" Command="{Binding CloseCommand}" Width="100" IsCancel="True"/>
+        </StackPanel>
     </Grid>
 </Window>

@@ -19,7 +19,7 @@ using System.Windows.Media.Media3D;
 using AGR_PropManager.ViewModels.Reports;
 using AGR_PropManager.Views.Reports;
 using System.Windows; // Add this for the View/Window
-
+using System.Windows.Controls; // For Application
 
 namespace AGR_PropManager.ViewModels.Windows
 {
@@ -95,6 +95,33 @@ namespace AGR_PropManager.ViewModels.Windows
             {
                 item.IsSelected = !item.IsSelected;
             }
+        }
+        #endregion
+
+        #region OpenItemTechProcessEditorCommand
+        private ICommand _OpenItemTechProcessEditorCommand;
+        public ICommand OpenItemTechProcessEditorCommand => _OpenItemTechProcessEditorCommand
+            ??= new RelayCommand<ComponentItemViewModel>(OnOpenItemTechProcessEditorCommandExecuted, CanOpenItemTechProcessEditorCommandExecute);
+        private bool CanOpenItemTechProcessEditorCommandExecute(ComponentItemViewModel? p) => p != null;
+        private void OnOpenItemTechProcessEditorCommandExecuted(ComponentItemViewModel? component)
+        {
+            if (component == null) return;
+            
+            _logger.LogInformation($"Открытие редактора процесса для компонента {component.PartNumber}.");
+            
+            var selectedComponents = new ObservableCollection<ComponentItemViewModel> { component };
+            var editorViewModel = new TechProcessEditorViewModel(
+                selectedComponents,
+                _dataContext,
+                _logger,
+                _unitOfWork);
+            
+            var editorWindow = new TechProcessEditorWindow(editorViewModel)
+            {
+                Owner = Application.Current.MainWindow,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            editorWindow.ShowDialog();
         }
         #endregion
 
