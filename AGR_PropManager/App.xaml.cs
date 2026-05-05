@@ -26,11 +26,11 @@ namespace AGR_PropManager
                 builder.Services.AddDbContext<DataContext>(options =>
                     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-                builder.Services.AddTransient<UnitOfWork>();
-                builder.Services.AddTransient<IAGR_ComponentRepository, ComponentRepository>();
+                builder.Services.AddSingleton<IAGR_ComponentRepository, ComponentRepository>();
+                builder.Services.AddSingleton<UnitOfWork>();
                 builder.Services.AddTransient<IAGR_TechnologicalProcessRepository, AGR_TechnologicalProcessRepository>();
 
-                builder.Services.AddTransient<MainWindowViewModel>();
+            builder.Services.AddTransient<MainWindowViewModel>();
                 builder.Services.AddTransient<MainWindow>();
 
                 _host = builder.Build(); // Строим Host

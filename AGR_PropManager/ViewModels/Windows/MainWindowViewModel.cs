@@ -19,6 +19,10 @@ using System.Windows.Media.Media3D;
 using AGR_PropManager.ViewModels.Reports;
 using AGR_PropManager.Views.Reports;
 using System.Windows; // Add this for the View/Window
+using Agrovent.DAL.Entities.Components;
+using AGR_PropManager.ViewModels.Windows;
+using System.Linq;
+using Xarial.XCad.Documents;
 
 
 namespace AGR_PropManager.ViewModels.Windows
@@ -27,6 +31,7 @@ namespace AGR_PropManager.ViewModels.Windows
     {
         private readonly DataContext _dataContext;
         private readonly UnitOfWork _unitOfWork;
+        private readonly IAGR_ComponentRepository _componentRepository;
         private readonly ILogger _logger;
 
         private ImportClassifierReportViewModel _importClassifierReportViewModel;
@@ -42,6 +47,104 @@ namespace AGR_PropManager.ViewModels.Windows
             _dataContext = dataContext;
             _logger = logger;
             _unitOfWork = unitOfWork;
+            _componentRepository = _unitOfWork.ComponentRepository;
+
+            // Инициализация коллекции вкладок
+            OpenTabs = new ObservableCollection<TabItemViewModel>();
+
+            // Создаем вкладку классификатора при старте
+            var classifierTab = new ClassifierTabViewModel();
+            OpenTabs.Add(classifierTab);
+            SelectedTab = classifierTab;
+
+            // Инициализация коллекции шаблонов операций
+            TemplateOperations = new ObservableCollection<TemplateOperationItemViewModel>();
+
+            _ = InitializeAsync();
+        }
+
+        #endregion
+        private async Task InitializeAsync()
+        {
+            try
+            {
+                // Выполняем загрузку последовательно, чтобы избежать конфликта DbContext
+                await LoadTemplateOperationsAsync();
+                await LoadClassifierDataAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при инициализации MainWindowViewModel");
+            }
+        }
+        #region LoadClassifierDataAsync
+        public async Task LoadClassifierDataAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Загрузка данных классификатора...");
+                // Группируем по PartNumber и берем последнюю версию для каждого
+                var latestVersions = await _unitOfWork.ComponentRepository.GetAllLatestComponentVersionsAsync();// _componentRepository.GetAllLatestComponentVersionsAsync();
+
+                var classifierTab = OpenTabs.OfType<ClassifierTabViewModel>().FirstOrDefault();
+                if (classifierTab == null)
+                {
+                    classifierTab = new ClassifierTabViewModel();
+                    OpenTabs.Add(classifierTab);
+                }
+
+                // Очищаем коллекцию перед загрузкой, чтобы избежать дублирования
+                classifierTab.ClassifierItems?.Clear();
+
+                if (classifierTab.ClassifierItems != null)
+                {
+                    foreach (var cv in latestVersions)
+                    {
+                        var item = new ClassifierItemViewModel
+                        {
+                            Id = cv.Id,
+                            PartNumber = cv.Component.PartNumber,
+                            Name = cv.Name,
+                            SavedDate = cv.CreatedAt,
+                            PreviewImage = cv.PreviewImage != null ? LoadImageFromBytes(cv.PreviewImage) : null
+                        };
+                        classifierTab.ClassifierItems.Add(item);
+                    }
+                }
+
+                classifierTab.InitializeView();
+                _logger.LogInformation($"Загружено {classifierTab.ClassifierItems.Count} записей классификатора.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при загрузке данных классификатора");
+            }
+        }
+        #endregion
+
+        #region LoadTemplateOperationsAsync
+        public async Task LoadTemplateOperationsAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Загрузка шаблонов операций...");
+                
+                var templates = await _dataContext.TemplateOperations
+                    .Include(to => to.Workstation)
+                    .ToListAsync();
+
+                TemplateOperations.Clear();
+                foreach (var template in templates)
+                {
+                    TemplateOperations.Add(new TemplateOperationItemViewModel(template));
+                }
+                
+                _logger.LogInformation($"Загружено {TemplateOperations.Count} шаблонов операций.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при загрузке шаблонов операций");
+            }
         }
         #endregion
 
@@ -518,5 +621,260 @@ namespace AGR_PropManager.ViewModels.Windows
         #endregion 
 
         #endregion
+
+        #region PROPS - Tabs
+
+        #region OpenTabs
+        private ObservableCollection<TabItemViewModel> _openTabs;
+        public ObservableCollection<TabItemViewModel> OpenTabs
+        {
+            get => _openTabs;
+            set => Set(ref _openTabs, value);
+        }
+        #endregion
+
+        #region SelectedTab
+        private TabItemViewModel _selectedTab;
+        public TabItemViewModel SelectedTab
+        {
+            get => _selectedTab;
+            set
+            {
+                if (Set(ref _selectedTab, value))
+                {
+                    // При активации вкладки классификатора убеждаемся, что данные загружены
+                    if (value is ClassifierTabViewModel classifierTab && classifierTab.ClassifierItems?.Count == 0)
+                    {
+                        _ = LoadClassifierDataAsync();
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region TemplateOperations
+        private ObservableCollection<TemplateOperationItemViewModel> _templateOperations;
+        public ObservableCollection<TemplateOperationItemViewModel> TemplateOperations
+        {
+            get => _templateOperations;
+            set => Set(ref _templateOperations, value);
+        }
+        #endregion
+
+        #region SelectedTemplateOperation
+        private TemplateOperationItemViewModel _selectedTemplateOperation;
+        public TemplateOperationItemViewModel SelectedTemplateOperation
+        {
+            get => _selectedTemplateOperation;
+            set => Set(ref _selectedTemplateOperation, value);
+        }
+        #endregion
+
+        #endregion
+
+        #region Commands - Tabs
+
+        #region OpenClassifierItemCommand
+        private ICommand _OpenClassifierItemCommand;
+        public ICommand OpenClassifierItemCommand => _OpenClassifierItemCommand
+            ??= new RelayCommand<ClassifierItemViewModel>(OnOpenClassifierItemCommandExecuted, CanOpenClassifierItemCommandExecute);
+        private bool CanOpenClassifierItemCommandExecute(object o) => o != null;
+        private async void OnOpenClassifierItemCommandExecuted(object o)
+        {
+            if (o == null) return;
+
+            var item = o as ClassifierItemViewModel;
+            try
+            {
+                _logger.LogInformation($"Открытие компонента {item.PartNumber} для редактирования...");
+
+                // Загружаем полную информацию о компоненте
+                var componentVersion = await _dataContext.ComponentVersions
+                    .Include(cv => cv.Component)
+                        .ThenInclude(c => c.TechnologicalProcess)
+                            .ThenInclude(tp => tp.Operations)
+                    .Include(cv => cv.Material)
+                    .Include(cv => cv.Properties)
+                    .Include(cv => cv.AvaArticle)
+                    .Where(cv => cv.Component.PartNumber == item.PartNumber)
+                    .OrderByDescending(cv => cv.Version)
+                    .FirstOrDefaultAsync();
+
+                if (componentVersion == null)
+                {
+                    _logger.LogWarning($"Компонент {item.PartNumber} не найден.");
+                    MessageBox.Show($"Компонент {item.PartNumber} не найден.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Создаем ComponentItemViewModel
+                var componentVM = new ComponentItemViewModel(_dataContext, _unitOfWork)
+                {
+                    PartNumber = componentVersion.Component.PartNumber,
+                    Name = componentVersion.Name,
+                    Version = componentVersion.Version,
+                    Quantity = 1,
+                    Material = componentVersion.Material?.BaseMaterial ?? "",
+                    Paint = componentVersion.Material?.Paint ?? "",
+                    ComponentType = componentVersion.ComponentType,
+                    PreviewImage = componentVersion.PreviewImage != null ? LoadImageFromBytes(componentVersion.PreviewImage) : null,
+                    Article = componentVersion.AvaArticleArticle?.ToString() ?? "",
+                    AvaArticle = componentVersion.AvaArticle
+                };
+
+                // Загружаем свойства
+                var propsVM = componentVersion.Properties.Select(prop => new AGR_PropertyViewModel(prop)).ToList();
+                foreach (var prop in propsVM)
+                {
+                    componentVM.PropertiesCollection.Add(prop);
+                }
+
+                // Загружаем техпроцесс и операции
+                var techProcess = componentVersion.Component.TechnologicalProcess;
+                if (techProcess != null && techProcess.Operations != null)
+                {
+                    var operationsList = techProcess.Operations.Select(op => new TechOperationViewModel(op) { ParentComponent = componentVM }).ToList();
+                    componentVM.Operations = new ObservableCollection<TechOperationViewModel>(operationsList);
+                    if (componentVM.TechnologicalProcessModel != null)
+                    {
+                        componentVM.TechnologicalProcessModel.Operations = componentVM.Operations;
+                    }
+                }
+
+                // Проверяем, есть ли уже вкладка для этого компонента
+                var existingTab = OpenTabs.OfType<TechProcessEditorTabViewModel>()
+                    .FirstOrDefault(t => t.Component.PartNumber == componentVM.PartNumber);
+
+                if (existingTab != null)
+                {
+                    // Переключаемся на существующую вкладку
+                    SelectedTab = existingTab;
+                }
+                else
+                {
+                    // Создаем новую вкладку редактора техпроцесса
+                    var editorTab = new TechProcessEditorTabViewModel(componentVM, _unitOfWork, _logger);
+                    OpenTabs.Add(editorTab);
+                    SelectedTab = editorTab;
+                }
+
+                _logger.LogInformation($"Вкладка для {item.PartNumber} открыта.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при открытии компонента {item.PartNumber}");
+                MessageBox.Show($"Ошибка при открытии компонента: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        #endregion
+
+        #region CloseTabCommand
+        private ICommand _CloseTabCommand;
+        public ICommand CloseTabCommand => _CloseTabCommand
+            ??= new RelayCommand<TabItemViewModel>(OnCloseTabCommandExecuted, CanCloseTabCommandExecute);
+        private bool CanCloseTabCommandExecute(TabItemViewModel tab) => tab != null && !tab.IsClassifierTab; // Нельзя закрыть вкладку классификатора
+        private void OnCloseTabCommandExecuted(TabItemViewModel tab)
+        {
+            if (tab == null || tab.IsClassifierTab) return;
+
+            if (tab is TechProcessEditorTabViewModel techTab)
+            {
+                techTab.Dispose();
+            }
+            // Если закрыли текущую вкладку, переключаемся на другую
+            if (SelectedTab == tab && OpenTabs.Count > 0)
+            {
+                SelectedTab = OpenTabs[0];
+            }
+
+            var tabIndex = OpenTabs.IndexOf(tab);
+
+            if (tabIndex >= 0)
+            {
+                OpenTabs.RemoveAt(tabIndex);
+            }
+            
+
+            _logger.LogInformation($"Вкладка '{tab.TabHeader}' закрыта.");
+        }
+        #endregion
+
+        #region AddOperationCommand
+        private ICommand _AddOperationCommand;
+        public ICommand AddOperationCommand => _AddOperationCommand
+            ??= new RelayCommand<ComponentItemViewModel>(OnAddOperationCommandExecuted, CanAddOperationCommandExecute);
+        private bool CanAddOperationCommandExecute(ComponentItemViewModel component) => component != null && SelectedTemplateOperation != null;
+        private void OnAddOperationCommandExecuted(ComponentItemViewModel component)
+        {
+            if (component == null || SelectedTemplateOperation == null) return;
+
+            // Создаем новую операцию на основе выбранного шаблона
+            var newOperation = new TechOperationViewModel(SelectedTemplateOperation)
+            {
+                SequenceNumber = component.Operations.Count + 1,
+                ParentComponent = component
+            };
+            
+            component.Operations.Add(newOperation);
+            _logger.LogInformation($"Добавлена операция '{newOperation.Name}' для {component.PartNumber}");
+        }
+        #endregion
+
+        #region SaveTechProcessCommand
+        private ICommand _SaveTechProcessCommand;
+        public ICommand SaveTechProcessCommand => _SaveTechProcessCommand
+            ??= new RelayCommand<ComponentItemViewModel>(OnSaveTechProcessCommandExecuted, CanSaveTechProcessCommandExecute);
+        private bool CanSaveTechProcessCommandExecute(ComponentItemViewModel component) => component != null;
+        private async void OnSaveTechProcessCommandExecuted(ComponentItemViewModel component)
+        {
+            if (component == null) return;
+
+            try
+            {
+                _logger.LogInformation($"Сохранение техпроцесса для {component.PartNumber}...");
+
+                // Получаем техпроцесс из БД или создаем новый
+                var techProcess = await _dataContext.TechProcesses
+                    .Include(tp => tp.Operations)
+                    .FirstOrDefaultAsync(tp => tp.PartNumber == component.PartNumber);
+
+                if (techProcess == null)
+                {
+                    techProcess = new TechnologicalProcess
+                    {
+                        PartNumber = component.PartNumber
+                    };
+                    _dataContext.TechProcesses.Add(techProcess);
+                }
+
+                // Обновляем операции
+                techProcess.Operations.Clear();
+                foreach (var opVM in component.Operations)
+                {
+                    var operation = new Operation
+                    {
+                        SequenceNumber = opVM.SequenceNumber,
+                        WorkstationName = opVM.WorkstationName,
+                        Name = opVM.Name,
+                        CostPerHour = opVM.CostPerHour,
+                        TechnologicalProcessId = techProcess.Id
+                    };
+                    techProcess.Operations.Add(operation);
+                }
+
+                await _dataContext.SaveChangesAsync();
+                _logger.LogInformation($"Техпроцесс для {component.PartNumber} успешно сохранен.");
+                MessageBox.Show("Техпроцесс успешно сохранен!", "Сохранение", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при сохранении техпроцесса для {component.PartNumber}");
+                MessageBox.Show($"Ошибка при сохранении техпроцесса: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        #endregion
+
+        #endregion
+
     }
 }
