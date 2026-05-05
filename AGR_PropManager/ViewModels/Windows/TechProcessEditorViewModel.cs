@@ -27,26 +27,23 @@ namespace AGR_PropManager.ViewModels.Windows
         private readonly DataContext _dataContext;
         private readonly UnitOfWork _unitOfWork;
         private readonly ILogger _logger;
-        private readonly ObservableCollection<ComponentItemViewModel> _selectedComponents;
+        private readonly ComponentItemViewModel _selectedComponent;
 
         #region CTOR
 
         public TechProcessEditorViewModel(
-            ObservableCollection<ComponentItemViewModel> selectedComponents,
+            ComponentItemViewModel selectedComponent,
             DataContext dataContext,
-            ILogger<TechProcessEditorViewModel>? logger,
+            ILogger? logger,
             UnitOfWork unitOfWork)
         {
-            _selectedComponents = selectedComponents ?? new ObservableCollection<ComponentItemViewModel>();
+            _selectedComponent = selectedComponent;
             _dataContext = dataContext;
             _logger = logger;
             _unitOfWork = unitOfWork;
 
             // Инициализируем коллекцию компонентов из выбранных
-            foreach (var comp in selectedComponents)
-            {
-                Components.Add(comp);
-            }
+            LoadAssemblyStructureAsync(selectedComponent.PartNumber);
 
             // Настраиваем CollectionViewSource
             Components_CVS.Source = Components;
@@ -133,7 +130,7 @@ namespace AGR_PropManager.ViewModels.Windows
             {
                 operation.ParentComponent.Operations.Remove(operation);
             }
-            operation.ParentComponent.OnPropertyChanged(nameof(ComponentItemViewModel.HasZeroTimeOperations));
+            OnPropertyChanged(nameof(ComponentItemViewModel.HasZeroTimeOperations));
         }
         #endregion
 
@@ -265,6 +262,177 @@ namespace AGR_PropManager.ViewModels.Windows
                 component.IsSelected = false;
             }
             NotifyHasSelectedComponentsChanged();
+        }
+        #endregion
+
+        private async Task LoadAssemblyStructureAsync(string partNumber)
+        {
+            if (string.IsNullOrWhiteSpace(partNumber))
+            {
+                _logger.LogWarning("PartNumber пуст при попытке загрузки структуры.");
+                return;
+            }
+
+            try
+            {
+                _logger.LogInformation($"Загрузка структуры для PartNumber: {partNumber}");
+
+                // Очищаем текущую коллекцию
+                Components.Clear();
+
+                // Найдем версию сборки по PartNumber (берем последнюю по версии)
+                var assemblyVersion = await _dataContext.ComponentVersions
+                    .Include(cv => cv.Component) // Загружаем связанный компонент
+                        .ThenInclude(c => c.TechnologicalProcess)
+                    .Include(c => c.Material)
+                    .Include(cv => cv.Properties) // Загружаем свойства
+                    .Where(cv => cv.Component.PartNumber == partNumber)
+                    .OrderByDescending(cv => cv.Version) // Берем последнюю версию
+                    .FirstOrDefaultAsync();
+
+                if (assemblyVersion == null)
+                {
+                    _logger.LogWarning($"Сборка с PartNumber {partNumber} не найдена.");
+                    return;
+                }
+
+                //добавляем саму сборку
+                var vmMainAssembly = new ComponentItemViewModel(_dataContext, _unitOfWork)
+                {
+                    PartNumber = assemblyVersion.Component.PartNumber,
+                    Name = assemblyVersion.Name,
+                    Version = assemblyVersion.Version,
+                    Quantity = 1,
+                    Material = "",
+                    Paint = assemblyVersion.Material?.Paint,
+                    BendCount = 0,
+                    ContourLength = 0,
+                    ComponentType = assemblyVersion.ComponentType,
+                    PreviewImage = LoadImageFromBytes(assemblyVersion.PreviewImage),
+                    Article = assemblyVersion.AvaArticleArticle.ToString(),
+                    AvaArticle = assemblyVersion.AvaArticle
+                };
+
+                Components.Add(vmMainAssembly);
+
+                // Найдем все элементы структуры для этой версии сборки
+                var assemblyStructureEntries = await _unitOfWork.ComponentRepository.GetAssemblyStructureRecursive(partNumber, assemblyVersion.Version);
+
+                var groupedEntries = assemblyStructureEntries
+                    .GroupBy(s => s.ChildComponentVersion.Component.PartNumber) // Группируем по PartNumber
+                    .Select(g => new
+                    {
+                        PartNumber = g.Key,
+                        FirstComponentVersion = g.First().ChildComponentVersion,
+                        TotalQuantity = g.Sum(s => s.Quantity) // Суммируем Quantity
+                    })
+                    .ToList();
+
+                // Загрузим все связанные TechnologicalProcesses за один запрос
+                var partNumbersInStructure = groupedEntries.Select(entry => entry.PartNumber).Distinct().ToList();
+                var techProcesses = await _dataContext.TechProcesses // Предполагаем, что DbSet называется TechProcesses
+                    .Include(tp => tp.Operations)
+                    .Where(tp => partNumbersInStructure.Contains(tp.PartNumber))
+                    .ToListAsync();
+
+                foreach (var groupedEntry in groupedEntries)
+                {
+                    var compVer = groupedEntry.FirstComponentVersion;
+                    var comp = compVer.Component;
+                    var partNum = comp.PartNumber;
+                    var totalQty = groupedEntry.TotalQuantity; // Используем суммарное количество
+                    var props = compVer.Properties;
+                    var materials = compVer.Material; // Предполагаем, что Material связан с ComponentVersion
+
+                    // Загрузим нужные свойства из ComponentProperties (берем из первой версии в группе)
+                    // Используем AGR_PropertyNames для получения свойств
+                    var materialProp = materials?.BaseMaterial;
+                    var paintProp = materials?.Paint;
+                    var bendCountProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankBends)?.Value; // Получаем .Value
+                    var blankOuterContourProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankOuterContour)?.Value; // Получаем .Value
+                    var blankInnerContourProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankInnerContour)?.Value; // Получаем .Value
+
+                    // Парсим длину контура
+                    var contourSum = (decimal.TryParse(blankInnerContourProp, out decimal innerLen) ? innerLen : 0) +
+                                     (decimal.TryParse(blankOuterContourProp, out decimal outerLen) ? outerLen : 0);
+
+                    var previewImage = compVer.PreviewImage != null ? LoadImageFromBytes(compVer.PreviewImage) : null;
+
+                    // Найдем соответствующий техпроцесс по PartNumber
+                    var techProcess = techProcesses.FirstOrDefault(tp => tp.PartNumber == partNum);
+
+
+                    var vm = new ComponentItemViewModel(_dataContext, _unitOfWork)
+                    {
+                        PartNumber = partNum,
+                        Name = compVer.Name,
+                        Quantity = totalQty,
+                        Version = compVer.Version,
+                        Material = materialProp ?? "",
+                        Paint = paintProp ?? "",
+                        BendCount = int.TryParse(bendCountProp, out int bc) ? bc : 0,
+                        ContourLength = contourSum,
+                        ComponentType = compVer.ComponentType,
+                        PreviewImage = previewImage,
+                        Article = compVer.AvaArticleArticle.ToString(),
+                        AvaArticle = compVer.AvaArticle
+                    };
+                    var operationsList = techProcess?.Operations.Select(op => new TechOperationViewModel(op) { ParentComponent = vm }).ToList();
+
+                    // Заполняем Operations и TechProcessSummary из найденного TechnologicalProcess
+                    if (operationsList != null && operationsList.Count != 0)
+                    {
+                        vm.Operations = new ObservableCollection<TechOperationViewModel>(operationsList);
+                        vm.TechnologicalProcessModel.Operations = vm.Operations;
+                    }
+
+                    var propsVM = props.Select(prop => new AGR_PropertyViewModel(prop)).ToList();
+                    if (propsVM != null)
+                    {
+                        foreach (var prop in propsVM)
+                        {
+                            vm.PropertiesCollection.Add(prop);
+                        }
+                    }
+
+                    Components.Add(vm);
+                }
+
+                // Обновляем CollectionViewSource Source, чтобы он отслеживал изменения в коллекции
+                Components_CVS.Source = Components;
+
+                _logger.LogInformation($"Загружено {Components.Count} уникальных компонентов (суммарные количества) для сборки {partNumber}.");
+
+                // Обновляем группировку
+                RefreshGrouping();
+                ComponentsView.Refresh();
+
+                OnPropertyChanged(nameof(ComponentsView));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при загрузке структуры сборки {partNumber}");
+            }
+        }
+
+        #region Вспомогательный метод для загрузки изображения
+        private BitmapImage? LoadImageFromBytes(byte[] imageData)
+        {
+            try
+            {
+                using var ms = new System.IO.MemoryStream(imageData);
+                var image = new BitmapImage();
+                image.BeginInit();
+                image.StreamSource = ms;
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.EndInit();
+                image.Freeze(); // Оптимизация для UI Thread
+                return image;
+            }
+            catch
+            {
+                return null;
+            }
         }
         #endregion
 

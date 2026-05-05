@@ -36,10 +36,10 @@ namespace AGR_PropManager.ViewModels.Windows
             _dataContext = dataContext;
             _logger = logger;
             _unitOfWork = unitOfWork;
-            
+
             // Инициализируем CollectionViewSource для ClassifierItems
-            ClassifierItems_CVS.Source = ClassifierItems;
-            ApplyFilter();
+            ClassifierItemsView = CollectionViewSource.GetDefaultView(ClassifierItems);
+            ApplyFilter(); 
         }
         #endregion
 
@@ -65,15 +65,13 @@ namespace AGR_PropManager.ViewModels.Windows
             // Создаем компонент из ClassifierItem для передачи в редактор
             var component = new ComponentItemViewModel(_dataContext, _unitOfWork)
             {
-                Id = classifierItem.Id,
                 PartNumber = classifierItem.PartNumber,
                 Name = classifierItem.Name,
                 PreviewImage = classifierItem.PreviewImage
             };
             
-            var selectedComponents = new ObservableCollection<ComponentItemViewModel> { component };
             var editorViewModel = new TechProcessEditorViewModel(
-                selectedComponents,
+                component,
                 _dataContext,
                 _logger,
                 _unitOfWork);
@@ -116,8 +114,7 @@ namespace AGR_PropManager.ViewModels.Windows
         #endregion
 
         #region CollectionViewSource для ClassifierItems
-        private CollectionViewSource ClassifierItems_CVS = new CollectionViewSource();
-        public ICollectionView ClassifierItemsView => ClassifierItems_CVS?.View;
+        public ICollectionView ClassifierItemsView { get; }
         #endregion
 
         #endregion
@@ -152,7 +149,7 @@ namespace AGR_PropManager.ViewModels.Windows
                     }
                 }
 
-                ClassifierItems_CVS.View.Refresh();
+                ClassifierItemsView.Refresh();
                 _logger.LogInformation($"Загружено {ClassifierItems.Count} записей классификатора.");
             }
             catch (Exception ex)
@@ -167,12 +164,12 @@ namespace AGR_PropManager.ViewModels.Windows
         {
             if (string.IsNullOrWhiteSpace(SearchText))
             {
-                ClassifierItems_CVS.Filter = null;
+                ClassifierItemsView.Filter = null;
             }
             else
             {
                 string searchTextLower = SearchText.ToLower();
-                ClassifierItems_CVS.Filter = item =>
+                ClassifierItemsView.Filter = item =>
                 {
                     if (item is not ClassifierItemViewModel classifierItem) return false;
                     
@@ -184,7 +181,7 @@ namespace AGR_PropManager.ViewModels.Windows
                     return matchesPartNumber || matchesName;
                 };
             }
-            ClassifierItems_CVS.View.Refresh();
+            ClassifierItemsView.Refresh();
         }
         #endregion
 
