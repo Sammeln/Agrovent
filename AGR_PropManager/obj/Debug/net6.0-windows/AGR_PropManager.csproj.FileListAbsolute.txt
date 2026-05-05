@@ -108,3 +108,5 @@ C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\View
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\Reports\TreeImportReportWindow.baml
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\Reports\TechOpsImportReportWindow.g.cs
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\Reports\TechOpsImportReportWindow.baml
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\TechProcessEditorWindow.g.cs
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\TechProcessEditorWindow.baml

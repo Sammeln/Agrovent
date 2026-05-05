@@ -1,78 +1,53 @@
 ```
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
+# Build artifacts
 *.obj
 *.exe
 *.dll
-*.so
-*.class
-*.out
-*.a
+*.pdb
+*.user
+*.userosscache
+*.suo
+*.cache
+*.ilk
+*.exp
+*.lib
+*.iobj
+*.ipdb
+*.builds
+*.built
+*.log
 
-# Dependencies
-node_modules/
-venv/
-.venv/
+# Dependency directories
+packages/
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+*.VC.db
+*.VC.VC.opendb
+
+# Visual Studio files
+.vs/
+*.userprefs
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.autosave
+
+# Environment
 .env
 .env.local
-.env.*
-
-# Build directories
-dist/
-build/
-target/
-*.egg-info/
-
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-*.swo
-
-# Editors
-.vscode/
-.idea/
-*.iml
-*.ipr
-*.iws
+*.env.*
 
 # OS generated files
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Testing and coverage
-.coverage
-coverage/
-htmlcov/
-.pytest_cache/
-.mypy_cache/
-.nyc_output/
-coverage-final.json
-
-# Compression and archives
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
+$RECYCLE.BIN/
+ehthumbs.db
+Icon?
 ```
