@@ -758,13 +758,19 @@ namespace AGR_PropManager.ViewModels.Windows
         {
             if (tab == null || tab.IsClassifierTab) return;
 
-            OpenTabs.Remove(tab);
-            
             // Если закрыли текущую вкладку, переключаемся на другую
             if (SelectedTab == tab && OpenTabs.Count > 0)
             {
                 SelectedTab = OpenTabs[0];
             }
+
+            var tabIndex = OpenTabs.IndexOf(tab);
+
+            if (tabIndex >= 0)
+            {
+                OpenTabs.RemoveAt(tabIndex);
+            }
+            
 
             _logger.LogInformation($"Вкладка '{tab.TabHeader}' закрыта.");
         }

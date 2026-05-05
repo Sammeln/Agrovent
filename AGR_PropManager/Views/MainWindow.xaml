@@ -26,7 +26,7 @@
         <ContextMenu x:Key="ClassifierRowMenu">
             <MenuItem Header="Открыть"
                       CommandParameter="{Binding}"
-                      Command="{Binding DataContext.OpenClassifierItemCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" 
+                      Command="{Binding DataContext.OpenClassifierItemCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=Window}}" 
                       />
         </ContextMenu>
 
