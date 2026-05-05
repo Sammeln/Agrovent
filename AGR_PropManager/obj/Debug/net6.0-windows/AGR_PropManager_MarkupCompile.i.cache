@@ -12,9 +12,9 @@ TRACE;DEBUG;NET;NET6_0;NETCOREAPP
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\App.xaml
 5429916754
 
-25547901799
+261205817258
 2601078693085
 Views\MainWindow.xaml;Views\OperationSelectionWindow.xaml;Views\Reports\ImportClassifierReportWindow.xaml;Views\Reports\TechOpsImportReportWindow.xaml;Views\Reports\TreeImportReportWindow.xaml;
 
-False
+True
 

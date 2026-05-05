@@ -22,6 +22,7 @@ using System.Windows; // Add this for the View/Window
 using Agrovent.DAL.Entities.Components;
 using AGR_PropManager.ViewModels.Windows;
 using System.Linq;
+using Xarial.XCad.Documents;
 
 
 namespace AGR_PropManager.ViewModels.Windows
@@ -30,6 +31,7 @@ namespace AGR_PropManager.ViewModels.Windows
     {
         private readonly DataContext _dataContext;
         private readonly UnitOfWork _unitOfWork;
+        private readonly IAGR_ComponentRepository _componentRepository;
         private readonly ILogger _logger;
 
         private ImportClassifierReportViewModel _importClassifierReportViewModel;
@@ -39,12 +41,13 @@ namespace AGR_PropManager.ViewModels.Windows
 
         public MainWindowViewModel(
             DataContext dataContext,
-            ILogger<MainWindowViewModel>? logger,
+            ILogger<MainWindowViewModel>? logger, 
             UnitOfWork unitOfWork)
         {
             _dataContext = dataContext;
             _logger = logger;
             _unitOfWork = unitOfWork;
+            _componentRepository = _unitOfWork.ComponentRepository;
             
             // Инициализация коллекции вкладок
             OpenTabs = new ObservableCollection<TabItemViewModel>();
@@ -69,22 +72,8 @@ namespace AGR_PropManager.ViewModels.Windows
             try
             {
                 _logger.LogInformation("Загрузка данных классификатора...");
-                
-                // Получаем все версии компонентов из БД
-                var componentVersions = await _dataContext.ComponentVersions
-                    .Include(cv => cv.Component)
-                        .ThenInclude(c => c.TechnologicalProcess)
-                    .Include(cv => cv.Material)
-                    .Include(cv => cv.Properties)
-                    .OrderByDescending(cv => cv.SavedAt) // Сортируем по дате сохранения
-                    .ToListAsync();
-
                 // Группируем по PartNumber и берем последнюю версию для каждого
-                var latestVersions = componentVersions
-                    .GroupBy(cv => cv.Component.PartNumber)
-                    .Select(g => g.OrderByDescending(cv => cv.Version).FirstOrDefault())
-                    .Where(cv => cv != null)
-                    .ToList();
+                var latestVersions = await _unitOfWork.ComponentRepository.GetAllLatestComponentVersionsAsync();// _componentRepository.GetAllLatestComponentVersionsAsync();
 
                 var classifierTab = OpenTabs.OfType<ClassifierTabViewModel>().FirstOrDefault();
                 if (classifierTab == null)
@@ -100,7 +89,7 @@ namespace AGR_PropManager.ViewModels.Windows
                         Id = cv.Id,
                         PartNumber = cv.Component.PartNumber,
                         Name = cv.Name,
-                        SavedDate = cv.SavedAt ?? DateTime.MinValue,
+                        SavedDate = cv.CreatedAt,
                         PreviewImage = cv.PreviewImage != null ? LoadImageFromBytes(cv.PreviewImage) : null
                     };
                     classifierTab.ClassifierItems.Add(item);
@@ -810,7 +799,7 @@ namespace AGR_PropManager.ViewModels.Windows
 
                 if (techProcess == null)
                 {
-                    techProcess = new Agrovent.DAL.Entities.TechProcess.TechnologicalProcess
+                    techProcess = new TechnologicalProcess
                     {
                         PartNumber = component.PartNumber
                     };
@@ -821,10 +810,9 @@ namespace AGR_PropManager.ViewModels.Windows
                 techProcess.Operations.Clear();
                 foreach (var opVM in component.Operations)
                 {
-                    var operation = new Agrovent.DAL.Entities.TechProcess.TechOperation
+                    var operation = new Operation
                     {
                         SequenceNumber = opVM.SequenceNumber,
-                        WorkstationId = opVM.WorkstationId,
                         WorkstationName = opVM.WorkstationName,
                         Name = opVM.Name,
                         CostPerHour = opVM.CostPerHour,

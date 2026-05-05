@@ -1,6 +1,7 @@
 using AGR_PropManager.ViewModels.Base;
 using AGR_PropManager.ViewModels.Components;
 using System.Collections.ObjectModel;
+using Agrovent.DAL;
 
 namespace AGR_PropManager.ViewModels.Windows
 {
@@ -107,11 +108,11 @@ namespace AGR_PropManager.ViewModels.Windows
 
     public class TechProcessEditorTabViewModel : TabItemViewModel
     {
-        private readonly Agrovent.DAL.Services.Repositories.UnitOfWork _unitOfWork;
+        private readonly UnitOfWork _unitOfWork;
         private readonly Microsoft.Extensions.Logging.ILogger? _logger;
 
         public TechProcessEditorTabViewModel(ComponentItemViewModel component, 
-                                             Agrovent.DAL.Services.Repositories.UnitOfWork unitOfWork,
+                                             UnitOfWork unitOfWork,
                                              Microsoft.Extensions.Logging.ILogger? logger = null)
         {
             Component = component;
@@ -171,7 +172,7 @@ namespace AGR_PropManager.ViewModels.Windows
 
             if (Component.ComponentType == Agrovent.Infrastructure.Enums.AGR_ComponentType_e.Purchased)
             {
-                if (Component.AvaArticle == null || string.IsNullOrWhiteSpace(Component.AvaArticle.Article?.ToString()))
+                if (Component.AvaArticle == null || string.IsNullOrWhiteSpace(Component.AvaArticle?.Article.ToString()))
                 {
                     ValidationErrors.Add("У покупного компонента не заполнен AvaArticle");
                 }
