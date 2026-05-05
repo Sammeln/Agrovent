@@ -41,33 +41,44 @@ namespace AGR_PropManager.ViewModels.Windows
 
         public MainWindowViewModel(
             DataContext dataContext,
-            ILogger<MainWindowViewModel>? logger, 
+            ILogger<MainWindowViewModel>? logger,
             UnitOfWork unitOfWork)
         {
             _dataContext = dataContext;
             _logger = logger;
             _unitOfWork = unitOfWork;
             _componentRepository = _unitOfWork.ComponentRepository;
-            
+
             // Инициализация коллекции вкладок
             OpenTabs = new ObservableCollection<TabItemViewModel>();
-            
+
             // Создаем вкладку классификатора при старте
             var classifierTab = new ClassifierTabViewModel();
             OpenTabs.Add(classifierTab);
             SelectedTab = classifierTab;
-            
+
             // Инициализация коллекции шаблонов операций
             TemplateOperations = new ObservableCollection<TemplateOperationItemViewModel>();
-            LoadTemplateOperationsAsync();
-            
-            // Загружаем данные классификатора
-            LoadClassifierDataAsync();
-        }
-        #endregion
 
+            _ = InitializeAsync();
+        }
+
+        #endregion
+        private async Task InitializeAsync()
+        {
+            try
+            {
+                // Выполняем загрузку последовательно, чтобы избежать конфликта DbContext
+                await LoadTemplateOperationsAsync();
+                await LoadClassifierDataAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при инициализации MainWindowViewModel");
+            }
+        }
         #region LoadClassifierDataAsync
-        private async Task LoadClassifierDataAsync()
+        public async Task LoadClassifierDataAsync()
         {
             try
             {
@@ -106,7 +117,7 @@ namespace AGR_PropManager.ViewModels.Windows
         #endregion
 
         #region LoadTemplateOperationsAsync
-        private async Task LoadTemplateOperationsAsync()
+        public async Task LoadTemplateOperationsAsync()
         {
             try
             {
@@ -651,11 +662,12 @@ namespace AGR_PropManager.ViewModels.Windows
         private ICommand _OpenClassifierItemCommand;
         public ICommand OpenClassifierItemCommand => _OpenClassifierItemCommand
             ??= new RelayCommand<ClassifierItemViewModel>(OnOpenClassifierItemCommandExecuted, CanOpenClassifierItemCommandExecute);
-        private bool CanOpenClassifierItemCommandExecute(ClassifierItemViewModel item) => item != null;
-        private async void OnOpenClassifierItemCommandExecuted(ClassifierItemViewModel item)
+        private bool CanOpenClassifierItemCommandExecute(object o) => o != null;
+        private async void OnOpenClassifierItemCommandExecuted(object o)
         {
-            if (item == null) return;
+            if (o == null) return;
 
+            var item = o as ClassifierItemViewModel;
             try
             {
                 _logger.LogInformation($"Открытие компонента {item.PartNumber} для редактирования...");

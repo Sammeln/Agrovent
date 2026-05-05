@@ -89,6 +89,8 @@ namespace AGR_PropManager.ViewModels.Windows
         {
             ClassifierItemsView?.Refresh();
         }
+
+
     }
 
     public class ClassifierItemViewModel : BaseViewModel

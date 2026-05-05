@@ -24,8 +24,10 @@
 
         <!-- ContextMenu для строк классификатора -->
         <ContextMenu x:Key="ClassifierRowMenu">
-            <MenuItem Header="Открыть" Command="{Binding DataContext.OpenClassifierItemCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" 
-                      CommandParameter="{Binding}"/>
+            <MenuItem Header="Открыть"
+                      CommandParameter="{Binding}"
+                      Command="{Binding DataContext.OpenClassifierItemCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" 
+                      />
         </ContextMenu>
 
         <Style x:Key="ClassifierRowStyle" TargetType="DataGridRow">
@@ -50,8 +52,9 @@
                     <Label Content="Поиск:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                     <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
                              MinWidth="200"/>
+                    <TextBlock Text="{Binding}"/>
                 </DockPanel>
-
+                
                 <!-- DataGrid классификатора -->
                 <DataGrid Grid.Row="1"
                           ItemsSource="{Binding ClassifierItemsView}"
@@ -62,8 +65,8 @@
                           IsReadOnly="True"
                           RowStyle="{StaticResource ClassifierRowStyle}">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="0.3*"/>
-                        <DataGridTemplateColumn Width="50">
+                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" MinWidth="30" MaxWidth="30"/>
+                        <DataGridTemplateColumn MinWidth="50" MaxWidth="50">
                             <DataGridTemplateColumn.CellStyle>
                                 <Style TargetType="DataGridCell">
                                     <Setter Property="ToolTip">
@@ -81,6 +84,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="*"/>
                         <DataGridTextColumn Header="PartNumber" Binding="{Binding PartNumber}" Width="*"/>
                         <DataGridTextColumn Header="Дата сохранения" Binding="{Binding SavedDate, StringFormat='dd.MM.yyyy'}" Width="*"/>
                     </DataGrid.Columns>
