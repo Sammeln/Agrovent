@@ -2,11 +2,16 @@
 using System.Windows.Controls;
 using System.Windows.Forms;
 using AGR_PropManager;
+using Agrovent.DAL;
+using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Helpers;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Services;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 using Xarial.XCad;
+using Xarial.XCad.Base.Enums;
 using Xarial.XCad.Documents;
 using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
@@ -17,25 +22,34 @@ namespace Agrovent.Infrastructure.Handlers
 {
     public class AGR_DocumentHandler : SwDocumentHandler
     {
-        private readonly ISwAddInEx m_AddIn;
+        private readonly AgroventAddin m_AddIn;
         private ISwDocument m_Doc;
         private IAGR_ViewModelCacheService _viewModelCache;
         private IAGR_ComponentViewModelFactory _viewModelFactory;
+        private IAGR_BaseComponent _BaseComponent;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly DateTime _creationTime;
+        private bool EditWarningShown = false;
 
-
-        public AGR_DocumentHandler(ISwAddInEx addIn, IAGR_ViewModelCacheService _ViewModelCacheService, IAGR_ComponentViewModelFactory viewModelFactory)
+        public AGR_DocumentHandler(
+            AgroventAddin addIn,
+            IAGR_ViewModelCacheService _ViewModelCacheService,
+            IAGR_ComponentViewModelFactory viewModelFactory,
+            IUnitOfWork unitOfWork)
         {
             m_AddIn = addIn;
             _viewModelCache = _ViewModelCacheService;
             _viewModelFactory = viewModelFactory;
+            _unitOfWork = unitOfWork;
+            _creationTime = DateTime.Now;
         }
 
         protected override void OnInit(ISwApplication app, ISwDocument doc)
         {
             m_Doc = doc;
 
-            m_AddIn.Application.Documents.DocumentActivated += Application_DocumentActivated;
-            
+            app.Documents.DocumentActivated += Documents_DocumentActivated;
+            doc.Destroyed += SwDoc3D_Destroyed;
             if (doc is ISwPart part)
             {
                 var swPart = part.Part as PartDoc;
@@ -43,6 +57,7 @@ namespace Agrovent.Infrastructure.Handlers
                 swPart.FileSaveNotify += OnFileSaveNotify;
                 swPart.FeatureManagerTreeRebuildNotify += SwPart_FeatureManagerTreeRebuildNotify;
                 swPart.FeatureEditPreNotify += SwPart_FeatureEditPreNotify;
+
                 part.Features.FeatureCreated += Features_FeatureCreated;
             }
             if (doc is ISwAssembly assembly)
@@ -50,6 +65,14 @@ namespace Agrovent.Infrastructure.Handlers
                 var swAssembly = assembly.Assembly as AssemblyDoc;
                 swAssembly.FileSaveAsNotify2 += OnFileSaveAsNotify2;
             }
+        }
+
+        private void Documents_DocumentActivated(IXDocument doc)
+        {
+            _BaseComponent = _viewModelCache.GetOrCreate(doc as ISwDocument3D, d => _viewModelFactory.CreateComponent(d));
+
+            m_AddIn.TaskPaneControl.IsActive = true;
+            m_AddIn.TaskPaneControl.Control.Focus();
         }
 
         private void Features_FeatureCreated(IXDocument doc, Xarial.XCad.Features.IXFeature feature)
@@ -73,9 +96,31 @@ namespace Agrovent.Infrastructure.Handlers
         {
             if (true)
             {
-                var doc = m_AddIn.Application.Documents.Active as ISwDocument3D;
-                var vm = _viewModelCache.GetOrCreate(doc, d => _viewModelFactory.CreateComponent(d));
-                
+                try
+                {
+                    if (!EditWarningShown)
+                    {
+                        if (_viewModelCache.Count == 0) return 0;
+                        var cv = _viewModelCache.Get(Document as ISwDocument3D).Value.componentVersion;
+                        if (cv != null)
+                        {
+                            if (cv.ParentAssembliesCount >= 1)
+                            {
+                                EditWarningShown = true;
+
+                                AGR_Helper.ShowMessage(
+                                    "Внимание! Вы пытаетесь изменить деталь которая используется в других сборках. Количество сборок: " + cv.ParentAssembliesCount,
+                                    MessageBoxIcon_e.Warning,
+                                    MessageBoxButtons_e.Ok);
+                            }
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+
+                    throw;
+                }
             }
             return 0;
         }
@@ -94,8 +139,8 @@ namespace Agrovent.Infrastructure.Handlers
         {
             if (doc is ISwDocument3D swDoc3D)
             {
-                swDoc3D.Destroyed += SwDoc3D_Destroyed;
-                _viewModelCache.GetOrCreate(swDoc3D, d => _viewModelFactory.CreateComponent(d));
+                //swDoc3D.Destroyed += SwDoc3D_Destroyed;
+                //_viewModelCache.GetOrCreate(swDoc3D, d => _viewModelFactory.CreateComponent(d));
             }
         }
         private void SwDoc3D_Destroyed(IXDocument doc)
@@ -116,20 +161,26 @@ namespace Agrovent.Infrastructure.Handlers
             {
                 case ".SLDASM":
                 docType = swDocumentTypes_e.swDocASSEMBLY;
-                    break;
+                break;
                 case ".SLDPRT":
                 docType = swDocumentTypes_e.swDocPART;
-                    break;
+                break;
                 default:
                 break;
             }
-            
+
             var askDialog = MessageBox.Show(
                 $"Вы использовали команду 'сохранить как'.\nОчистить идентификаторы?",
                 "Сохранить как",
                 MessageBoxButtons.YesNoCancel);
             if (askDialog == DialogResult.Yes)
             {
+                m_AddIn.NeedClearId = true;
+                m_AddIn.LastComponent = _BaseComponent;
+                m_AddIn.LastDocPath = _BaseComponent.SwDocument.Path;
+
+
+                return 0;
                 SaveFileDialog _sfd = new SaveFileDialog();
                 _sfd.FileName = Path.GetFileName(FileName);
                 _sfd.DefaultExt = extension;

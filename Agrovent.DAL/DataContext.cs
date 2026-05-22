@@ -6,6 +6,10 @@ using Agrovent.Infrastructure.Interfaces;
 using Agrovent.DAL.Entities.TechProcess;
 using Agrovent.DAL.Entities.Projects;
 using Agrovent.DAL.Entities.Base;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities;
+using AgroventInfrastructure.Interfaces.Entities.Projects;
+using AgroventInfrastructure.Interfaces.Entities.TechProcess;
 
 namespace Agrovent.DAL
 {
@@ -171,7 +175,7 @@ namespace Agrovent.DAL
             // --- Техпроцессы ---
             modelBuilder.Entity<Workstation>(entity =>
             {
-                entity.HasKey(w => w.AvaId);
+                entity.HasKey(w => w.Id);
                 entity.HasMany(d => d.TemplateOperations)
                     .WithOne(p => p.Workstation)
                     .HasForeignKey(d => d.WorkstationId)

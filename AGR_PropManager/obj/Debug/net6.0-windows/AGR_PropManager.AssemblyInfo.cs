@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AGR_PropManager")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d05a9a921819f31109a40e5ddf4e0e0ca4a84d35")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+414009ed94fa9eed1954f040646eca7bb409e6f3")]
 [assembly: System.Reflection.AssemblyProductAttribute("AGR_PropManager")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AGR_PropManager")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -17,6 +17,7 @@ using AGR_PropManager.ViewModels.TechProcess;
 using Agrovent.DAL.Services.Repositories;
 using System.Windows;
 using System.Windows.Controls;
+using AGR_PropManager.ViewModels.Reports;
 
 namespace AGR_PropManager.ViewModels.Windows
 {
@@ -25,6 +26,7 @@ namespace AGR_PropManager.ViewModels.Windows
         private readonly DataContext _dataContext;
         private readonly UnitOfWork _unitOfWork;
         private readonly ILogger _logger;
+
 
         #region CTOR
 
@@ -40,6 +42,10 @@ namespace AGR_PropManager.ViewModels.Windows
             // Инициализируем CollectionViewSource для ClassifierItems
             ClassifierItemsView = CollectionViewSource.GetDefaultView(ClassifierItems);
             ApplyFilter(); 
+        }
+        public MainWindowViewModel()
+        {
+                
         }
         #endregion
 
@@ -67,7 +73,9 @@ namespace AGR_PropManager.ViewModels.Windows
             {
                 PartNumber = classifierItem.PartNumber,
                 Name = classifierItem.Name,
-                PreviewImage = classifierItem.PreviewImage
+                PreviewImage = classifierItem.PreviewImage,
+                ComponentType = classifierItem.ComponentType
+                
             };
             
             var editorViewModel = new TechProcessEditorViewModel(
@@ -135,7 +143,7 @@ namespace AGR_PropManager.ViewModels.Windows
 
                 if (ClassifierItems != null)
                 {
-                    foreach (var cv in latestVersions)
+                    foreach (var cv in latestVersions.Where(x => x.ComponentType != AGR_ComponentType_e.Purchased))
                     {
                         var item = new ClassifierItemViewModel
                         {
@@ -143,7 +151,8 @@ namespace AGR_PropManager.ViewModels.Windows
                             PartNumber = cv.Component.PartNumber,
                             Name = cv.Name,
                             SavedDate = cv.CreatedAt,
-                            PreviewImage = cv.PreviewImage != null ? LoadImageFromBytes(cv.PreviewImage) : null
+                            PreviewImage = cv.PreviewImage != null ? LoadImageFromBytes(cv.PreviewImage) : null,
+                            ComponentType = cv.ComponentType
                         };
                         ClassifierItems.Add(item);
                     }

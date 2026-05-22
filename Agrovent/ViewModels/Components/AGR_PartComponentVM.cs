@@ -34,11 +34,11 @@ namespace Agrovent.ViewModels.Components
             _logger = logger;
 
             // Инициализация свойств
-            BaseMaterial = new AGR_Material(doc3D); // Предполагаем, что AGR_Material может быть создан так
-            BaseMaterialCount = 0; // Инициализация
+            BaseMaterial = new AGR_Material(doc3D); 
+            BaseMaterialCount = 0;
 
-            Paint = new AGR_Paint(doc3D); // Предполагаем, что AGR_Paint может быть создан так
-            PaintCount = 0; // Инициализация
+            Paint = new AGR_Paint(doc3D); 
+            PaintCount = 0;
         }
         #endregion
 
@@ -53,7 +53,7 @@ namespace Agrovent.ViewModels.Components
             set
             {
                 Set(ref _baseMaterial, value);
-                mProperties.AGR_TryGetProp(AGR_PropertyNames.Material).Value = value.Name;
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.Material).Value = value?.Name ?? "";
             }
         }
         #endregion

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using AGR_PropManager.ViewModels.Base;
 using Agrovent.DAL.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 
 namespace AGR_PropManager.ViewModels.Components
 {

@@ -14,6 +14,9 @@ using Agrovent.ViewModels.Windows;
 using System.Windows.Forms;
 using Agrovent.DAL.Entities.TechProcess;
 using Agrovent.DAL.Entities.Base;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities;
+using AgroventInfrastructure.Interfaces.Entities.TechProcess;
 
 namespace Agrovent.DAL.Services.Repositories
 {
@@ -38,6 +41,8 @@ namespace Agrovent.DAL.Services.Repositories
         // Статистика
         Task<int> GetComponentCount();
         Task<int> GetComponentVersionCount();
+        Task<List<ComponentVersion>> GetAssembliesUsedComponent(ComponentVersion childComponent);
+
 
         // Управление версиями
         Task<bool> HasComponentChanged(IAGR_BaseComponent component);
@@ -52,7 +57,6 @@ namespace Agrovent.DAL.Services.Repositories
         Task<List<Operation>> GetComponentOperationsByPartNumberAsync(string partNumber);
         Task<List<TemplateOperation>> GetAllTemplateOperationsAsync();
         Task<Dictionary<string, AvaArticleModel>> GetAvaArticlesByNameAsync(List<string> names);
-
         Task<AvaArticleModel?> GetAvaArticleByArticleNumberAsync(int articleNumber);
 
     }
@@ -90,7 +94,7 @@ namespace Agrovent.DAL.Services.Repositories
             {
                 _logger.LogDebug($"Запрос компонента по PartNumber: {partNumber}");
 
-                return await _context.Components
+                var comp = await _context.Components
                     .Include(c => c.Versions)
                         .ThenInclude(v => v.Properties)
                     .Include(c => c.Versions)
@@ -103,6 +107,10 @@ namespace Agrovent.DAL.Services.Repositories
                     .Include(c => c.TechnologicalProcess)
                         .ThenInclude(tp => tp.Operations)
                     .FirstOrDefaultAsync(c => c.PartNumber == partNumber);
+
+
+
+                return comp;
             }
             catch (Exception ex)
             {
@@ -144,9 +152,13 @@ namespace Agrovent.DAL.Services.Repositories
                     return null;
                 }
 
-                return component.Versions
+                var cv = component.Versions
                     .OrderByDescending(v => v.Version)
                     .FirstOrDefault();
+
+                cv.ParentAssemblies = await GetAssembliesUsedComponent(cv);
+
+                return cv;
             }
             catch (Exception ex)
             {
@@ -474,7 +486,7 @@ namespace Agrovent.DAL.Services.Repositories
 
                 // 1. Сохраняем сборку как компонент
                 var assemblyHash = assembly.CalculateComponentHash(); //(assembly as IAGR_BaseComponent);
-                var assemblyVersion = await SaveComponent(assembly as IAGR_BaseComponent, assemblyHash);
+                var assemblyVersion = await SaveComponent(assembly, assemblyHash);
 
                // 3. Сохраняем новую структуру рекурсивно
                 await SaveAssemblyStructureRecursive(assemblyVersion, components.ToList(), null, 0);
@@ -547,7 +559,6 @@ namespace Agrovent.DAL.Services.Repositories
                 throw;
             }
         }
-
         public async Task<int> GetComponentVersionCount()
         {
             try
@@ -560,6 +571,13 @@ namespace Agrovent.DAL.Services.Repositories
                 _logger.LogError(ex, "Ошибка при получении количества версий компонентов");
                 throw;
             }
+        }
+        public async Task<List<ComponentVersion>> GetAssembliesUsedComponent(ComponentVersion childComponent)
+        {
+            return  await _context.AssemblyStructures
+                .Where(c => c.ChildComponentVersionId == childComponent.Id)
+                .Select(x => x.ParentComponentVersion)
+                .ToListAsync();
         }
 
         #endregion

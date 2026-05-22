@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Agrovent.DAL.Entities.TechProcess;
+using AgroventInfrastructure.Interfaces.Entities.TechProcess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -34,7 +35,7 @@ namespace Agrovent.DAL.Services.Repositories
     public class AGR_TechnologicalProcessRepository : IAGR_TechnologicalProcessRepository
     {
         private readonly DataContext _context;
-        private readonly ILogger<AGR_TechnologicalProcessRepository> _logger; // Опционально
+        private readonly ILogger<AGR_TechnologicalProcessRepository> _logger;
 
         public AGR_TechnologicalProcessRepository(DataContext context, ILogger<AGR_TechnologicalProcessRepository> logger)
         {
@@ -59,7 +60,7 @@ namespace Agrovent.DAL.Services.Repositories
 
             var newProcess = new TechnologicalProcess { PartNumber = partNumber };
             _context.TechProcesses.Add(newProcess);
-            await _context.SaveChangesAsync(); // Или передать управление UoW
+            await _context.SaveChangesAsync();
             _logger?.LogInformation($"Created new TechnologicalProcess for PartNumber: {partNumber}");
             return newProcess;
         }
@@ -70,7 +71,7 @@ namespace Agrovent.DAL.Services.Repositories
             {
                 TechnologicalProcessId = process.Id,
                 Name = templateOp.Name,
-                WorkstationName = templateOp.Workstation?.Name ?? templateOp.WorkstationId.ToString(), // Или как-то иначе получить имя
+                WorkstationName = templateOp.Workstation?.Name ?? string.Empty,
                 CostPerHour = -1,
                 SequenceNumber = sequenceNumber,
                 CreatedAt = DateTime.UtcNow,
@@ -105,7 +106,6 @@ namespace Agrovent.DAL.Services.Repositories
             _context.Operations.Update(operation);
             await _context.SaveChangesAsync(); // Или передать управление UoW
         }
-        // ... другие методы
     }
 
 

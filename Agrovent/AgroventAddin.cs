@@ -28,6 +28,7 @@ using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
 using Xarial.XCad.SolidWorks.Features.CustomFeature;
 using Xarial.XCad.SolidWorks.Geometry;
+using Xarial.XCad.SolidWorks.UI;
 using Xarial.XCad.UI.Commands;
 
 namespace Agrovent
@@ -43,9 +44,15 @@ namespace Agrovent
         private IAGR_CommandService _commandService;
         private IAGR_ViewModelCacheService _viewModelCache;
         private IAGR_ComponentViewModelFactory _viewModelFactory;
-
+        private IUnitOfWork _unitOfWork;
+        public AGR_TaskPaneViewModel MainTaskPane { get; private set; }
+        public ISwTaskPane<AGR_TaskPaneView> TaskPaneControl { get; private set; }
 
         #endregion
+
+        public bool NeedClearId { get; set; } = false;
+        public IAGR_BaseComponent? LastComponent { get; set; }
+        public string LastDocPath { get; set; }
 
         public override void OnConnect()
         {
@@ -60,6 +67,7 @@ namespace Agrovent
                 _dbContext = AGR_ServiceContainer.GetService<DataContext>();
                 _viewModelCache = AGR_ServiceContainer.GetService<IAGR_ViewModelCacheService>();
                 _viewModelFactory = AGR_ServiceContainer.GetService<IAGR_ComponentViewModelFactory>();
+                _unitOfWork = AGR_ServiceContainer.GetService<IUnitOfWork>();
 
                 // Проверка и создание БД (если нужно)
                 EnsureDatabaseCreated();
@@ -79,12 +87,13 @@ namespace Agrovent
                 InitComponentRegistryTaskPane();
 
 
-                //
-                (Application.Sw as SldWorks).ReferenceNotFoundNotify += AgroventAddin_ReferenceNotFoundNotify;
-
+                //Подписки на события
+                var swApp = Application.Sw as SldWorks;
+                swApp.ReferenceNotFoundNotify += AgroventAddin_ReferenceNotFoundNotify;
+                swApp.CommandCloseNotify += SwApp_CommandCloseNotify;
 
                 Application.Documents.RegisterHandler(
-                () => new AGR_DocumentHandler(this, _viewModelCache, _viewModelFactory));
+                () => new AGR_DocumentHandler(this, _viewModelCache, _viewModelFactory, _unitOfWork));
 
                 _logger.LogInformation("AddIn успешно загружен.");
             }
@@ -128,11 +137,11 @@ namespace Agrovent
         {
             try
             {
-                var taskPaneVM = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
-                var taskPaneView = this.CreateTaskPaneWpf<AGR_TaskPaneView>();
-                taskPaneView.Control.DataContext = taskPaneVM;
-                taskPaneView.IsActive = true;
-                taskPaneView.Control.Focus();
+                MainTaskPane = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
+                TaskPaneControl = this.CreateTaskPaneWpf<AGR_TaskPaneView>();
+                TaskPaneControl.Control.DataContext = MainTaskPane;
+                TaskPaneControl.IsActive = true;
+                TaskPaneControl.Control.Focus();
 
                 _logger.LogInformation("TaskPane инициализирован");
             }
@@ -186,7 +195,7 @@ namespace Agrovent
                     break;
 
                     case AGR_Commands_e.SaveComponent:
-                        var user = AGR_ServiceContainer.GetService<IAGR_User>();
+                    var user = AGR_ServiceContainer.GetService<IAGR_User>();
 
                     _commandService.SaveActiveComponentAsync();
                     break;
@@ -209,7 +218,7 @@ namespace Agrovent
                     break;
 
                     case AGR_Commands_e.TestCommand:
-                        
+
                     break;
 
                     default:
@@ -224,6 +233,43 @@ namespace Agrovent
             }
         }
 
+        private int SwApp_CommandCloseNotify(int Command, int reason)
+        {
+            //если запустили нашу команду сохранить как с очисткой идентификаторов
+            if (Command == 620 && NeedClearId)
+            {
+                var doc = Application.Documents.Active;
+                if (doc.Path != LastDocPath)
+                {
+                    //удаляем из кэша старый документ
+                    _viewModelCache.Remove(LastComponent.SwDocument);
+
+                    var pn = doc.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
+
+                    //Получаем модель бокового меню
+                    var taskPaneVM = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
+                    
+                    //обновляем TaskPane, передаем новый активный документ на отображение.
+                    var newdocVM = _viewModelCache.GetOrCreate(
+                        doc as ISwDocument3D,
+                        d => _viewModelFactory.CreateComponent(d));
+                    
+                    taskPaneVM.BaseComponent = newdocVM;
+                    taskPaneVM.ActiveView = newdocVM;
+
+                    newdocVM.AvaArticle = null;
+                    newdocVM.Article = "";
+                    newdocVM.PartNumber = string.Empty;
+                    newdocVM.HashSum = 0;
+
+                    taskPaneVM.OnDocumentActivatedAsync(doc);
+                }
+                LastComponent = null;
+                NeedClearId = false;
+            }
+            return 0;
+        }
+
         ///////////////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////
@@ -232,7 +278,6 @@ namespace Agrovent
 
             return 0;
         }
-
         private void ShowSpecificationWindow()
         {
             if (Application.Documents.Active is ISwAssembly swAssembly)
@@ -249,7 +294,6 @@ namespace Agrovent
                     Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info);
             }
         }
-
         private void ShowAvaArticleInfo()
         {
             try

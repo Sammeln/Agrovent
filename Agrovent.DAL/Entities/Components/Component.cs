@@ -1,5 +1,7 @@
 ﻿using Agrovent.DAL.Entities.Base;
 using Agrovent.DAL.Entities.TechProcess;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.TechProcess;
 
 namespace Agrovent.DAL.Entities.Components
 {
@@ -10,7 +12,7 @@ namespace Agrovent.DAL.Entities.Components
 
         // Навигационные свойства
         public ICollection<ComponentVersion> Versions { get; set; } = new List<ComponentVersion>();
-        public virtual TechnologicalProcess? TechnologicalProcess { get; set; }
+        public TechnologicalProcess? TechnologicalProcess { get; set; }
 
         // Метод для получения последней версии
         public ComponentVersion? GetLatestVersion()

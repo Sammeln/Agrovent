@@ -32,6 +32,11 @@ namespace Agrovent.ViewModels.Windows.Details
             LoadAdditionalDetails();
         }
 
+        public AGR_ComponentDetailsVM()
+        {
+                
+        }
+
         public string Name { get; }
         public string PartNumber { get; }
         public DateTime CreatedAt { get; }

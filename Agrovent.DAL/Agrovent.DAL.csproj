@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Agrovent.Infrastructure\Agrovent.Infrastructure.csproj" />
+    <ProjectReference Include="..\Agrovent.Infrastructure\AgroventInfrastructure.csproj" />
   </ItemGroup>
 
 </Project>

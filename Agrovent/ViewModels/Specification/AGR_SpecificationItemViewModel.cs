@@ -34,7 +34,8 @@ namespace Agrovent.ViewModels.Specification
             {
                 if (_component is AGR_PartComponentVM part)
                 {
-                    MaterialName = part.BaseMaterial?.Name;
+                    BaseMaterial = part.BaseMaterial;
+                    BasePaint = part.Paint;
                     //PaintName = part.Paint?.Name;
                 }
                 if (_component is AGR_AssemblyComponentVM assembly)
@@ -94,33 +95,42 @@ namespace Agrovent.ViewModels.Specification
                 OnPropertyChanged(nameof(PartnumberOrArticle));
             }
         }
-        #endregion 
+        #endregion
 
         // Общие свойства для деталей
 
+        #region Material
 
-        #region Property - MaterialAvaModel
-        private AvaArticleModel? _MaterialAvaModel;
-        public AvaArticleModel? MaterialAvaModel
+        #region Property - BaseMaterial
+        private IAGR_Material? _BaseMaterial;
+        public IAGR_Material? BaseMaterial
         {
-            get => _MaterialAvaModel;
+            get => _BaseMaterial;
             set
             {
-                Set(ref _MaterialAvaModel, value);
-                AGR_Material newMaterial = new AGR_Material(value);
-                (Component as AGR_PartComponentVM).BaseMaterial = newMaterial;
-                MaterialName = newMaterial.Name;
+                Set(ref _BaseMaterial, value);
+                if (_component is AGR_PartComponentVM part)
+                {
+                    part.BaseMaterial = value;
+                }
+                OnPropertyChanged(nameof(MaterialName));
             }
         }
         #endregion 
 
-        private string _MaterialName;
         public string MaterialName
         {
-            get => _MaterialName;
-            set
+            get
             {
-                Set(ref _MaterialName, value);
+                if (ComponentAvaType == AGR_AvaType_e.Purchased) return string.Empty;
+                else
+                {
+                    if (BaseMaterial?.AvaModel != null)
+                    {
+                        return $"Артикул {BaseMaterial.AvaModel.Article}\n{BaseMaterial.Name}";
+                    }
+                    return BaseMaterial?.Name ?? string.Empty;
+                }
             }
         }
 
@@ -136,52 +146,48 @@ namespace Agrovent.ViewModels.Specification
             }
         }
 
+        #endregion
 
-        #region Property - PaintAvaModel
-        private AvaArticleModel? _PaintAvaModel;
-        public AvaArticleModel? PaintAvaModel
+        #region Paint
+        #region Property - BasePaint
+        private IAGR_Material? _BasePaint;
+        public IAGR_Material? BasePaint
         {
-            get => _PaintAvaModel;
+            get => _BasePaint;
             set
             {
-                Set(ref _PaintAvaModel, value);
-                if (value != null)
+                Set(ref _BasePaint, value);
+                if (_component is AGR_PartComponentVM part)
                 {
-                    AGR_Material newMaterial = new AGR_Material(value);
-                    if (Component is AGR_PartComponentVM partComp)
-                    {
-                        partComp.Paint = newMaterial;
-                    }
-                    if (Component is AGR_AssemblyComponentVM assemComp)
-                    {
-                        assemComp.Paint = newMaterial;
-                    }
+                    part.Paint = value;
                 }
-                else
+                if (_component is AGR_AssemblyComponentVM assem)
                 {
-                    (Component as AGR_PartComponentVM).Paint = null;
+                    assem.Paint = value;
                 }
                 OnPropertyChanged(nameof(PaintName));
             }
         }
         #endregion 
-        private string _PaintName;
+
         public string PaintName
         {
             get
             {
-                if (PaintAvaModel is null)
-                {
-                    Set(ref _PaintName, "Без покрытия");
-                    return _PaintName;
-                }
+                if (ComponentAvaType == AGR_AvaType_e.Purchased) return string.Empty;
                 else
                 {
-                    Set(ref _PaintName, PaintAvaModel.Name);
-                    return _PaintName;
+
+                    if (BasePaint?.AvaModel != null)
+                    {
+                        return $"Артикул {BasePaint.AvaModel.Article}\n{BasePaint.Name}";
+                    }
+                    if (BasePaint != null) return BasePaint.Name;
+                    else return string.Empty;
                 }
             }
         }
+        #endregion
 
         // Свойство для толщины (только для листовых деталей)
         public string SheetMetalThickness
@@ -208,7 +214,10 @@ namespace Agrovent.ViewModels.Specification
             {
                 if (_component.ComponentType == AGR_ComponentType_e.Purchased)
                 {
-                    return AvaArticle?.Article.ToString() ?? "";
+                    if(AvaArticle != null)
+                    {
+                        return $"Артикул№{AvaArticle.Article}\n{AvaArticle.Name}";
+                    }
                 }
                 return null;
             }
@@ -232,14 +241,8 @@ namespace Agrovent.ViewModels.Specification
         // Свойства для форматированного отображения
         public string MaterialInfo => MaterialName != null ? $"{MaterialName} ({MaterialCount:F2})" : null;
         public string QuantityString => Quantity.ToString();
-
         public int HashSum => Component.CalculateComponentHash();
-
         public byte[] Preview => Component.Preview;
-
-
-
-
 
     }
 }

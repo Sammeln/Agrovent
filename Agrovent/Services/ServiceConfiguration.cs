@@ -68,7 +68,7 @@ namespace Agrovent
             services.AddScoped<IAGR_ComponentViewModelFactory, AGR_ComponentViewModelFactory>();
             services.AddScoped<IComponentDataService, ComponentDataService>();
             services.AddSingleton<IAGR_ViewModelCacheService, AGR_ViewModelCacheService>();
-            services.AddScoped<IAGR_CommandService, AGR_CommandService>(provider =>
+            services.AddSingleton<IAGR_CommandService, AGR_CommandService>(provider =>
                new AGR_CommandService(
                    provider.GetRequiredService<ILogger<AGR_CommandService>>(),
                    provider.GetRequiredService<IAGR_ComponentVersionService>(),

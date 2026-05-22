@@ -6,10 +6,10 @@
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
              xmlns:local="clr-namespace:Agrovent.Views.Pages"
-             xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
+             xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=AgroventInfrastructure"
              xmlns:system="clr-namespace:System;assembly=mscorlib"
              xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
-             xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure"
+             xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=AgroventInfrastructure"
              d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_PartComponentVM}}"
              mc:Ignorable="d" 
              d:DesignHeight="800" d:DesignWidth="800">
@@ -17,22 +17,22 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-
-            <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
+                <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
                                 ObjectType="{x:Type system:Enum}">
-                <ObjectDataProvider.MethodParameters>
-                    <x:Type TypeName="enum:AGR_AvaType_e"/>
-                </ObjectDataProvider.MethodParameters>
-            </ObjectDataProvider>
+                    <ObjectDataProvider.MethodParameters>
+                        <x:Type TypeName="enum:AGR_AvaType_e"/>
+                    </ObjectDataProvider.MethodParameters>
+                </ObjectDataProvider>
 
-            <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
-            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+                <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+                <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
-            <!-- Converter для видимости секций в зависимости от типа компонента -->
-            <converter:AGR_ComponentTypeToVisibilityConverter x:Key="ComponentTypeToVisibilityConverter"/>
-            <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+                <!-- Converter для видимости секций в зависимости от типа компонента -->
+                <converter:AGR_ComponentTypeToVisibilityConverter x:Key="ComponentTypeToVisibilityConverter"/>
+                <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -232,7 +232,7 @@
                             </i:Interaction.Triggers>
                         </TextBox>
                     </DockPanel>
-                    
+
                     <!-- Хранилище модели -->
                     <DockPanel Style="{StaticResource PropertyGroupStyle}" 
                         Visibility="{Binding UnfoldPath, Converter={StaticResource NullToVisibilityConverter}}">
@@ -251,7 +251,7 @@
 
 
                 </StackPanel>
-                
+
             </Expander>
 
         </StackPanel>

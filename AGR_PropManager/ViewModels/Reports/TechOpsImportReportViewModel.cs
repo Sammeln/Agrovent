@@ -29,6 +29,7 @@ namespace AGR_PropManager.ViewModels.Reports
         public string Availability { get; set; } // Всегда "1"
         public int Order { get; set; } // Порядок (SequenceNumber)
         public string Additional { get; set; } // Добавочная (всегда пусто)
+        public string OperationName { get; set; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected virtual void OnPropertyChanged(string propertyName)
@@ -127,11 +128,15 @@ namespace AGR_PropManager.ViewModels.Reports
                     {
                         foreach (var operation in component.Operations.OrderBy(o => o.SequenceNumber)) // Iterate through each operation of the component
                         {
+                            reportItem = new TechOpsImportReportItem();
+                            reportItem.ComponentName = component.Name;
+                            reportItem.Partnumber = component.PartNumber ?? "";
                             if (i == 0)
                             {
                                 reportItem.Article = int.TryParse(component.Article, out int articleVal) ? articleVal : null;
                                 reportItem.Partnumber = reportItem.Article == null ? component.PartNumber : "";
                                 reportItem.LabourIntensity = operation.CostPerHour;
+                                reportItem.OperationName = operation.Name;
                                 reportItem.Availability = "1";
                                 reportItem.Order = operation.SequenceNumber;
                                 reportItem.Additional = "";

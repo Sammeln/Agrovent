@@ -15,6 +15,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Page Remove="Resources\Style\PartComponentStyle.xaml" />
+	  <Page Remove="Resources\Style\SpecificationStyle.xaml" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<Content Include="Resources\appsettings.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
@@ -41,8 +46,24 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Agrovent.DAL\Agrovent.DAL.csproj" />
-		<ProjectReference Include="..\Agrovent.Infrastructure\Agrovent.Infrastructure.csproj" />
 		<ProjectReference Include="..\AGR_PropManager\AGR_PropManager.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Reference Include="AgroventInfrastructure">
+	    <HintPath>..\Agrovent.Infrastructure\bin\Debug\net6.0-windows\AgroventInfrastructure.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Resource Include="Resources\Style\PartComponentStyle.xaml">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	    <Generator>MSBuild:Compile</Generator>
+	  </Resource>
+	  <Resource Include="Resources\Style\SpecificationStyle.xaml">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	    <Generator>MSBuild:Compile</Generator>
+	  </Resource>
 	</ItemGroup>
 
 	<ItemGroup>

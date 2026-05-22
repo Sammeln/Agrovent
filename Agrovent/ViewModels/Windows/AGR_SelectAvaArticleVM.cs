@@ -12,7 +12,8 @@ using System.Windows.Data; // Для CollectionViewSource
 using System.Windows.Input;
 using Agrovent.DAL;
 using Agrovent.Infrastructure.Commands;
-using System.Windows; // Для ICommand
+using System.Windows;
+using Agrovent.Infrastructure.Interfaces; // Для ICommand
 
 namespace Agrovent.ViewModels.Windows
 {
@@ -33,6 +34,11 @@ namespace Agrovent.ViewModels.Windows
 
             // Инициализация SearchText
             SearchText = string.Empty; // Убедимся, что изначально не фильтрует
+        }
+
+        public AGR_SelectAvaArticleVM()
+        {
+                
         }
 
         #endregion
@@ -186,8 +192,8 @@ namespace Agrovent.ViewModels.Windows
         #endregion
 
         // Коллекция для хранения данных
-        private ObservableCollection<AvaArticleModel> _avaArticles;
-        public ObservableCollection<AvaArticleModel> AvaArticles
+        private ObservableCollection<IAGR_AvaArticleModel> _avaArticles;
+        public ObservableCollection<IAGR_AvaArticleModel> AvaArticles
         {
             get => _avaArticles;
             set => Set(ref _avaArticles, value);
@@ -220,7 +226,7 @@ namespace Agrovent.ViewModels.Windows
 
 
                 var articles = _dataContext.AvaArticles;
-                AvaArticles = new ObservableCollection<AvaArticleModel>(articles);
+                AvaArticles = new ObservableCollection<IAGR_AvaArticleModel>(articles);
                 Articles_CVS.Source = AvaArticles;
 
                 _logger.LogInformation($"Загружено {AvaArticles.Count} записей AvaArticle.");

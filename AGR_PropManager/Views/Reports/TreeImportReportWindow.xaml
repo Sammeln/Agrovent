@@ -10,6 +10,18 @@
     mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vmRep:TreeImportReportViewModel, IsDesignTimeCreatable=True}"
              d:DesignHeight="600" d:DesignWidth="1200">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -17,8 +29,13 @@
             <RowDefinition Height="*"/>
             <!-- DataGrid -->
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+        
 
-        <StackPanel Grid.Row="0" Orientation="Vertical" Margin="10">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2"  Orientation="Vertical" Margin="10">
             <TextBlock Text="Отчет импорта дерева" FontSize="18" Margin="0,0,0,10"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,10">
                 <Button Content="Сохранить в Excel" Command="{Binding ExportToExcelCommand}"/>
@@ -30,50 +47,45 @@
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   IsReadOnly="True"
-                  Margin="10"
+                  Style="{StaticResource PropertiesDataGrid}"
                   HeadersVisibility="Column">
-            <DataGrid.RowStyle>
-                <Style TargetType="DataGridRow">
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding HasErrors}" Value="True">
-                            <Setter Property="Background" Value="IndianRed"/>
-                            <Setter Property="ToolTip" Value="{Binding ErrorTooltip}"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </DataGrid.RowStyle>
+            
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Наименование главного артикула" Binding="{Binding MainArtName}" Width="2*" />
-                <DataGridTextColumn Header="Part Number главного артикула" Binding="{Binding MainPartNumber}" Width="0.5*" />
-                <DataGridTextColumn Header="Part Number child" Binding="{Binding ChildPartNumber}" Width="0.5*" />
-                <DataGridTextColumn Header="Наименование child" Binding="{Binding ChildName}" Width="2*" />
-                <DataGridTextColumn Header="Артикул AVA гл.артикула" Binding="{Binding MainArticleAVA}" Width="0.5*" />
-                <DataGridTextColumn Header="Артикул AVA child" Binding="{Binding ChildArticleAVA}" Width="0.5*" />
-                <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity, StringFormat=F2}" Width="0.5*" />
-                <!-- F2 for 2 decimal places -->
-                <!-- Columns 7-10: Пусто -->
-                <DataGridTextColumn Header="" IsReadOnly="True" />
-                <DataGridTextColumn Header="" IsReadOnly="True" />
-                <DataGridTextColumn Header="" IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header="ЕИ child" Binding="{Binding ChildUnit}" Width="0.5*" />
-                <!-- Columns 12-13: Пусто -->
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header="Тип child" Binding="{Binding ChildType}" Width="1*" />
-                <!-- Columns 15 Пусто -->
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
-                <DataGridTextColumn Header=""  IsReadOnly="True" />
+                <DataGridTextColumn Header="#" Binding="{Binding RowNumber}" Width="SizeToCells"
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Наименование главного артикула" Binding="{Binding MainArtName}"
+                                    Width="SizeToCells" />
+                <DataGridTextColumn Header="Part Number главного артикула" Binding="{Binding MainPartNumber}" Width="SizeToHeader" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Part Number child" Binding="{Binding ChildPartNumber}" Width="SizeToHeader" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Наименование child" Binding="{Binding ChildName}" Width="SizeToCells" />
+                <DataGridTextColumn Header="Артикул AVA гл.артикула" Binding="{Binding MainArticleAVA}" Width="SizeToHeader" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Артикул AVA child" Binding="{Binding ChildArticleAVA}" Width="SizeToHeader" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity, StringFormat=F2}" Width="0.5*" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="ЕИ child" Binding="{Binding ChildUnit}" Width="0.5*" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}" />
+                <DataGridTextColumn Header="Тип child" Binding="{Binding ChildType}" Width="SizeToCells" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
                 <DataGridTextColumn Header="URL child" Binding="{Binding ChildURL}" Width="3*" />
             </DataGrid.Columns>
         </DataGrid>
+        <Border Grid.Column="1" Grid.Row="1"
+                Margin="5 0 0 0"
+             Style="{StaticResource ErrorBorderStyle}"
+             Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock Text="Ошибки:" 
+                        FontWeight="Bold" 
+                        Style="{StaticResource ErrorTextblockStyle}"/>
+                    <TextBlock Text="{Binding Errors}"
+                        Style="{StaticResource ErrorTextblockStyle}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
     </Grid>
-    </Window>
+</Window>

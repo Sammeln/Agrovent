@@ -6,7 +6,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:local="clr-namespace:Agrovent.Views.Windows"
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Windows"
-        xmlns:converters="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure"
+        xmlns:converters="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=AgroventInfrastructure"
+        xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=AgroventInfrastructure"
+        xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=AgroventInfrastructure"
+        xmlns:system="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:AGR_SaveConfirmationVM, IsDesignTimeCreatable=False}"
         Title="Подтверждение сохранения" 
@@ -14,38 +17,37 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
         ShowInTaskbar="False">
-    
+
     <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-        <converters:AGR_NullToVisibilityConverter x:Key="NullToVis"/>
-        <converters:AGR_InverseBooleanConverter x:Key="InverseBool"/>
-        <converters:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
-        
-        <Style x:Key="ErrorBorderStyle" TargetType="Border">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding HasErrors}" Value="True">
-                    <Setter Property="BorderBrush" Value="Red"/>
-                    <Setter Property="BorderThickness" Value="1"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="ErrorTextBoxStyle" TargetType="TextBox">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding HasErrors}" Value="True">
-                    <Setter Property="BorderBrush" Value="Red"/>
-                    <Setter Property="BorderThickness" Value="2"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-        <Style TargetType="Image" x:Key="PreviewImage"> 
-            <Setter Property="ToolTip">
-                <Setter.Value>
-                    <Image Source="{Binding Preview}" Width="500"/>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
-            <Setter Property="ToolTipService.Placement" Value="Right"/>
-        </Style>
+
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            <converters:AGR_NullToVisibilityConverter x:Key="NullToVis"/>
+            <converters:AGR_InverseBooleanConverter x:Key="InverseBool"/>
+            <converters:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
+            <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+            
+            <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
+                                ObjectType="{x:Type system:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="enum:AGR_AvaType_e"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
+
+            <Style TargetType="Image" x:Key="PreviewImage">
+                <Setter Property="ToolTip">
+                    <Setter.Value>
+                        <Image Source="{Binding Preview}" Width="500"/>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+                <Setter Property="ToolTipService.Placement" Value="Right"/>
+            </Style>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid Margin="15">
@@ -72,10 +74,37 @@
 
                 <!-- Component Info -->
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
-                    <TextBlock Text="{Binding ComponentName}" FontSize="20" FontWeight="Bold" Margin="0,0,0,5"/>
-                    <TextBlock Text="{Binding PartNumber, StringFormat='Обозначение: {0}'}" FontSize="14" Margin="0,0,0,3"/>
-                    <TextBlock Text="{Binding ConfigName, StringFormat='Конфигурация: {0}'}" FontSize="12" FontStyle="Italic" Margin="0,0,0,3"/>
-                    
+
+                    <!-- Наименование -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ComponentName}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0 0 0 8"/>
+                    </StackPanel>
+
+                    <!-- Partnumber -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BaseAssemblyPartNumber}" Margin="0,0,8,8"/>
+                    </StackPanel>
+
+                    <!-- Тип AVA -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                        <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
+                                  SelectedItem="{Binding BaseAvaTypeEnum}"
+                                  Width="150"
+                                  Style="{StaticResource ModernComboBox}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
                     <!-- Material and Color for Parts -->
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                 Visibility="{Binding IsPart, Converter={StaticResource BoolToVis}}">
@@ -102,12 +131,12 @@
                     </StackPanel>
 
                     <!-- Article for Purchased -->
-                    
+
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                         <TextBlock Text="Артикул:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <Button Content="Выбрать" Command="{Binding SelectArticleCommand}"
                                  Padding="5,2" Margin="0,0,10,0"
-                                IsEnabled="{Binding NoArticle, Converter={StaticResource InverseBool}}"/>
+                                 IsEnabled="{Binding NoArticle, Converter={StaticResource InverseBool}}"/>
                         <TextBlock Text="{Binding Article}" FontSize="12" VerticalAlignment="Center"
                                    Foreground="{Binding Article, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
@@ -127,9 +156,9 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-                <!-- Blank Properties Tab (for Parts) -->
+            <!-- Blank Properties Tab (for Parts) -->
             <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" CornerRadius="3" 
-                    Padding="10" MinWidth="250">
+                    Padding="10" MinWidth="250" Visibility="{Binding PropertiesIsVisible}" >
                 <StackPanel Orientation="Vertical">
                     <TextBlock Text="Свойства заготовки"  Margin="0,0,0,5" FontWeight="Bold"/>
                     <DataGrid  ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
@@ -144,33 +173,27 @@
             </Border>
 
             <!-- Right Side: Error Messages -->
-            <Border Grid.Column="1" BorderBrush="Red" BorderThickness="1" CornerRadius="3" 
-                    Padding="10" MinWidth="250"
+            <Border Grid.Column="1" 
+                    Style="{StaticResource ErrorBorderStyle}"
                     Visibility="{Binding HasErrors, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
-                    <TextBlock Text="Ошибки:" FontWeight="Bold" Foreground="Red" Margin="0,0,0,5"/>
-                    <ItemsControl ItemsSource="{Binding ErrorMessages}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}" Foreground="Red" Margin="0,2,0,0" TextWrapping="Wrap"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
+                    <TextBlock Text="Ошибки валидации" Style="{StaticResource ErrorTextblockStyle}"/>
+                    <TextBlock Text="{Binding ErrorMessages}" Style="{StaticResource ErrorTextblockStyle}"/>
+                    </StackPanel>
             </Border>
         </Grid>
 
         <!-- Footer Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
             <Button Content="Сохранить" 
-                    Command="{Binding SaveCommand}" 
                     CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                    Padding="15,5" FontSize="14" MinWidth="100"
+                    Command="{Binding SaveCommand}" 
+                    Style="{StaticResource AcceptButtonStyle}"
                     IsEnabled="{Binding HasErrors, Converter={StaticResource InverseBool}}"/>
             <Button Content="Отмена" 
-                    Command="{Binding CancelCommand}" 
                     CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                    Padding="15,5" FontSize="14" MinWidth="100" Margin="10,0,0,0"/>
+                    Command="{Binding CancelCommand}" 
+                    Style="{StaticResource CancelButtonStyle}"/>
         </StackPanel>
     </Grid>
 </Window>

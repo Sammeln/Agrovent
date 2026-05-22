@@ -5,6 +5,7 @@ using Agrovent.Infrastructure.Interfaces.Components.Base;
 using System.Threading.Tasks;
 using Agrovent.ViewModels.Components;
 using Agrovent.DAL.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 
 namespace Agrovent.Infrastructure.Interfaces
 {

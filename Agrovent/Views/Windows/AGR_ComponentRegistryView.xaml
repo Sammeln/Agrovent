@@ -10,15 +10,12 @@
             xmlns:local="clr-namespace:Agrovent.Views.Windows"
             xmlns:behaviors="clr-namespace:Agrovent.Infrastructure.Behaviours" 
             mc:Ignorable="d"
-            d:DataContext="{d:DesignInstance Type=vm:AGR_ComponentRegistryItemVM, IsDesignTimeCreatable=True}"
             d:DesignHeight="600" d:DesignWidth="1000">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- Подключаем стили из PartComponentStyles.xaml -->
-                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
-                <!-- Подключаем стили спецификации -->
-                <ResourceDictionary Source="../../Resources/Styles/SpecificationStyles.xaml"/>
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             
             <!-- DataTemplate для отображения изображения в ячейке -->
@@ -67,7 +64,7 @@
                 <MenuItem Header="Вставить в сборку" CommandParameter="{Binding}"
                     Command="{Binding DataContext.AddToAssemblyCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
                 <MenuItem Header="Подробная информация" CommandParameter="{Binding}"
-                    Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                    Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" Visibility="Collapsed" />
             </ContextMenu>
             <Style x:Key="DefaultRowStyle" TargetType="{x:Type DataGridRow}">
                 <Setter Property="ContextMenu" Value="{StaticResource RowMenu}" />

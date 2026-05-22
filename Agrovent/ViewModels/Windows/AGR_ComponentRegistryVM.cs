@@ -8,6 +8,7 @@ using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows.Details;
 using Agrovent.Views.Windows.Details;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.Shell.Interop;
 using SolidWorks.Interop.swconst;
@@ -42,6 +43,11 @@ namespace Agrovent.ViewModels.Windows
             // Инициализация CollectionViewSource
             RegistryItemsView = CollectionViewSource.GetDefaultView(RegistryItems);
             RegistryItemsView.Filter = FilterRegistryItems; // Устанавливаем метод фильтрации
+        }
+
+        public AGR_ComponentRegistryVM()
+        {
+                
         }
 
         #region COMMANDS

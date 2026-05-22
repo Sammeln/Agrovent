@@ -18,7 +18,8 @@ namespace Agrovent.Infrastructure.Extensions
     {
         public static AGR_AvaType_e AvaType(this ISwDocument3D xDoc)
         {
-            if (!xDoc.IsAlive) return AGR_AvaType_e.Component;
+            var type = AGR_AvaType_e.Component;
+            if (!xDoc.IsAlive) return type;
             try
             {
                     var prop = xDoc.Configurations.Active.Properties.GetOrPreCreate(AGR_PropertyNames.AvaType);
@@ -35,6 +36,10 @@ namespace Agrovent.Infrastructure.Extensions
             catch (Exception ex)
             {
                 AGR_Helper.ShowMessage(ex.Message, MessageBoxIcon_e.Error, MessageBoxButtons_e.Ok);
+            }
+            finally
+            {
+                type = AGR_AvaType_e.Component;
             }
             return AGR_AvaType_e.Component;
         }
@@ -67,7 +72,7 @@ namespace Agrovent.Infrastructure.Extensions
             }
             catch (Exception ex)
             {
-                AGR_Helper.ShowMessage(ex.Message, MessageBoxIcon_e.Error, MessageBoxButtons_e.Ok);
+                //AGR_Helper.ShowMessage(ex.Message, MessageBoxIcon_e.Error, MessageBoxButtons_e.Ok);
             }
 
             return AGR_ComponentType_e.NA;

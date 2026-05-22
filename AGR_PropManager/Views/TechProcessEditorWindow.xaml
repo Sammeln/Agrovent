@@ -8,73 +8,72 @@
         xmlns:vmComp="clr-namespace:AGR_PropManager.ViewModels.Components"
         xmlns:vmWindows="clr-namespace:AGR_PropManager.ViewModels.Windows"
         xmlns:b="clr-namespace:AGR_PropManager.Infrastructure.Behaviors"
-        xmlns:AGR_Behavors="clr-namespace:Agrovent.Infrastructure.Behaviors;assembly=Agrovent.Infrastructure"
-        xmlns:enums="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
-        xmlns:converters="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure"
+        xmlns:AGR_Behavors="clr-namespace:Agrovent.Infrastructure.Behaviors;assembly=AgroventInfrastructure"
+        xmlns:enums="clr-namespace:Agrovent.Infrastructure.Enums;assembly=AgroventInfrastructure"
+        xmlns:converters="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=AgroventInfrastructure"
         mc:Ignorable="d"
         Title="Редактор технологического процесса"
-        Height="600" Width="1000"
+        WindowState="Maximized"
         WindowStartupLocation="CenterOwner"
         d:DataContext="{d:DesignInstance Type=vmWindows:TechProcessEditorViewModel, IsDesignTimeCreatable=True}">
 
     <Window.Resources>
-        <ObjectDataProvider MethodName="GetValues" ObjectType="{x:Type enums:AGR_ComponentType_e}" x:Key="ComponentTypeEnum"/>
-        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
-        <converters:AGR_EmptyCollectionToVisibilityConverter x:Key="AGR_EmptyCollectionToVisibilityConverter"/>
-        <converters:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Style/SpecificationStyle.xaml"/>
+                <ResourceDictionary Source="Style/PartComponentStyle.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
-        <!-- DataTemplate для отображения операций в ячейке -->
-        <DataTemplate x:Key="OperationsTemplate" DataType="vmComp:ComponentItemViewModel">
-            <DataGrid x:Name="OperationsGrid"
+            <converters:AGR_EmptyCollectionToVisibilityConverter x:Key="AGR_EmptyCollectionToVisibilityConverter"/>
+            <converters:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
+            <converters:AGR_GroupHeaderConverter x:Key="GroupHeaderConverter"/>
+            
+
+            <!-- DataTemplate для отображения операций в ячейке -->
+            <DataTemplate x:Key="OperationsTemplate" DataType="vmComp:ComponentItemViewModel">
+                <DataGrid x:Name="OperationsGrid"
                       ItemsSource="{Binding Operations, NotifyOnSourceUpdated=True}"
                       AutoGenerateColumns="False"
+                          Style="{StaticResource PropertiesDataGrid}"
                       HeadersVisibility="Column"
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
                       SelectionMode="Single"
                       RowHeight="25" MinHeight="30" MaxHeight="200"
                       Visibility="{Binding Operations.Count, Converter={StaticResource AGR_EmptyCollectionToVisibilityConverter}}">
-                
-                <DataGrid.Columns>
-                    <!-- Номер операции (SequenceNumber) -->
-                    <DataGridTextColumn Header="№" Binding="{Binding SequenceNumber}" Width="0.2*" IsReadOnly="True"/>
-                    <!-- Участок -->
-                    <DataGridTextColumn Header="Участок" Binding="{Binding WorkstationName}" Width="*" IsReadOnly="True"/>
-                    <!-- Операция -->
-                    <DataGridTextColumn Header="Операция" Binding="{Binding Name}" Width="3*" IsReadOnly="True"/>
-                    <!-- Время -->
-                    <DataGridTemplateColumn Header="Время" Width="1*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding CostPerHour, StringFormat='{}{0:F2} мин'}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding CostPerHour, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
 
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding CostPerHour}" Value="0">
-                                <Setter Property="Background" Value="IndianRed"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.RowStyle>
-                
-                <DataGrid.InputBindings>
-                    <KeyBinding Key="Delete" Command="{Binding DataContext.DeleteOperationCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                    <DataGrid.Columns>
+                        <!-- Номер операции (SequenceNumber) -->
+                        <DataGridTextColumn Header="№" Binding="{Binding SequenceNumber}" Width="15" IsReadOnly="True"/>
+                        <!-- Участок -->
+                        <DataGridTextColumn Header="Участок" Binding="{Binding WorkstationName}" Width="*" IsReadOnly="True"/>
+                        <!-- Операция -->
+                        <DataGridTextColumn Header="Операция" Binding="{Binding Name}" Width="3*" IsReadOnly="True"/>
+                        <!-- Время -->
+                        <DataGridTemplateColumn Header="Время" Width="1*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding CostPerHour, StringFormat='{}{0:F2} мин'}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding CostPerHour, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+
+                    <DataGrid.InputBindings>
+                        <KeyBinding Key="Delete" Command="{Binding DataContext.DeleteOperationCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
                                 CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
-                </DataGrid.InputBindings>
-                
-            </DataGrid>
-        </DataTemplate>
+                    </DataGrid.InputBindings>
 
+                </DataGrid>
+            </DataTemplate>
+            <ObjectDataProvider MethodName="GetValues" ObjectType="{x:Type enums:AGR_ComponentType_e}" x:Key="ComponentTypeEnum"/>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
@@ -86,22 +85,34 @@
             <RowDefinition Height="Auto"/>
             <!-- Buttons -->
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        
 
+        
         <!-- Toolbar -->
-        <ToolBar Grid.Row="0">
+        <ToolBar Grid.Row="0" Grid.ColumnSpan="2">
             <Label Content="Группировка:"/>
             <ComboBox SelectedValue="{Binding SelectedGroupingMode}" SelectedValuePath="Content" Width="120" Margin="0,0,10,0">
                 <ComboBoxItem Content="По материалу"/>
                 <ComboBoxItem Content="По типу"/>
             </ComboBox>
             <Button Content="Редактировать процесс" Command="{Binding InsertTechProcessCommand}" Margin="0,0,10,0"/>
+            <Menu Grid.Row="0">
+                <MenuItem Header="_Отчеты">
+                    <MenuItem Header="Отчет импорта классификатора" Command="{Binding ShowImportClassifierReportCommand}" />
+                    <MenuItem Header="Отчет импорта дерева" Command="{Binding ShowTreeImportReportCommand}" />
+                    <MenuItem Header="Отчет импорта техопераций" Command="{Binding ShowTechOpsImportReportCommand}" />
+                </MenuItem>
+            </Menu>
         </ToolBar>
+
 
         <!-- Main DataGrid with grouping -->
         <DataGrid x:Name="ComponentsDataGrid"
-                  Grid.Row="1"
-                  HorizontalAlignment="Stretch"
-                  VerticalAlignment="Stretch"
+                  Grid.Row="1" Grid.Column="0" Style="{StaticResource PropertiesDataGrid}"
                   ItemsSource="{Binding ComponentsView}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
@@ -109,12 +120,11 @@
                   SelectionMode="Extended"
                   IsReadOnly="True"
                   AGR_Behavors:AGR_DataGridSelectedItemsBehavior.SelectedItems="{Binding SelectedComponents, Mode=TwoWay}">
-            
+
             <DataGrid.InputBindings>
                 <KeyBinding Key="Insert" Command="{Binding InsertTechProcessCommand}"/>
                 <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
             </DataGrid.InputBindings>
-
             <DataGrid.GroupStyle>
                 <GroupStyle>
                     <GroupStyle.ContainerStyle>
@@ -125,11 +135,26 @@
                                         <Expander IsExpanded="True">
                                             <Expander.Header>
                                                 <DockPanel>
-                                                    <TextBlock FontWeight="SemiBold"
+                                                    <!--<TextBlock FontWeight="SemiBold"
                                                                FontSize="14"
                                                                Text="{Binding Name, Converter={StaticResource ComponentTypeConverter}}"
                                                                Margin="10,5,5,5"
-                                                               Foreground="#212121"/>
+                                                               Foreground="#212121"/>-->
+                                                    <TextBlock FontWeight="SemiBold"
+                                                           FontSize="14"
+                                                           Margin="10,5,5,5"
+                                                           Foreground="#212121">
+                                                        <TextBlock.Text>
+                                                            <MultiBinding Converter="{StaticResource GroupHeaderConverter}">
+                                                                <Binding Path="Name"/>
+                                                                <!-- Доступ к SelectedGroupingMode из ViewModel -->
+                                                                <Binding Path="DataContext.SelectedGroupingMode" 
+                                                             RelativeSource="{RelativeSource FindAncestor, 
+                                                                 AncestorType={x:Type DataGrid}}"/>
+                                                            </MultiBinding>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+
                                                     <TextBlock FontWeight="Bold" 
                                                                Margin="0 5"
                                                                FontSize="14"
@@ -146,21 +171,22 @@
                     </GroupStyle.ContainerStyle>
                 </GroupStyle>
             </DataGrid.GroupStyle>
-            
+
             <DataGrid.Columns>
                 <!-- CheckBox Column -->
-                <DataGridTemplateColumn Width="25">
+                <DataGridTemplateColumn CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center"/>
+                            <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
                 <!-- Preview -->
-                <DataGridTemplateColumn Width="50">
+                <DataGridTemplateColumn CanUserResize="False">
                     <DataGridTemplateColumn.CellStyle>
                         <Style TargetType="DataGridCell">
+                            <Setter Property="Background" Value="white"/>
                             <Setter Property="ToolTip">
                                 <Setter.Value>
                                     <Image Source="{Binding PreviewImage}" Width="800"/>
@@ -178,46 +204,53 @@
                 </DataGridTemplateColumn>
 
                 <!-- PartNumber / Article -->
-                <DataGridTextColumn Header="Partnumber / Артикул" Binding="{Binding PartnumberOrArticle}" Width="130" />
+                <DataGridTextColumn Header="Partnumber / Артикул" Binding="{Binding PartnumberOrArticle}" 
+                                    Width="1*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 <!-- Name -->
-                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="1*"/>
+                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="2*"
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 <!-- Material -->
-                <DataGridTextColumn Header="Материал" Binding="{Binding Material}" Width="1*"/>
+                <DataGridTextColumn Header="Материал" Binding="{Binding Material}" Width="2*"
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 <!-- Paint -->
-                <DataGridTextColumn Header="Покраска" Binding="{Binding Paint}" Width="0.8*"/>
+                <DataGridTextColumn Header="Покраска" Binding="{Binding Paint}" Width="0.6*"
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 <!-- Bend Count -->
-                <DataGridTextColumn Header="Сгибы" Binding="{Binding BendCount}" Width="0.8*"/>
+                <DataGridTextColumn Header="Сгибы" Binding="{Binding BendCount}" Width="0.4*"
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 <!-- Contour Length -->
-                <DataGridTextColumn Header="Контур" Binding="{Binding ContourLength}" Width="0.8*"/>
+                <DataGridTextColumn Header="Контур" Binding="{Binding ContourLength}" Width="0.5*"
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 <!-- Tech Process Column -->
-                <DataGridTemplateColumn Header="Техпроцесс" CellTemplate="{StaticResource OperationsTemplate}" Width="4*" />
+                <DataGridTemplateColumn Header="Техпроцесс" CellTemplate="{StaticResource OperationsTemplate}" Width="5*" />
 
             </DataGrid.Columns>
             
-            <DataGrid.RowStyle>
-                <Style TargetType="DataGridRow">
-                    <Style.Triggers>
-                        <!-- Подсветка операций с нулевым временем -->
-                        <DataTrigger Binding="{Binding HasZeroTimeOperations}" Value="True">
-                            <Setter Property="Background" Value="IndianRed"/>
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                            <Setter Property="Background" Value="LightBlue"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </DataGrid.RowStyle>
-            
         </DataGrid>
 
+        <!-- Панель ошибок справа -->
+        <Border Grid.Column="1" Grid.Row="1"
+                    Style="{StaticResource ErrorBorderStyle}"
+                    Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock Text="Ошибки:" 
+                               FontWeight="Bold" 
+                               Style="{StaticResource ErrorTextblockStyle}"/>
+                    <TextBlock Text="{Binding Errors}"
+                               Style="{StaticResource ErrorTextblockStyle}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
         <!-- Buttons Panel -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="10">
+        <StackPanel Visibility="Collapsed" Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="10">
             <Button Content="Сохранить" Command="{Binding SaveCommand}" Width="100" Margin="0,0,10,0"/>
             <Button Content="Закрыть" Command="{Binding CloseCommand}" Width="100" IsCancel="True"/>
         </StackPanel>

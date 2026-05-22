@@ -1,5 +1,6 @@
 ﻿using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces.Properties;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.Infrastructure.Interfaces.Components.Base
@@ -16,11 +17,12 @@ namespace Agrovent.Infrastructure.Interfaces.Components.Base
         abstract int HashSum { get; set; }
         abstract bool IsLoaded { get; set; }
         abstract byte[] Preview { get; }
-        abstract IAGR_AvaArticleModel AvaArticle { get; set; }
+        abstract IAGR_AvaArticleModel? AvaArticle { get; set; }
         abstract AGR_ComponentType_e ComponentType { get; set; }
         abstract AGR_AvaType_e AvaType { get; set; }
         abstract IAGR_PropertiesCollection PropertiesCollection { get; set; }
         abstract AGR_ComponentDatabaseState_e IsInDatabase { get; set; }
+        abstract IAGR_ComponentVersionEntity? ComponentVersion { get; set; }
         abstract int CalculateComponentHash();
         abstract void PrecomputePreview();
     }

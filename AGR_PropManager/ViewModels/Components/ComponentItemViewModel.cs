@@ -13,6 +13,7 @@ using System.Collections.Specialized;
 using Agrovent.DAL.Services.Repositories;
 using Microsoft.Extensions.Logging;
 using Agrovent.DAL.Entities.Components;
+using Agrovent.Infrastructure.Interfaces;
 
 namespace AGR_PropManager.ViewModels.Components
 {
@@ -156,7 +157,6 @@ namespace AGR_PropManager.ViewModels.Components
         }
         #endregion
 
-
         #region Property - 
         private int _Version;
         public int Version
@@ -167,14 +167,13 @@ namespace AGR_PropManager.ViewModels.Components
         #endregion 
 
         #region Property - AvaArticle
-        private AvaArticleModel? _AvaArticle;
-        public AvaArticleModel? AvaArticle
+        private IAGR_AvaArticleModel? _AvaArticle;
+        public IAGR_AvaArticleModel? AvaArticle
         {
             get => _AvaArticle;
             set => Set(ref _AvaArticle, value);
         }
         #endregion
-
 
         #region Property - Article
         private string _Article;
@@ -220,12 +219,21 @@ namespace AGR_PropManager.ViewModels.Components
         {
             get
             {
-                if (ComponentType == AGR_ComponentType_e.Purchased) return false;
+                if (IsPurchased) return false;
                 if (Operations?.Count == 0) return true;
                 if (TechnologicalProcessModel.Operations.Count == 0) return true;
                 return false;
             }
         }
+        public bool IsProduced => ComponentType == AGR_ComponentType_e.Assembly
+                                || ComponentType == AGR_ComponentType_e.Part
+                                || ComponentType == AGR_ComponentType_e.SheetMetallPart;
+
+        public bool IsPurchased => ComponentType == AGR_ComponentType_e.Purchased;
+
+        public bool IsSheetMetallPart => ComponentType == AGR_ComponentType_e.SheetMetallPart;
+        public bool IsPart => ComponentType == AGR_ComponentType_e.SheetMetallPart
+                               || ComponentType == AGR_ComponentType_e.Part;
 
         #region Техоперации
 
@@ -261,7 +269,7 @@ namespace AGR_PropManager.ViewModels.Components
         public async void OnOperationCostChanged(TechOperationViewModel operation)
         {
             OnPropertyChanged(nameof(HasZeroTimeOperations));
-            await _unitOfWork.TechProcessRepository.UpdateOperationAsync(operation.OperationEntity);
+            await _unitOfWork.TechProcessRepository.UpdateOperationAsync(operation.Operation);
         }
         #endregion
 
@@ -302,6 +310,7 @@ namespace AGR_PropManager.ViewModels.Components
                 Operations.Remove(oper);
             }
             OnPropertyChanged(nameof(HasZeroTimeOperations));
+            
         }
         #endregion 
 

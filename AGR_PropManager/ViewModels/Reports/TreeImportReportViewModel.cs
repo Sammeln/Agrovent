@@ -7,25 +7,29 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Forms;
 using System.Windows.Input;
 using AGR_PropManager.Infrastructure.Commands;
 using AGR_PropManager.ViewModels.Base;
 using AGR_PropManager.ViewModels.Components;
 using Agrovent.DAL;
 using Agrovent.DAL.Entities.Components;
-using Agrovent.Infrastructure.Enums; // Assuming AGR_ComponentType_e is here
-using Microsoft.Win32; // For SaveFileDialog
+using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+
+//using Microsoft.Win32;
 using NPOI.HSSF.UserModel;
+using NPOI.POIFS.FileSystem;
+using NPOI.POIFS.Properties;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 
 namespace AGR_PropManager.ViewModels.Reports
 {
-    public class TreeImportReportItem : INotifyPropertyChanged
+    public class TreeImportReportItem : BaseViewModel
     {
-        private bool _hasErrors;
-        private string _errorTooltip = "";
-
+        public int RowNumber { get; set; }
         public string MainArtName { get; set; }
         public string MainPartNumber { get; set; }
         public string ChildPartNumber { get; set; }
@@ -40,68 +44,8 @@ namespace AGR_PropManager.ViewModels.Reports
         // Пустые столбцы 15-24 (индексы 15-24)
         public string ChildURL { get; set; }
 
-        // Свойства для отображения ошибок
-        public bool HasErrors
-        {
-            get => _hasErrors;
-            set { _hasErrors = value; OnPropertyChanged(nameof(HasErrors)); }
-        }
-
-        public string ErrorTooltip
-        {
-            get => _errorTooltip;
-            set { _errorTooltip = value; OnPropertyChanged(nameof(ErrorTooltip)); }
-        }
-
-        // Метод для проверки ошибок на основе данных и типов
-        public void Validate(ComponentVersion mainComponent, ComponentVersion childComponent, double quantity)
-        {
-            HasErrors = false;
-            ErrorTooltip = "";
-
-            string errors = "";
-
-            // Проверка Part Number главного артикула
-            if (mainComponent.ComponentType != AGR_ComponentType_e.Purchased && string.IsNullOrEmpty(mainComponent.Component.PartNumber))
-            {
-                errors += "Пустой partnumber главной позиции; ";
-                HasErrors = true;
-            }
-
-            // Проверка Part Number child
-            if (childComponent.ComponentType != AGR_ComponentType_e.Purchased && string.IsNullOrEmpty(childComponent.Component.PartNumber))
-            {
-                errors += "Пустой partnumber подчиненной позиции; ";
-                HasErrors = true;
-            }
-
-            // Проверка Article для Purchased
-            if (childComponent.ComponentType == AGR_ComponentType_e.Purchased && string.IsNullOrEmpty(childComponent.AvaArticleArticle?.ToString()))
-            {
-                errors += "Пустой артикул AVA для покупного компонента; ";
-                HasErrors = true;
-            }
-
-            // Проверка Quantity
-            if (quantity <= 0)
-            {
-                errors += "Количество должно быть больше 0; ";
-                HasErrors = true;
-            }
-
-            if (!string.IsNullOrEmpty(errors))
-            {
-                ErrorTooltip = errors.TrimEnd(' ', ';');
-            }
-        }
-
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+        public ComponentVersion Parent { get; set; }
+        public ComponentVersion? Child { get; set; }
     }
 
     public class TreeImportReportViewModel : BaseViewModel
@@ -126,7 +70,21 @@ namespace AGR_PropManager.ViewModels.Reports
 
 
             ReportData = new ObservableCollection<TreeImportReportItem>();
-            LoadReportDataAsync(); // Загружаем асинхронно
+            Initialize();
+        }
+
+        private async void Initialize()
+        {
+
+            if (_mainComponent.ComponentType ==AGR_ComponentType_e.Assembly)
+            {
+                await LoadReportDataAsync();
+            }
+            if (_mainComponent.IsPart)
+            {
+                await LoadReportDataForPartAsync();
+            }
+            Validate();
 
         }
 
@@ -134,6 +92,24 @@ namespace AGR_PropManager.ViewModels.Reports
 
         #region Properties
 
+        #region HasErrors
+        private bool _hasErrors = true;
+        public bool HasErrors
+        {
+            get => _hasErrors;
+            set => Set(ref _hasErrors, value);
+        }
+        #endregion
+
+        #region Errors
+
+        private string _errors;
+        public string Errors
+        {
+            get => _errors;
+            set => Set(ref _errors, value);
+        }
+        #endregion
         public ObservableCollection<TreeImportReportItem> ReportData { get; }
         public string StatusMessage
         {
@@ -165,9 +141,9 @@ namespace AGR_PropManager.ViewModels.Reports
 
         #endregion
 
-        #region Helpers
+        #region METHODS
 
-        private async void LoadReportDataAsync()
+        private async Task LoadReportDataAsync()
         {
             StatusMessage = "Загрузка данных отчета...";
             IsGenerating = true; // Используем IsGenerating как индикатор загрузки тоже
@@ -183,6 +159,8 @@ namespace AGR_PropManager.ViewModels.Reports
                 //var assemblyVersion = await _unitOfWork.ComponentRepository.GetLatestComponentVersion(_mainComponent.PartNumber);
 
                 // Проходим по структуре и формируем строки отчета
+                int rowNumber = 1;
+
                 foreach (var entry in structureEntries)
                 {
                     var parent = entry.ParentComponentVersion;
@@ -190,20 +168,36 @@ namespace AGR_PropManager.ViewModels.Reports
 
                     var reportItem = new TreeImportReportItem
                     {
+                        RowNumber = rowNumber++,
+                        Parent = parent,
+                        Child = child,
                         MainArtName = parent.Name,
-                        MainPartNumber = parent.Component.PartNumber,
-                        ChildPartNumber = child.ComponentType == AGR_ComponentType_e.Purchased ? "" : child.Component.PartNumber,
                         ChildName = child.Name,
+                        MainPartNumber = parent.Component.PartNumber ?? "",
                         MainArticleAVA = parent.AvaArticle?.Article.ToString() ?? "",
-                        ChildArticleAVA = child.AvaArticle?.Article.ToString() ?? "",
                         Quantity = entry.Quantity, // Quantity из AssemblyStructure
-                        ChildUnit = "шт",//DetermineUnit(childComponentVM.ComponentType), // Определяем ЕИ
-                        ChildType = "Комплектующие", //DetermineType(childComponentVM.ComponentType), // Определяем Тип
-                        ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{child.Component.PartNumber}" // Формируем URL
-                    };
 
-                    // Проверяем на ошибки
-                    reportItem.Validate(parent, child, entry.Quantity);
+                        ChildPartNumber = child.ComponentType == AGR_ComponentType_e.Purchased ? "" : child.Component.PartNumber,
+                        ChildArticleAVA = child.AvaArticle?.Article.ToString() ?? "",
+                        //ChildUnit = "шт",//DetermineUnit(childComponentVM.ComponentType), // Определяем ЕИ
+                        //ChildType = "Комплектующие", //DetermineType(childComponentVM.ComponentType), // Определяем Тип
+                        //ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{child.Component.PartNumber}" // Формируем URL
+                    };
+                    if (reportItem.Child.ComponentType == AGR_ComponentType_e.Purchased)
+                    {
+                        reportItem.ChildUnit = child.AvaArticle?.MainUOM ?? "";
+                        reportItem.ChildType = "";
+                    }
+                    else
+                    {
+                        reportItem.ChildUnit = "шт";
+                        reportItem.ChildType = "Комплектующие";
+                        if (!string.IsNullOrEmpty(reportItem.ChildPartNumber))
+                        {
+                            reportItem.ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{child.Component.PartNumber}";
+                        }
+                    }
+
 
                     ReportData.Add(reportItem);
                 }
@@ -268,13 +262,62 @@ namespace AGR_PropManager.ViewModels.Reports
             catch (Exception ex)
             {
                 StatusMessage = $"Ошибка при загрузке данных: {ex.Message}";
-                MessageBox.Show(StatusMessage, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                //MessageBox.Show(StatusMessage, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
                 IsGenerating = false; // Завершаем индикатор загрузки
             }
         }
+
+        private async Task LoadReportDataForPartAsync()
+        {
+            StatusMessage = "Загрузка данных отчета...";
+            IsGenerating = true; // Используем IsGenerating как индикатор загрузки тоже
+            try
+            {
+                // Предполагаем, что _mainComponent.PartNumber и Version установлены корректно
+                var parent = await _unitOfWork.ComponentRepository.GetLatestComponentVersion(_mainComponent.PartNumber);
+                //var structureEntries = await _unitOfWork.ComponentRepository.GetAssemblyStructureRecursive(_mainComponent.PartNumber, _mainComponent.Version); // Используем DataService или UnitOfWork из _mainComponent
+                var child = parent.Material;
+                // Очищаем старые данные
+                ReportData.Clear();
+
+                // Найдем версию сборки по PartNumber (берем последнюю по версии)
+                //var assemblyVersion = await _unitOfWork.ComponentRepository.GetLatestComponentVersion(_mainComponent.PartNumber);
+                var reportItem = new TreeImportReportItem
+                {
+                    RowNumber = 1,
+                    Parent = parent,
+                    Child = null,
+                    MainArtName = parent.Name,
+                    ChildName = child.BaseMaterial,
+                    MainPartNumber = parent.Component.PartNumber ?? "",
+                    MainArticleAVA = parent.AvaArticle?.Article.ToString() ?? "",
+                    Quantity = 1 // Quantity из AssemblyStructure
+
+                    //ChildPartNumber = "",
+                    //ChildArticleAVA = child.BaseMaterial,
+                    //ChildUnit = "шт",//DetermineUnit(childComponentVM.ComponentType), // Определяем ЕИ
+                    //ChildType = "Комплектующие", //DetermineType(childComponentVM.ComponentType), // Определяем Тип
+                    //ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{child.Component.PartNumber}" // Формируем URL
+                };
+
+                ReportData.Add(reportItem);
+
+                StatusMessage = $"Загружено {ReportData.Count} строк.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Ошибка при загрузке данных: {ex.Message}";
+                //MessageBox.Show(StatusMessage, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsGenerating = false; // Завершаем индикатор загрузки
+            }
+        }
+
         private void CloseWindow()
         {
             CloseRequested?.Invoke(this, EventArgs.Empty);
@@ -299,7 +342,6 @@ namespace AGR_PropManager.ViewModels.Reports
             };
         }
 
-
         private void GenerateAndSaveExcel()
         {
             if (IsGenerating) return;
@@ -318,7 +360,7 @@ namespace AGR_PropManager.ViewModels.Reports
                     CheckPathExists = true
                 };
 
-                if (saveFileDialog.ShowDialog() == true)
+                if (saveFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     StatusMessage = "Создание файла...";
 
@@ -348,7 +390,7 @@ namespace AGR_PropManager.ViewModels.Reports
                         headerRow.CreateCell(12).SetCellValue("");
                         headerRow.CreateCell(13).SetCellValue("");
                         headerRow.CreateCell(14).SetCellValue("Тип child");
-                        
+
                         headerRow.CreateCell(25).SetCellValue("URL child");
 
                         // Style for PartNumber columns to preserve leading zeros
@@ -420,7 +462,7 @@ namespace AGR_PropManager.ViewModels.Reports
             catch (Exception ex)
             {
                 StatusMessage = $"Ошибка при создании или сохранении Excel: {ex.Message}";
-                MessageBox.Show(StatusMessage, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                //MessageBox.Show(StatusMessage, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -428,6 +470,48 @@ namespace AGR_PropManager.ViewModels.Reports
             }
         }
 
+        // Метод для проверки ошибок на основе данных и типов
+        public void Validate()
+        {
+            Errors = null;
+            HasErrors = false;
+
+            var errorList = new List<string>();
+
+            //errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указано количество");
+
+            foreach (var row in ReportData)
+            {
+                if (row.RowNumber == 1)
+                {
+                    if (string.IsNullOrEmpty(row.MainArticleAVA) 
+                        && string.IsNullOrEmpty(row.MainPartNumber))
+                    {
+                        errorList.Add($"У основного изделия {row.MainArtName} пустые артикул и partnumber");
+                    }
+                }
+
+                if (row.Child.ComponentType == AGR_ComponentType_e.Purchased)
+                {
+                    if (string.IsNullOrEmpty(row.ChildArticleAVA))
+                        errorList.Add($"В строке {row.RowNumber} не указан артикул {row.ChildName}");
+                    if (string.IsNullOrEmpty(row.ChildUnit))
+                        errorList.Add($"В строке {row.RowNumber} не указан ЕИ {row.ChildName}");
+                }
+
+                if (row.Quantity == 0 || row.Quantity == double.NaN)
+                {
+                    errorList.Add($"В строке {row.RowNumber} некорректное количество для {row.ChildName}");
+                }
+            }
+
+            if (errorList.Any())
+            {
+                Errors = string.Join("\n", errorList);
+                HasErrors = true;
+            }
+            HasErrors = !string.IsNullOrEmpty(Errors);
+        }
         #endregion
 
         public event EventHandler? CloseRequested;

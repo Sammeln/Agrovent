@@ -11,6 +11,7 @@ using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows.Details;
 using Agrovent.Views.Windows.Details;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 using Microsoft.Extensions.Logging;
 using SolidWorks.Interop.swconst;
 using System;
@@ -40,8 +41,8 @@ namespace Agrovent.ViewModels.TaskPane
 
         #region CTOR
         public AGR_ComponentRegistryTaskPaneVM(
-    IAGR_ComponentRepository componentRepository,
-    ILogger<AGR_ComponentRegistryTaskPaneVM> logger)
+                IAGR_ComponentRepository componentRepository,
+                ILogger<AGR_ComponentRegistryTaskPaneVM> logger)
         {
             _componentRepository = componentRepository ?? throw new ArgumentNullException(nameof(componentRepository));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -73,7 +74,12 @@ namespace Agrovent.ViewModels.TaskPane
 
             // Загружаем данные при создании VM (или вызывайте LoadDataCommand извне)
             // Task.Run(async () => await LoadDataAsync()); // Не рекомендуется запускать асинхронный код в конструкторе
-        } 
+        }
+
+        public AGR_ComponentRegistryTaskPaneVM()
+        {
+                
+        }
         #endregion
 
         // Команда для загрузки данных

@@ -1311,7 +1311,7 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v6.0",
         "dependencies": {
-          "Agrovent.Infrastructure": "1.0.0",
+          "AgroventInfrastructure": "1.0.0",
           "Microsoft.EntityFrameworkCore": "7.0.20",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "7.0.18",
           "Xarial.XCad": "0.8.2"
@@ -1323,7 +1323,7 @@
           "bin/placeholder/Agrovent.DAL.dll": {}
         }
       },
-      "Agrovent.Infrastructure/1.0.0": {
+      "AgroventInfrastructure/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v6.0",
         "dependencies": {
@@ -1331,10 +1331,10 @@
           "Xarial.XCad.SolidWorks": "0.8.2"
         },
         "compile": {
-          "bin/placeholder/Agrovent.Infrastructure.dll": {}
+          "bin/placeholder/AgroventInfrastructure.dll": {}
         },
         "runtime": {
-          "bin/placeholder/Agrovent.Infrastructure.dll": {}
+          "bin/placeholder/AgroventInfrastructure.dll": {}
         }
       }
     }
@@ -3263,15 +3263,16 @@
       "path": "../Agrovent.DAL/Agrovent.DAL.csproj",
       "msbuildProject": "../Agrovent.DAL/Agrovent.DAL.csproj"
     },
-    "Agrovent.Infrastructure/1.0.0": {
+    "AgroventInfrastructure/1.0.0": {
       "type": "project",
-      "path": "../Agrovent.Infrastructure/Agrovent.Infrastructure.csproj",
-      "msbuildProject": "../Agrovent.Infrastructure/Agrovent.Infrastructure.csproj"
+      "path": "../Agrovent.Infrastructure/AgroventInfrastructure.csproj",
+      "msbuildProject": "../Agrovent.Infrastructure/AgroventInfrastructure.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net6.0-windows7.0": [
       "Agrovent.DAL >= 1.0.0",
+      "AgroventInfrastructure >= 1.0.0",
       "Microsoft.EntityFrameworkCore >= 7.0.20",
       "Microsoft.EntityFrameworkCore.Tools >= 7.0.20",
       "Microsoft.Extensions.Configuration.Json >= 10.0.0",
@@ -3319,6 +3320,9 @@
           "projectReferences": {
             "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.DAL\\Agrovent.DAL.csproj": {
               "projectPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.DAL\\Agrovent.DAL.csproj"
+            },
+            "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\AgroventInfrastructure.csproj": {
+              "projectPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\AgroventInfrastructure.csproj"
             }
           }
         }
@@ -3400,5 +3404,27 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100\\RuntimeIdentifierGraph.json"
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "У пакета \"System.Security.Cryptography.Xml\" 8.0.2 есть известная уязвимость https://github.com/advisories/GHSA-37gx-xxp4-5rgx (уровень серьезности: высокий)",
+      "libraryId": "System.Security.Cryptography.Xml",
+      "targetGraphs": [
+        "net6.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "У пакета \"System.Security.Cryptography.Xml\" 8.0.2 есть известная уязвимость https://github.com/advisories/GHSA-w3x6-4m5h-cxqf (уровень серьезности: высокий)",
+      "libraryId": "System.Security.Cryptography.Xml",
+      "targetGraphs": [
+        "net6.0-windows7.0"
+      ]
+    }
+  ]
 }

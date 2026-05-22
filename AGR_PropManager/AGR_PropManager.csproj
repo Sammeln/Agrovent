@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Agrovent.DAL\Agrovent.DAL.csproj" />
+    <ProjectReference Include="..\Agrovent.Infrastructure\AgroventInfrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

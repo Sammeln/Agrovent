@@ -6,10 +6,10 @@
              xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:local="clr-namespace:Agrovent.Views.Pages"
-             xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=Agrovent.Infrastructure"
+             xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=AgroventInfrastructure"
              xmlns:system="clr-namespace:System;assembly=mscorlib"
              xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
-             xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure"
+             xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=AgroventInfrastructure"
              d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_AssemblyComponentVM}}"
              mc:Ignorable="d" 
              d:DesignHeight="800" d:DesignWidth="800">
@@ -18,8 +18,8 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
-                <!--<ResourceDictionary Source="../../Resources/Styles/AssemblyComponentStyles.xaml"/>-->
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
             <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
@@ -40,7 +40,6 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="16" Orientation="Vertical">
-
             <!-- Секция: Основная информация -->
             <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True">
                 <Expander.Header>

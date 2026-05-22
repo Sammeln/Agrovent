@@ -1,5 +1,6 @@
 // File: ViewModels/Components/ClassifierItemViewModel.cs
 using AGR_PropManager.ViewModels.Base;
+using Agrovent.Infrastructure.Enums;
 using System.Windows.Media.Imaging;
 
 namespace AGR_PropManager.ViewModels.Components
@@ -52,6 +53,16 @@ namespace AGR_PropManager.ViewModels.Components
             set => Set(ref _PreviewImage, value);
         }
         #endregion
+
+
+        #region Property - 
+        private AGR_ComponentType_e _ComponentType;
+        public AGR_ComponentType_e ComponentType
+        {
+            get => _ComponentType;
+            set => Set(ref _ComponentType, value);
+        }
+        #endregion 
 
         #endregion
     }

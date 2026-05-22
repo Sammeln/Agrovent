@@ -9,6 +9,15 @@
     mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vmRep:ImportClassifierReportViewModel, IsDesignTimeCreatable=True}"
              d:DesignHeight="600" d:DesignWidth="1000">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -16,44 +25,38 @@
             <RowDefinition Height="*"/>
             <!-- DataGrid -->
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Vertical" Margin="10">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="1" Orientation="Vertical" Margin="10">
             <TextBlock Text="Отчет импорта классификатора" FontSize="18" Margin="0,0,0,10"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,10">
                 <Button Content="Сохранить в Excel" Command="{Binding ExportToExcelCommand}"/>
             </StackPanel>
-
         </StackPanel>
 
-        <DataGrid Grid.Row="1" 
+        <DataGrid Grid.Row="1" Grid.Column="0"  Style="{StaticResource PropertiesDataGrid}"
                   ItemsSource="{Binding ReportData, Mode=OneWay}" 
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   IsReadOnly="True"
                   Margin="10">
             <DataGrid.Columns>
-                <!-- Column 0: Наименование -->
-                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="*" />
-                <!-- Column 1: Пусто -->
-                <DataGridTextColumn Header="" Width="SizeToHeader" IsReadOnly="True" />
-                <!-- Column 2: Пусто -->
-                <DataGridTextColumn Header=""  Width="SizeToHeader" IsReadOnly="True" />
-                <!-- Column 3: Пусто -->
-                <DataGridTextColumn Header=""  Width="SizeToHeader" IsReadOnly="True" />
-                <!-- Column 4: ТИП -->
-                <DataGridTextColumn Header="ТИП" Binding="{Binding Type}" Width="SizeToHeader" />
-                <!-- Column 5: Partnumber -->
-                <DataGridTextColumn Header="Partnumber" Binding="{Binding Partnumber}" Width="SizeToHeader" />
-                <!-- Column 6: Основная ЕИ -->
-                <DataGridTextColumn Header="Основная ЕИ" Binding="{Binding MainUnit}" Width="SizeToHeader" />
-                <!-- Column 7: URL -->
-                <DataGridTextColumn Header="URL" Binding="{Binding URL}" Width="2*" />
-                <!-- Column 8: Пусто -->
-                <DataGridTextColumn Header="" Width="SizeToHeader" IsReadOnly="True" />
-                <!-- Column 9: Пусто -->
-                <DataGridTextColumn Header="" Width="SizeToHeader" IsReadOnly="True" />
-                <!-- Column 10: Артикул -->
-                <DataGridTextColumn Header="Артикул" Binding="{Binding Article}" Width="*" />
+                <DataGridTextColumn Header="#" Binding="{Binding RowCount}" Width="SizeToHeader" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <!--Наименование -->
+                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="SizeToCells" />
+                <!--ТИП -->
+                <DataGridTextColumn Header="ТИП" Binding="{Binding Type}" Width="SizeToHeader" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <!--Partnumber -->
+                <DataGridTextColumn Header="Partnumber" Binding="{Binding Partnumber}" Width="SizeToHeader" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <!--Основная ЕИ -->
+                <DataGridTextColumn Header="Основная ЕИ" Binding="{Binding MainUnit}" Width="SizeToHeader" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <!--URL -->
+                <DataGridTextColumn Header="URL" Binding="{Binding URL}" Width="3*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <!--Артикул -->
+                <DataGridTextColumn Header="Артикул" Binding="{Binding Article}" Width="1*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
             </DataGrid.Columns>
             <!-- Define dummy properties for empty columns if needed by binding -->
             <DataGrid.Resources>
@@ -63,6 +66,19 @@
                 </Style>
             </DataGrid.Resources>
         </DataGrid>
+        <!--<Border Grid.Column="1" Grid.Row="1"
+             Style="{StaticResource ErrorBorderStyle}"
+             Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock Text="Ошибки:" 
+                        FontWeight="Bold" 
+                        Style="{StaticResource ErrorTextblockStyle}"/>
+                    <TextBlock Text="{Binding Errors}"
+                        Style="{StaticResource ErrorTextblockStyle}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>-->
 
     </Grid>
 </Window>

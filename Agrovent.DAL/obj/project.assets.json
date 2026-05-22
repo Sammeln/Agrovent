@@ -530,7 +530,7 @@
           }
         }
       },
-      "Agrovent.Infrastructure/1.0.0": {
+      "AgroventInfrastructure/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v6.0",
         "dependencies": {
@@ -538,10 +538,10 @@
           "Xarial.XCad.SolidWorks": "0.8.2"
         },
         "compile": {
-          "bin/placeholder/Agrovent.Infrastructure.dll": {}
+          "bin/placeholder/AgroventInfrastructure.dll": {}
         },
         "runtime": {
-          "bin/placeholder/Agrovent.Infrastructure.dll": {}
+          "bin/placeholder/AgroventInfrastructure.dll": {}
         }
       }
     }
@@ -1337,15 +1337,15 @@
         "xarial.xcad.toolkit.nuspec"
       ]
     },
-    "Agrovent.Infrastructure/1.0.0": {
+    "AgroventInfrastructure/1.0.0": {
       "type": "project",
-      "path": "../Agrovent.Infrastructure/Agrovent.Infrastructure.csproj",
-      "msbuildProject": "../Agrovent.Infrastructure/Agrovent.Infrastructure.csproj"
+      "path": "../Agrovent.Infrastructure/AgroventInfrastructure.csproj",
+      "msbuildProject": "../Agrovent.Infrastructure/AgroventInfrastructure.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net6.0-windows7.0": [
-      "Agrovent.Infrastructure >= 1.0.0",
+      "AgroventInfrastructure >= 1.0.0",
       "Microsoft.EntityFrameworkCore >= 7.0.20",
       "Microsoft.EntityFrameworkCore.Tools >= 7.0.20",
       "Npgsql.EntityFrameworkCore.PostgreSQL >= 7.0.18",
@@ -1386,8 +1386,8 @@
         "net6.0-windows7.0": {
           "targetAlias": "net6.0-windows",
           "projectReferences": {
-            "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj": {
-              "projectPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj"
+            "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\AgroventInfrastructure.csproj": {
+              "projectPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\AgroventInfrastructure.csproj"
             }
           }
         }

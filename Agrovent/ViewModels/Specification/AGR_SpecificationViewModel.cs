@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -12,11 +13,13 @@ using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Infrastructure.Interfaces.Specification;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
+using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.Base.Enums;
 
@@ -37,7 +40,6 @@ namespace Agrovent.ViewModels.Specification
             WindowTitle = $"Спецификация: {baseComponent.Name} ({baseComponent.PartNumber})";
             Initialize();
         }
-
         private async void Initialize()
         {
 
@@ -51,11 +53,16 @@ namespace Agrovent.ViewModels.Specification
             BaseAssemblyName = _baseComponent.Name;
             BaseAssemblyPartNumber = _baseComponent.PartNumber;
             BaseAssemblyArticle = _baseComponent.AvaArticle;
+            BaseAssemblyAvaType = _baseComponent.AvaType.ToString();
+            BaseAssemblyAvaTypeEnum = _baseComponent.AvaType;
+            BaseAssemblyPaint = _baseComponent.Paint;
 
             // Загружаем компоненты асинхронно
             await LoadComponentsAsync();
             // Загружаем материалы асинхронно
             await LoadMaterialsForComponentsAsync();
+
+            await LoadPaintForComponentsAsync();
             // Загружаем AvaArticle для покупных компонентов асинхронно
             await LoadAvaArticlesForPurchasedComponentsAsync();
 
@@ -64,7 +71,7 @@ namespace Agrovent.ViewModels.Specification
         }
         #endregion
 
-        #region Публичные свойства
+        #region PROPS
         
         #region Коллекция для отображения с группировкой
         public ICollectionView GroupedComponentsView { get; private set; }
@@ -80,8 +87,9 @@ namespace Agrovent.ViewModels.Specification
                     UpdateGroupedView();
                 }
             }
-        } 
+        }
         #endregion
+        public string ConfigName => _baseComponent.ConfigName;
 
         #region Коллекция для хранения выбранных компонентов
         private ObservableCollection<AGR_SpecificationItemVM> _SelectedComponents = new ObservableCollection<AGR_SpecificationItemVM>();
@@ -92,45 +100,54 @@ namespace Agrovent.ViewModels.Specification
         }
         #endregion
 
-        #region Заголовок окна
+        #region WindowTitle
         private string _windowTitle;
         public string WindowTitle
         {
             get => _windowTitle;
             private set => Set(ref _windowTitle, value);
-        } 
+        }
         #endregion
 
+        #region HasComponents
         private bool _hasComponents;
         public bool HasComponents
         {
             get => _hasComponents;
             private set => Set(ref _hasComponents, value);
         }
+        #endregion
 
-        #region Свойства главной сборки
+        #region BaseAssemblyPreview
         private byte[] _baseAssemblyPreview;
         public byte[] BaseAssemblyPreview
         {
             get => _baseAssemblyPreview;
             set => Set(ref _baseAssemblyPreview, value);
         }
+        #endregion
 
+        #region BaseAssemblyName
         private string _baseAssemblyName;
         public string BaseAssemblyName
         {
             get => _baseAssemblyName;
             set => Set(ref _baseAssemblyName, value);
         }
+        #endregion
 
+        #region BaseAssemblyPartNumber
         private string _baseAssemblyPartNumber;
         public string BaseAssemblyPartNumber
         {
             get => _baseAssemblyPartNumber;
             set => Set(ref _baseAssemblyPartNumber, value);
         }
-        #region Артикул сборки
+        #endregion
 
+        #region Артикул главной сборки
+
+        #region BaseAssemblyArticle
         private IAGR_AvaArticleModel? _baseAssemblyArticle;
         public IAGR_AvaArticleModel? BaseAssemblyArticle
         {
@@ -139,10 +156,19 @@ namespace Agrovent.ViewModels.Specification
             {
                 Set(ref _baseAssemblyArticle, value);
                 _baseComponent.AvaArticle = value;
-                OnPropertyChanged(ArticleString);
+                if (value?.Article != null)
+                {
+                    ArticleString = "Артикул№ " + BaseAssemblyArticle?.Article.ToString() + " " + BaseAssemblyArticle?.Name;
+                }
+                else
+                {
+                    ArticleString = string.Empty;
+                }
             }
         }
+        #endregion
 
+        #region NoArticle
         private bool _noArticle;
         public bool NoArticle
         {
@@ -155,27 +181,64 @@ namespace Agrovent.ViewModels.Specification
             }
         }
 
+        #endregion
+
+        #region ArticleString
         private string _ArticleString;
         public string ArticleString
         {
-            get
+            get => _ArticleString;
+            set => Set(ref _ArticleString, value);
+        }
+        #endregion 
+
+        #endregion
+
+        #region Тип AVA главной сборки
+        private string _baseAssemblyAvaType;
+        public string BaseAssemblyAvaType
+        {
+            get => _baseAssemblyAvaType;
+            set => Set(ref _baseAssemblyAvaType, value);
+        }
+
+        private AGR_AvaType_e _baseAssemblyAvaTypeEnum;
+        public AGR_AvaType_e BaseAssemblyAvaTypeEnum
+        {
+            get => _baseAssemblyAvaTypeEnum;
+            set
             {
-                if (BaseAssemblyArticle != null)
+                if (Set(ref _baseAssemblyAvaTypeEnum, value))
                 {
-                    Set(ref _ArticleString, "Артикул№ " + BaseAssemblyArticle?.Article.ToString() + " " + BaseAssemblyArticle?.Name);
-                    return  _ArticleString;
-                }
-                else
-                {
-                    Set(ref _ArticleString, string.Empty);
-                    return _ArticleString;
+                    _baseComponent.AvaType = value;
+                    OnPropertyChanged(nameof(BaseAssemblyAvaType));
                 }
             }
         }
         #endregion
 
+        #region BaseAssemblyPaint
+        private IAGR_Material? _BaseAssemblyPaint;
+        public IAGR_Material? BaseAssemblyPaint
+        {
+            get => _BaseAssemblyPaint;
+            set
+            {
+                Set(ref _BaseAssemblyPaint, value);
+                _baseComponent.Paint = value;
+                if (BaseAssemblyPaint?.AvaModel != null)
+                {
+                    PaintString = BaseAssemblyPaint.AvaModel.Name;
+                }
+                else PaintString = string.Empty;
+                OnPropertyChanged(nameof(BaseAssemblyPaintName));
+            }
+        }
 
+        public string BaseAssemblyPaintName => BaseAssemblyPaint?.Name ?? string.Empty;
+        #endregion 
 
+        #region NoPaint
         private bool _noPaint;
         public bool NoPaint
         {
@@ -183,9 +246,22 @@ namespace Agrovent.ViewModels.Specification
             set
             {
                 Set(ref _noPaint, value);
+                BaseAssemblyPaint = null;
                 ValidateSpecification();
             }
         }
+        #endregion
+
+        #region PaintString 
+        private string? _PaintString;
+        public string? PaintString
+        {
+            get => _PaintString;
+            set => Set(ref _PaintString, value);
+        }
+        #endregion 
+
+        #region Errors
 
         private string _errors;
         public string Errors
@@ -193,7 +269,9 @@ namespace Agrovent.ViewModels.Specification
             get => _errors;
             set => Set(ref _errors, value);
         }
+        #endregion
 
+        #region HasErrors
         private bool _hasErrors;
         public bool HasErrors
         {
@@ -201,6 +279,19 @@ namespace Agrovent.ViewModels.Specification
             set => Set(ref _hasErrors, value);
         }
         #endregion
+
+        #region Property - IgnoreErrors
+        private bool _IgnoreErrors = false;
+        public bool IgnoreErrors
+        {
+            get => _IgnoreErrors;
+            set
+            {
+                Set(ref _IgnoreErrors, value);
+                ValidateSpecification();
+            }
+        }
+        #endregion 
 
         #endregion
 
@@ -223,13 +314,13 @@ namespace Agrovent.ViewModels.Specification
         #endregion
 
         #region METHODS
-        /// <summary>
-        /// Метод валидации данных спецификации
-        /// </summary>
         private void ValidateSpecification()
         {
+
             Errors = null;
             HasErrors = false;
+            if (IgnoreErrors == true) return;
+
             var errorList = new List<string>();
 
             // Проверка: есть ли артикул у главной сборки (если не установлен чекбокс "без артикула")
@@ -242,12 +333,35 @@ namespace Agrovent.ViewModels.Specification
             {
                 errorList.Add("У главной сборки не указано покрытие.");
             }
+
+            // Проверка наличия файла чертежа у главной сборки (если это не покупное)
+            if (_baseComponent.ComponentType != AGR_ComponentType_e.Purchased)
+            {
+                if (_baseComponent is AGR_FileComponent baseFileComp)
+                {
+                    var drawPath = baseFileComp.GetDrawFilePath();
+                    if (string.IsNullOrEmpty(drawPath))
+                    {
+                        errorList.Add($"У главной сборки \"{_baseComponent.Name}\" ({_baseComponent.PartNumber}) отсутствует файл чертежа.");
+                    }
+                    else
+                    {
+                        // Проверка актуальности чертежа
+                        var drawWarning = CheckDrawingUpToDate(_baseComponent, drawPath);
+                        if (!string.IsNullOrEmpty(drawWarning))
+                        {
+                            errorList.Add(drawWarning);
+                        }
+                    }
+                }
+            }
+
             // Проверка: материал у деталей и листовых деталей
             foreach (var comp in Components)
             {
                 if (comp.ComponentType == AGR_ComponentType_e.Part || comp.ComponentType == AGR_ComponentType_e.SheetMetallPart)
                 {
-                    if (comp.MaterialAvaModel == null && string.IsNullOrEmpty(comp.MaterialName))
+                    if (comp.BaseMaterial == null)
                     {
                         errorList.Add($"У компонента \"{comp.Name}\" ({comp.PartNumber}) не установлен материал.");
                     }
@@ -262,6 +376,28 @@ namespace Agrovent.ViewModels.Specification
                         errorList.Add($"У покупного компонента \"{comp.Name}\" отсутствует артикул.");
                     }
                 }
+
+                // Проверка наличия файла чертежа у производимых компонентов (всё что не покупное)
+                if (comp.ComponentType != AGR_ComponentType_e.Purchased)
+                {
+                    if (comp.Component is AGR_FileComponent fileComp)
+                    {
+                        var drawPath = fileComp.GetDrawFilePath();
+                        if (string.IsNullOrEmpty(drawPath))
+                        {
+                            errorList.Add($"У производимого компонента \"{comp.Name}\" ({comp.PartNumber}) отсутствует файл чертежа.");
+                        }
+                        else
+                        {
+                            // Проверка актуальности чертежа
+                            var drawWarning = CheckDrawingUpToDate(comp.Component, drawPath);
+                            if (!string.IsNullOrEmpty(drawWarning))
+                            {
+                                errorList.Add(drawWarning);
+                            }
+                        }
+                    }
+                }
             }
 
             if (errorList.Any())
@@ -270,46 +406,31 @@ namespace Agrovent.ViewModels.Specification
                 HasErrors = true;
             }
         }
-
-        private void LoadComponents()
+        private string CheckDrawingUpToDate(IAGR_BaseComponent component, string drawFilePath)
         {
-            if (_baseComponent.GetChildComponents() == null)
-                return;
-
             try
             {
-                var allComponents = _baseComponent.GetFlatComponents().ToList();
+                if (string.IsNullOrEmpty(drawFilePath) || !File.Exists(drawFilePath))
+                    return null;
 
-                // Сортируем компоненты по типу для правильного порядка групп
-                var sortedComponents = allComponents
-                    .OrderBy(c => c.ComponentType switch
-                    {
-                        AGR_ComponentType_e.Assembly => 0,
-                        AGR_ComponentType_e.SheetMetallPart => 1,
-                        AGR_ComponentType_e.Part => 2,
-                        AGR_ComponentType_e.Purchased => 3,
-                        _ => 4
-                    })
-                    .ToList();
-                foreach (var component in sortedComponents)
+                var modelPath = component is AGR_FileComponent fileComp ? fileComp.CurrentModelFilePath : null;
+                if (string.IsNullOrEmpty(modelPath) || !File.Exists(modelPath))
+                    return null;
+
+                var drawTime = File.GetLastWriteTime(drawFilePath);
+                var modelTime = File.GetLastWriteTime(modelPath);
+
+                if (modelTime > drawTime)
                 {
-                    Components.Add(component as AGR_SpecificationItemVM);
+                    return $"Чертеж компонента \"{component.Name}\" ({component.PartNumber}) возможно не обновлен (модель сохранена позже чертежа).";
                 }
 
-                //// Обновляем коллекцию в UI потоке
-                //System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                //{
-                //    Components.Clear();
-                //   
-
-                //    UpdateStatistics();
-                //    HasComponents = Components.Count > 0;
-                //});
+                return null;
             }
             catch (Exception ex)
             {
-                // Логируем ошибку
-                Console.WriteLine($"Ошибка загрузки компонентов: {ex.Message}");
+                _logger?.LogWarning(ex, $"Ошибка при проверке актуальности чертежа для компонента {component.PartNumber}");
+                return null;
             }
         }
         private async Task LoadComponentsAsync()
@@ -345,21 +466,20 @@ namespace Agrovent.ViewModels.Specification
                 Console.WriteLine($"Ошибка загрузки компонентов: {ex.Message}");
             }
         }
-
-        // Асинхронный метод для загрузки материалов
         private async Task LoadMaterialsForComponentsAsync()
         {
             try
             {
                 // 1. Собрать уникальные имена материалов из нужных компонентов
                 var componentsWithMaterial = Components
-                    .Where(c => (c.ComponentType == AGR_ComponentType_e.Part || c.ComponentType == AGR_ComponentType_e.SheetMetallPart) && !string.IsNullOrEmpty(c.MaterialName))
+                    .Where(c => (c.ComponentType == AGR_ComponentType_e.Part || c.ComponentType == AGR_ComponentType_e.SheetMetallPart) 
+                    && !string.IsNullOrEmpty(c.MaterialName))
                     .ToList();
 
                 if (!componentsWithMaterial.Any()) return; // Нечего загружать
 
                 var uniqueMaterialNames = componentsWithMaterial
-                    .Select(c => c.MaterialName)
+                    .Select(c => c.BaseMaterial.Name)
                     .Distinct()
                     .ToList();
 
@@ -376,18 +496,13 @@ namespace Agrovent.ViewModels.Specification
                 // 3. Обновить соответствующие VM
                 foreach (var specItem in componentsWithMaterial)
                 {
-                    if (materialNameToAvaArticleMap.TryGetValue(specItem.MaterialName, out var avaArticleModel))
+                    if (materialNameToAvaArticleMap.TryGetValue(specItem.BaseMaterial.Name, out var avaArticleModel))
                     {
-                        // Предполагается, что AGR_SpecificationItemVM.MaterialAvaModel является свойством, которое при установке
-                        // корректно обновляет Component (например, через привязку или внутреннюю логику).
-                        // Убедитесь, что это свойство вызывает OnPropertyChanged.
-                        specItem.MaterialAvaModel = avaArticleModel;
-                        //_logger.LogDebug($"Установлен AvaArticle для компонента {specItem.PartNumber} (Material: {specItem.MaterialName})");
+                        specItem.BaseMaterial = new AGR_Material(avaArticleModel);
                     }
                     else
                     {
-                        specItem.MaterialAvaModel = null;
-                        specItem.MaterialName = "";
+                        specItem.BaseMaterial = null;
                         //_logger.LogWarning($"AvaArticle не найден для материала '{specItem.MaterialName}' компонента {specItem.PartNumber}.");
                     }
                 }
@@ -397,6 +512,55 @@ namespace Agrovent.ViewModels.Specification
             catch (Exception ex)
             {
                // _logger.LogError(ex, "Ошибка при загрузке AvaArticle для материалов компонентов спецификации.");
+                // Можно показать сообщение пользователю, если необходимо
+            }
+        }
+        private async Task LoadPaintForComponentsAsync()
+        {
+            try
+            {
+                // 1. Собрать уникальные имена материалов из нужных компонентов
+                var componentsWithMaterial = Components
+                    .Where(c => (c.ComponentType != AGR_ComponentType_e.Purchased && c.ComponentType != AGR_ComponentType_e.NA) 
+                            && !string.IsNullOrEmpty(c.PaintName))
+                    .ToList();
+
+                if (!componentsWithMaterial.Any()) return; // Нечего загружать
+
+                var uniqueMaterialNames = componentsWithMaterial
+                    .Select(c => c.BasePaint.Name)
+                    .Distinct()
+                    .ToList();
+
+                //_logger.LogInformation($"Поиск AvaArticle для {uniqueMaterialNames.Count} уникальных наименований материалов.");
+
+                // 2. Использовать UnitOfWork и ComponentRepository для поиска
+                // Начинаем транзакцию только для чтения, если это поддерживается и имеет смысл, иначе просто вызываем метод репозитория.
+                // var transaction = await _unitOfWork.BeginTransactionAsync(); // Не обязательно для SELECT
+                var materialNameToAvaArticleMap = await _unitOfWork.ComponentRepository.GetAvaArticlesByNameAsync(uniqueMaterialNames);
+                // await transaction.RollbackAsync(); // Откатываем, так как это был SELECT
+
+                //_logger.LogInformation($"Найдено {materialNameToAvaArticleMap.Count} AvaArticle по наименованиям.");
+
+                // 3. Обновить соответствующие VM
+                foreach (var specItem in componentsWithMaterial)
+                {
+                    if (materialNameToAvaArticleMap.TryGetValue(specItem.BasePaint.Name, out var avaArticleModel))
+                    {
+                        specItem.BasePaint = new AGR_Material(avaArticleModel);
+                    }
+                    else
+                    {
+                        specItem.BasePaint = null;
+                        //_logger.LogWarning($"AvaArticle не найден для материала '{specItem.MaterialName}' компонента {specItem.PartNumber}.");
+                    }
+                }
+
+                // _logger.LogInformation("Загрузка AvaArticle для материалов завершена.");
+            }
+            catch (Exception ex)
+            {
+                // _logger.LogError(ex, "Ошибка при загрузке AvaArticle для материалов компонентов спецификации.");
                 // Можно показать сообщение пользователю, если необходимо
             }
         }
@@ -477,7 +641,6 @@ namespace Agrovent.ViewModels.Specification
                 }
             }, TaskScheduler.FromCurrentSynchronizationContext()); // Или использовать подходящий способ для UI обновления
         }
-
         private void DeselectAllComponents()
         {
             foreach (var item in Components)
@@ -548,7 +711,7 @@ namespace Agrovent.ViewModels.Specification
                 {
                     foreach (var item in _selectedComponents)
                     {
-                        item.MaterialAvaModel = selectVm.SelectedArticle;
+                        item.BaseMaterial = new AGR_Material(selectVm.SelectedArticle);
                         OnPropertyChanged(nameof(item.PartnumberOrArticle));
                         //var part = item.Component as AGR_PartComponentVM;
                         // Присваиваем выбранный AvaArticleModel в BaseMaterial.AvaModel
@@ -598,7 +761,7 @@ namespace Agrovent.ViewModels.Specification
             {
                 foreach (var item in _selectedComponents)
                 {
-                    item.PaintAvaModel = null;
+                    item.BasePaint = null;
                 }
                 DeselectAllComponents();
                 return;
@@ -627,16 +790,10 @@ namespace Agrovent.ViewModels.Specification
                 {
                     foreach (var item in _selectedComponents)
                     {
-                        item.PaintAvaModel = selectVm.SelectedArticle;
+                        item.BasePaint = new AGR_Paint(selectVm.SelectedArticle);
                         OnPropertyChanged(nameof(item.PartnumberOrArticle));
-                        //var part = item.Component as AGR_PartComponentVM;
-                        // Присваиваем выбранный AvaArticleModel в BaseMaterial.AvaModel
-                        //part.BaseMaterial = new AGR_Material(selectVm.SelectedArticle);
-                        //part.mProperties.FirstOrDefault(p => p.Name == AGR_PropertyNames.Material).Value = part.BaseMaterial.Name;
                         _logger?.LogInformation("Выбран AvaArticle {Article} для компонента {PartNumber}", selectVm.SelectedArticle.Article, item.PartNumber);
 
-                        //OnPropertyChanged(nameof(part.BaseMaterial));
-                        //OnPropertyChanged(nameof(item.MaterialName));
                     }
 
                     // Обновляем свойства, если это влияет на них (например, BaseMaterialCount)
@@ -760,19 +917,20 @@ namespace Agrovent.ViewModels.Specification
         private ICommand _SaveCommand;
         public ICommand SaveCommand => _SaveCommand
             ??= new RelayCommand(OnSaveCommandExecuted, CanSaveCommandExecute);
-        private bool CanSaveCommandExecute(object p) => true;
+        private bool CanSaveCommandExecute(object p) => HasErrors == false;
         private void OnSaveCommandExecuted(object p)
         {
             DialogResult = true;
-            CloseWindow?.Invoke();
+            var view = p as Window;
+            view?.Close();
         }
         #endregion
 
-        #region SelectArticleCommand
+        #region Для базовой сборки - SelectArticleCommand
         private ICommand _SelectArticleCommand;
         public ICommand SelectArticleCommand => _SelectArticleCommand
             ??= new RelayCommand(OnSelectArticleCommandExecuted, CanSelectArticleCommandExecute);
-        private bool CanSelectArticleCommandExecute(object p) => true;
+        private bool CanSelectArticleCommandExecute(object p) => NoArticle == false;
         private void OnSelectArticleCommandExecuted(object p)
         {
             SelectArticle();
@@ -805,16 +963,15 @@ namespace Agrovent.ViewModels.Specification
 
         #endregion 
 
-        #region SelectPaintCommand
+        #region Для базовой сборки -  SelectPaintCommand
         private ICommand _SelectPaintCommand;
         public ICommand SelectPaintCommand => _SelectPaintCommand
             ??= new RelayCommand(OnSelectPaintCommandExecuted, CanSelectPaintCommandExecute);
-        private bool CanSelectPaintCommandExecute(object p) => true;
+        private bool CanSelectPaintCommandExecute(object p) => NoPaint == false;
         private void OnSelectPaintCommandExecuted(object p)
         {
             SelectPaint();
         }
-
         private void SelectPaint()
         {
             try
@@ -832,10 +989,8 @@ namespace Agrovent.ViewModels.Specification
 
                 if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
                 {
-                    if (_baseComponent is IAGR_HasPaint hasPaint)
-                    {
-                        hasPaint.Paint = new AGR_Material(selectVm.SelectedArticle);
-                    }
+                    BaseAssemblyPaint = new AGR_Material(selectVm.SelectedArticle);
+                    //_baseComponent.Paint = new AGR_Material(selectVm.SelectedArticle);
                 }
                 ValidateSpecification();
             }

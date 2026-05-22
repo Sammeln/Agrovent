@@ -22,6 +22,7 @@ namespace AGR_PropManager.ViewModels.Reports
     // Вспомогательный класс для хранения строки данных отчета
     public class ReportRowItem
     {
+        public int RowCount { get; set; }
         public string Name { get; set; }
         public int Type { get; set; } // Всегда 5
         public string Partnumber { get; set; }
@@ -75,7 +76,28 @@ namespace AGR_PropManager.ViewModels.Reports
             set => Set(ref _isGenerating, value);
         }
 
+        #region HasErrors
+        private bool _hasErrors = false;
+        public bool HasErrors
+        {
+            get => _hasErrors;
+            set => Set(ref _hasErrors, value);
+        }
         #endregion
+
+        #region Errors
+
+        private string _errors;
+        public string Errors
+        {
+            get => _errors;
+            set => Set(ref _errors, value);
+        }
+        #endregion
+
+        #endregion
+
+
 
         #region COMMANDS
 
@@ -222,10 +244,12 @@ namespace AGR_PropManager.ViewModels.Reports
                             c.ComponentType == AGR_ComponentType_e.SheetMetallPart)
                 .ToList();
 
+            var i = 1;
             foreach (var component in relevantComponents)
             {
                 var rowItem = new ReportRowItem
                 {
+                    RowCount = i++,
                     Name = component.Name ?? "",
                     Type = 5, // Всегда 5
                     Partnumber = component.PartNumber ?? "", // Partnumber сохраняет ведущие нули как строка
@@ -235,6 +259,11 @@ namespace AGR_PropManager.ViewModels.Reports
                 };
                 ReportData.Add(rowItem);
             }
+        }
+
+        private void Validate()
+        {
+
         }
 
         private void CloseWindow()

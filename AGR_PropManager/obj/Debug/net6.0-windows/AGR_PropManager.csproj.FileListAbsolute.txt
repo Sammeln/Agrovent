@@ -67,9 +67,7 @@ C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\runt
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\runtimes\win\lib\net6.0\System.Diagnostics.EventLog.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\runtimes\win\lib\net6.0\System.Drawing.Common.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\Agrovent.DAL.dll
-C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\Agrovent.Infrastructure.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\Agrovent.DAL.pdb
-C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\Agrovent.Infrastructure.pdb
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\MainWindow.baml
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\OperationSelectionWindow.baml
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\AGR_PropManager.g.resources
@@ -110,3 +108,7 @@ C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\View
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\Reports\TechOpsImportReportWindow.baml
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\TechProcessEditorWindow.g.cs
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\TechProcessEditorWindow.baml
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\AgroventInfrastructure.dll
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\AgroventInfrastructure.pdb
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\Style\PartComponentStyle.baml
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\Style\SpecificationStyle.baml

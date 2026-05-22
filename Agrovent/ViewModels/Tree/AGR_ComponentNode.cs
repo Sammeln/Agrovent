@@ -2,6 +2,7 @@
 using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.ViewModels.Base;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 
 namespace Agrovent.ViewModels.Tree
 {

@@ -13,6 +13,7 @@ using Agrovent.Infrastructure.Interfaces.Components;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 using EnumsNET;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;

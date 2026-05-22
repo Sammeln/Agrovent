@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Input;
 using System.Windows;
 using Agrovent.Infrastructure.Commands;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -74,7 +75,7 @@ namespace Agrovent.ViewModels.Components
         public string AvaTypeDisplay => GetDisplayString(_entity.AvaType);
         public int Version => _entity.Version;
 
-        public ComponentVersion ComponentVersion;
+        public IAGR_ComponentVersionEntity ComponentVersion;
         // Свойство для ссылки на файл в хранилище
         public string StoragePath
         {

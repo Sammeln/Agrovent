@@ -27,6 +27,10 @@ namespace Agrovent.ViewModels.Windows
 
             LogMessages = new ObservableCollection<string>();
         }
+        public AGR_SaveProgressVM()
+        {
+                
+        }
 
         #region Properties
 

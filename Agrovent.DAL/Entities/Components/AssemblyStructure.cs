@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using Agrovent.DAL.Entities.Base;
 using Agrovent.DAL.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 
 namespace Agrovent.DAL.Entities.Components
 {

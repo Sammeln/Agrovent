@@ -6,9 +6,12 @@
         xmlns:local="clr-namespace:Agrovent.Views.Windows"
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Specification"
         xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
+        xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=AgroventInfrastructure"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
-        xmlns:b="clr-namespace:Agrovent.Infrastructure.Behaviors;assembly=Agrovent.Infrastructure"
+        xmlns:b="clr-namespace:Agrovent.Infrastructure.Behaviors;assembly=AgroventInfrastructure"
         xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
+        xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=AgroventInfrastructure"
+        xmlns:system="clr-namespace:System;assembly=mscorlib"
         d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_SpecificationViewModel}}"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" 
@@ -19,24 +22,30 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- Подключаем стили из PartComponentStyles.xaml -->
-                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
-                <!-- Подключаем стили спецификации -->
-                <ResourceDictionary Source="../../Resources/Styles/SpecificationStyles.xaml"/>
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Перечисление AvaType для ComboBox -->
+            <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
+                                ObjectType="{x:Type system:Enum}">
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="enum:AGR_AvaType_e"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
 
             <!-- Конвертеры -->
             <converter:GroupHeaderColorConverter x:Key="GroupHeaderColorConverter"/>
             <!--<converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>-->
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-
+            <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
 
             <DataTemplate DataType="{x:Type ImageSource}">
-                <Image Source="{Binding}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
+                <Image Source="{Binding BaseAssemblyPreview}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
             </DataTemplate>
 
             <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
-                <Image Source="{Binding Preview}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
+                <Image Source="{Binding Preview}"  MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
             </DataTemplate>
 
             <!-- ContextMenu -->
@@ -52,22 +61,22 @@
                     <MenuItem 
                          Header="Без покрытия" CommandParameter="NoPaint"
                          Command="{Binding DataContext.SetPaintCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}"/>
-                        
+
                 </MenuItem>
-                    <MenuItem 
+                <MenuItem 
                      Header="Установить артикул" CommandParameter="{Binding}"
                      Command="{Binding DataContext.SetAvaArticleCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                    <MenuItem 
+                <MenuItem 
                      Header="Установить тип...">
-                        <MenuItem Header="Покупное" CommandParameter="20021" 
+                    <MenuItem Header="Покупное" CommandParameter="20021" 
                               Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                        <MenuItem Header="Комплектующая" CommandParameter="5" 
+                    <MenuItem Header="Комплектующая" CommandParameter="5" 
                               Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                        <MenuItem Header="Продукция" CommandParameter="3" 
+                    <MenuItem Header="Продукция" CommandParameter="3" 
                               Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                        <MenuItem Header="Виртуальный компонент" CommandParameter="50625" 
+                    <MenuItem Header="Виртуальный компонент" CommandParameter="50625" 
                               Command="{Binding DataContext.SetAvaTypeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
-                    </MenuItem>
+                </MenuItem>
             </ContextMenu>
 
             <!-- Конвертеры видимости для разных типов компонентов -->
@@ -119,33 +128,51 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
                         <TextBlock Grid.Column="1" Text="{Binding BaseAssemblyName}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0,0,0,8"/>
                     </StackPanel>
 
                     <!-- Partnumber -->
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Обозначение (Partnumber):" FontWeight="Bold" Margin="0,0,8,8"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BaseAssemblyPartNumber}" Margin="0,0,8,8"/>
                     </StackPanel>
-                    
+
+                    <!-- Тип AVA -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                        <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
+                                  SelectedItem="{Binding BaseAssemblyAvaTypeEnum}"
+                                  Width="150"
+                                  Style="{StaticResource ModernComboBox}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
                     <!-- Артикул -->
                     <StackPanel Orientation="Vertical">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Артикул:" FontWeight="Bold" Margin="0,0,8,8"/>
                             <Button Content="Выбрать" Command="{Binding SelectArticleCommand}" Padding="8,4" Margin="0,0,0,8"/>
                             <TextBlock Text="{Binding ArticleString}" Margin="10,0,8,8"/>
+                            <!-- Чекбокс "Без артикула" -->
+                            <CheckBox Grid.Row="3" Grid.Column="0" Content="Без артикула" IsChecked="{Binding NoArticle}" Margin="0,0,0,8"/>
                         </StackPanel>
-                    <!-- Чекбокс "Без артикула" -->
-                    <CheckBox Grid.Row="3" Grid.Column="0" Content="Без артикула" IsChecked="{Binding NoArticle}" Margin="0,0,0,8"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Vertical">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Покрытие:" FontWeight="Bold" Margin="0,0,8,8"/>
                             <Button Content="Выбрать" Command="{Binding SelectPaintCommand}" Padding="8,4" Margin="8,0,0,8" HorizontalAlignment="Left"/>
-                            <TextBlock Text="{Binding BaseAssemblyArticle}" Margin="0,0,8,8"/>
+                            <TextBlock Text="{Binding BaseAssemblyPaintName}" Margin="8,0,8,8"/>
+                            <!-- Чекбокс "Без покрытия" -->
+                            <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint}" Margin="0,0,0,8"/>
                         </StackPanel>
-                    <!-- Чекбокс "Без покрытия" -->
-                    <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint}" Margin="0,0,0,8"/>
                     </StackPanel>
 
                 </StackPanel>
@@ -155,10 +182,10 @@
         <!-- Основной контент - DataGrid с группировкой и панель ошибок -->
         <Grid Grid.Row="2" Margin="16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition/>
+                <ColumnDefinition  Width="auto"/>
             </Grid.ColumnDefinitions>
-            
+
             <Grid.Resources>
                 <!-- CollectionViewSource для группировки компонентов -->
                 <CollectionViewSource x:Key="1GroupedComponents" 
@@ -189,7 +216,7 @@
                     <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
                     <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectComponentCommand}"/>
                 </DataGrid.InputBindings>
-                
+
 
                 <!-- Настройка группировки -->
                 <DataGrid.GroupStyle>
@@ -206,7 +233,7 @@
                     <DataGridTemplateColumn Width="25">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center"/>
+                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -235,9 +262,9 @@
                     <!-- Наименование -->
                     <DataGridTextColumn Header="Наименование" 
                                         Binding="{Binding Name}" 
-                                        Width="3*"
+                                        Width="3*" 
                                         CanUserSort="True"
-                                        ElementStyle="{StaticResource VerticalAlignedTextStyle}"
+                                        ElementStyle="{StaticResource DGCell_CenterAlignedAndWrapping}"
                                         >
                     </DataGridTextColumn>
 
@@ -245,7 +272,7 @@
                     <DataGridTextColumn Header="PartNumber / Артикул" 
                                         Width="2*"
                                         CanUserSort="True"
-                                        ElementStyle="{StaticResource CenterAlignedTextStyle}"
+                                        ElementStyle="{StaticResource DGCell_LeftAlignedAndWrapping}"
                                         Binding="{Binding PartnumberOrArticle}">
                     </DataGridTextColumn>
 
@@ -266,12 +293,13 @@
                     <DataGridTextColumn Header="Материал" 
                                         Binding="{Binding MaterialName}" 
                                         Width="4*"
+                                        ElementStyle="{StaticResource DGCell_LeftAlignedAndWrapping}"
                                         />
 
                     <!-- Краска -->
                     <DataGridTextColumn Header="Краска" 
                                         Binding="{Binding PaintName}" 
-                                        Width="2*"
+                                        Width="3*"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 </DataGrid.Columns>
@@ -290,24 +318,18 @@
             </DataGrid>
 
             <!-- Панель ошибок справа -->
-            <Border Grid.Column="1" 
-                    Background="#FFEBEE" 
-                    BorderBrush="#F44336" 
-                    BorderThickness="1" 
-                    Padding="12" 
-                    Margin="16,0,0,0"
-                    CornerRadius="4"
-                    MinWidth="250"
+            <Border Grid.Column="1"
+                    Style="{StaticResource ErrorBorderStyle}"
                     Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
-                <StackPanel>
-                    <TextBlock Text="Ошибки валидации:" 
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Text="Ошибки валидации:" 
                                FontWeight="Bold" 
-                               Foreground="#D32F2F"
-                               Margin="0,0,0,8"/>
-                    <TextBlock Text="{Binding Errors}" 
-                               TextWrapping="Wrap" 
-                               Foreground="#D32F2F"/>
-                </StackPanel>
+                               Style="{StaticResource ErrorTextblockStyle}"/>
+                        <TextBlock Text="{Binding Errors}" 
+                               Style="{StaticResource ErrorTextblockStyle}"/>
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
 
             <!-- Сообщение при отсутствии компонентов -->
@@ -322,21 +344,19 @@
                 Padding="16,12" 
                 BorderBrush="#E0E0E0" 
                 BorderThickness="0,1,0,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Сохранить" 
-                        Style="{StaticResource ActionButtonStyle}"
-                        Command="{Binding SaveCommand}"
-                        Background="#4CAF50" 
-                        Foreground="White"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <CheckBox IsChecked="{Binding IgnoreErrors}" Content="Игнорировать ошибки"/>
+                    <Button Content="Сохранить" 
+                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                        Style="{StaticResource AcceptButtonStyle}"
+                        Command="{Binding SaveCommand}"/>
 
-                <Button Content="Отмена" 
+                    <Button Content="Отмена" 
                         Command="{Binding CancelCommand}"
                         CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                        Style="{StaticResource ActionButtonStyle}"
-                        Margin="12,0,0,0"
-                        Background="#F44336" 
-                        Foreground="White"/>
-            </StackPanel>
+                        Style="{StaticResource CancelButtonStyle}"
+                        />
+                </StackPanel>
         </Border>
 
     </Grid>

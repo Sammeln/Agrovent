@@ -1,5 +1,7 @@
 ﻿// File: DAL/Entities/Projects/ProjectComponent.cs
 using Agrovent.DAL.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Projects;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 

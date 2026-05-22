@@ -7,24 +7,28 @@
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:vmComp="clr-namespace:AGR_PropManager.ViewModels.Components"
         xmlns:vmWindows="clr-namespace:AGR_PropManager.ViewModels.Windows"
-        mc:Ignorable="d"
-        Title="Классификатор компонентов"
+        mc:Ignorable="d" Title="Классификатор компонентов"
         WindowState="Maximized"
         d:DataContext="{d:DesignInstance Type=vmWindows:MainWindowViewModel, IsDesignTimeCreatable=True}">
 
     <Window.Resources>
-        <!-- ContextMenu для строки DataGrid -->
-        <ContextMenu x:Key="ClassifierRowMenu">
-            <MenuItem Header="Открыть"
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Style/SpecificationStyle.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <!-- ContextMenu для строки DataGrid -->
+            <ContextMenu x:Key="ClassifierRowMenu">
+                <MenuItem Header="Открыть"
                       CommandParameter="{Binding}"
                       Command="{Binding DataContext.OpenItemTechProcessEditorCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=Window}}" 
                       />
-        </ContextMenu>
+            </ContextMenu>
 
-        <!-- Style для строки DataGrid -->
-        <Style x:Key="ClassifierRowStyle" TargetType="DataGridRow">
-            <Setter Property="ContextMenu" Value="{StaticResource ClassifierRowMenu}"/>
-        </Style>
+            <!-- Style для строки DataGrid -->
+            <Style x:Key="ClassifierRowStyle" TargetType="DataGridRow">
+                <Setter Property="ContextMenu" Value="{StaticResource ClassifierRowMenu}"/>
+            </Style>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
@@ -34,17 +38,20 @@
             <RowDefinition Height="*"/>
             <!-- DataGrid -->
         </Grid.RowDefinitions>
-
         <!-- Search TextBox -->
-        <TextBox Grid.Row="0"
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Text="Поиск:" FontWeight="Bold" VerticalAlignment="Center" Margin="5 0"/>
+            <TextBox Grid.Row="0"
                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                  Width="300"
                  Margin="10"
                  HorizontalAlignment="Left"
                  Padding="5"/>
+        </StackPanel>
 
         <!-- Main DataGrid -->
         <DataGrid Grid.Row="1"
+                  Style="{StaticResource PropertiesDataGrid}"
                   ItemsSource="{Binding ClassifierItemsView}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
@@ -52,8 +59,9 @@
                   SelectionMode="Single"
                   IsReadOnly="True"
                   RowStyle="{StaticResource ClassifierRowStyle}">
+            
             <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" MinWidth="30" MaxWidth="30"/>
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" MinWidth="30" MaxWidth="30" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
                 <DataGridTemplateColumn MinWidth="50" MaxWidth="50">
                     <DataGridTemplateColumn.CellStyle>
                         <Style TargetType="DataGridCell">
@@ -73,8 +81,8 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="*"/>
-                <DataGridTextColumn Header="PartNumber" Binding="{Binding PartNumber}" Width="*"/>
-                <DataGridTextColumn Header="Дата сохранения" Binding="{Binding SavedDate, StringFormat='dd.MM.yyyy'}" Width="*"/>
+                <DataGridTextColumn Header="PartNumber" Binding="{Binding PartNumber}" Width="*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Дата сохранения" Binding="{Binding SavedDate, StringFormat='dd.MM.yyyy'}" Width="*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
             </DataGrid.Columns>
         </DataGrid>
 

@@ -26,6 +26,12 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Update="Views\Style\PartComponentStyle.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="Views\Style\SpecificationStyle.xaml">
+      <SubType>Designer</SubType>
+    </Page>
     <Page Update="Views\MainWindow.xaml">
       <SubType>Designer</SubType>
     </Page>

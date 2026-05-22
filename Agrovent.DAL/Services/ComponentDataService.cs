@@ -1,5 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Agrovent.DAL.Entities.Components;
+using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.Base;

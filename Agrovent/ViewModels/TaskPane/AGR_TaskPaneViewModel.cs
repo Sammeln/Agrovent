@@ -86,13 +86,13 @@ namespace Agrovent.ViewModels.TaskPane
         #region CTOR
 
         public AGR_TaskPaneViewModel(
-    IAGR_ComponentViewModelFactory viewModelFactory,
-    ILogger<AGR_TaskPaneViewModel> logger,
-    IComponentDataService componentDataService,
-    IAGR_ComponentRepository componentRepo,
-    IUnitOfWork unitOfWork,
-    IAGR_ViewModelCacheService _cacheService
-    )
+            IAGR_ComponentViewModelFactory viewModelFactory,
+            ILogger<AGR_TaskPaneViewModel> logger,
+            IComponentDataService componentDataService,
+            IAGR_ComponentRepository componentRepo,
+            IUnitOfWork unitOfWork,
+            IAGR_ViewModelCacheService _cacheService
+            )
         {
             _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
             _viewModelFactory = viewModelFactory;
@@ -111,12 +111,17 @@ namespace Agrovent.ViewModels.TaskPane
 
 
             _logger.LogInformation("TaskPaneViewModel initialized");
-        } 
+        }
+
+        public AGR_TaskPaneViewModel()
+        {
+                
+        }
         #endregion
 
         private int AGR_TaskPaneViewModel_CommandOpenPreNotify(int Command, int UserCommand)
         {
-            Debug.Print("CommandOpenPreNotify: " + Command + ", UserCommand: " + UserCommand);
+            Debug.Print("Command: " + Command + ", UserCommand: " + UserCommand);
             return 0;
         }
 
@@ -208,7 +213,7 @@ namespace Agrovent.ViewModels.TaskPane
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        private async void OnDocumentActivatedAsync(IXDocument doc)
+        public async void OnDocumentActivatedAsync(IXDocument doc)
         {
 
             _cancellationTokenSource?.Cancel();
@@ -277,7 +282,7 @@ namespace Agrovent.ViewModels.TaskPane
                 IAGR_BaseComponent viewModel = default;
 
                 // Создаём ViewModel из документа SolidWorks
-                viewModel = _viewModelCache.GetOrCreate(document, d => _viewModelFactory.CreateComponent(d));
+                viewModel = await _viewModelCache.GetOrCreateAsync(document, d => _viewModelFactory.CreateComponent(d)); //_viewModelCache.GetOrCreate(document, d => _viewModelFactory.CreateComponent(d));
 
                 var hash = viewModel.CalculateComponentHash();
                 //var viewModel = _viewModelFactory.CreateComponent(document);
@@ -344,6 +349,11 @@ namespace Agrovent.ViewModels.TaskPane
                 {
                     component.IsInDatabase = AGR_ComponentDatabaseState_e.SavedInDataBase;
                     _logger.LogDebug($"Loaded version {latestVersion.Version} for {partNumber}");
+
+                    //Получаем доступ к кешированному элементу
+                    //var _cachedModel = _viewModelCache.ViewModelsDictonary[component.SwDocument.Title];
+                    //
+                    //_cachedModel.componentVersion = latestVersion;
 
                     // Обновляем свойства из БД
                     component.Version = latestVersion.Version;

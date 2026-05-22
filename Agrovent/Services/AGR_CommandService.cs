@@ -175,7 +175,6 @@ namespace Agrovent.Services
                 return false;
             }
         }
-        // --- НОВАЯ КОМАНДА: Сохранить активный компонент/сборку ---
         public async Task<bool> SaveActiveComponentAsync()
         {
             try
@@ -209,7 +208,8 @@ namespace Agrovent.Services
                 var componentName = component.Name;
                 var componentType = activeDoc is ISwAssembly ? "Сборка" : "Деталь";
 
-                // --- Проверяем тип компонента и показываем соответствующее окно ---
+                
+                //если сборка - своё окно специфкации
                 if (component.ComponentType == AGR_ComponentType_e.Assembly)
                 {
                     // Для сборки показываем спецификацию
@@ -240,6 +240,7 @@ namespace Agrovent.Services
                     }
                     // Пользователь уже просмотрел спецификацию, значит подтверждает сохранение
                 }
+                //если деталь - своя форма
                 else
                 {
                     // Для детали показываем окно подтверждения сохранения
@@ -284,7 +285,6 @@ namespace Agrovent.Services
                 bool saved = false;
                 try
                 {
-                    // --- ВЫПОЛНЯЕМ СОХРАНЕНИЕ В ТОМ ЖЕ ПОТОКЕ ---
                     if (activeDoc is ISwAssembly)
                     {
                         var assembly = activeDoc as ISwAssembly;

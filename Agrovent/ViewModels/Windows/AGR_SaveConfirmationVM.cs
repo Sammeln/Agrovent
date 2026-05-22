@@ -39,6 +39,26 @@ namespace Agrovent.ViewModels.Windows
 
             InitializeProperties();
         }
+        private void InitializeProperties()
+        {
+            ErrorMessages = string.Empty;
+            Preview = _component.Preview;
+
+            var part = _component as AGR_PartComponentVM;
+
+            BaseMaterial = part.BaseMaterial;
+            Paint = part.Paint;
+            AvaArticle = part.AvaArticle;
+            BaseAvaTypeEnum = part.AvaType;
+            BaseAvaType = part.AvaType.ToString();
+
+            // Если цвет не установлен, по умолчанию ставим "без покрытия"
+            NoPaint = Paint == null;
+
+            // Load blank properties based on component type
+            LoadBlankProperties(part.PropertiesCollection);
+            ValidateComponent();
+        }
 
         #region Properties
         public bool? DialogResult { get; set; }
@@ -48,7 +68,6 @@ namespace Agrovent.ViewModels.Windows
         public string PartNumber => _component.PartNumber;
         public string ConfigName => _component.ConfigName;
         public AGR_ComponentType_e ComponentType => _component.ComponentType;
-        public AGR_AvaType_e AvaType => _component.AvaType;
 
         private byte[] _preview;
         public byte[] Preview
@@ -78,8 +97,8 @@ namespace Agrovent.ViewModels.Windows
                 }
             }
         }
-        public string MaterialName => 
-            (BaseMaterial?.AvaModel?.Article.ToString() + " " + BaseMaterial?.Name) 
+        public string MaterialName =>
+            (BaseMaterial?.AvaModel?.Article.ToString() + " " + BaseMaterial?.Name)
             ?? string.Empty;
 
         #endregion
@@ -115,29 +134,17 @@ namespace Agrovent.ViewModels.Windows
             get => _noPaint;
             set
             {
-                if (Set(ref _noPaint, value))
+                Set(ref _noPaint, value);
+                if (value == true)
                 {
-                    if (NoPaint)
-                    {
-                        //Если есть ошибка "нет артикула" удаляем
-                        if (ErrorMessages.Contains(AGR_SaveConfirmationErrors.NoColor)) ErrorMessages.Remove(AGR_SaveConfirmationErrors.NoColor);
-
-                        //Если поставили "нет артикула" убираем артикул из компонента
-                        Paint = null;
-                    }
-                    else
-                    {
-                        //Если убрали галочку, проверяем, нет ли ошибки "нет артикула" в списке
-                        //если нет, добавляем
-                        if (!ErrorMessages.Contains(AGR_SaveConfirmationErrors.NoColor)) ErrorMessages.Add(AGR_SaveConfirmationErrors.NoColor);
-                    }
-
-                    OnPropertyChanged(nameof(HasErrors));
+                    Paint = null;
                 }
+                OnPropertyChanged(nameof(HasErrors));
+                ValidateComponent();
             }
         }
 
-        public string ColorName => 
+        public string ColorName =>
             (Paint?.AvaModel?.Article.ToString() + " " + Paint?.Name)
             ?? string.Empty;
         #endregion
@@ -157,10 +164,6 @@ namespace Agrovent.ViewModels.Windows
                 {
                     partComponent.AvaArticle = value;
                 }
-                if (_component is AGR_AssemblyComponentVM assemComponent)
-                {
-                    assemComponent.AvaArticle = value;
-                }
                 OnPropertyChanged(nameof(Article));
                 OnPropertyChanged(nameof(HasErrors));
             }
@@ -175,23 +178,13 @@ namespace Agrovent.ViewModels.Windows
             set
             {
                 Set(ref _NoArticle, value);
-                if (NoArticle)
+                if (value == true)
                 {
-                    //Если есть ошибка "нет артикула" удаляем
-                    if (ErrorMessages.Contains(AGR_SaveConfirmationErrors.NoArticle)) ErrorMessages.Remove(AGR_SaveConfirmationErrors.NoArticle);
-
-                    //Если поставили "нет артикула" убираем артикул из компонента
                     AvaArticle = null;
                 }
-                else
-                {
-                    //Если убрали галочку, проверяем, нет ли ошибки "нет артикула" в списке
-                    //если нет, добавляем
-                    if (!ErrorMessages.Contains(AGR_SaveConfirmationErrors.NoArticle)) ErrorMessages.Add(AGR_SaveConfirmationErrors.NoArticle);
-                }
-
                 OnPropertyChanged(nameof(Article));
                 OnPropertyChanged(nameof(HasErrors));
+                ValidateComponent();
             }
         }
         #endregion
@@ -211,21 +204,57 @@ namespace Agrovent.ViewModels.Windows
         #endregion
 
         #region Error Messages
-        private ObservableCollection<string> _errorMessages;
-        public ObservableCollection<string> ErrorMessages
+        private string _errorMessages;
+        public string ErrorMessages
         {
             get => _errorMessages;
             set => Set(ref _errorMessages, value);
         }
 
-        public bool HasErrors => ErrorMessages?.Any() == true;
+        #region HasErrors
+        private bool _hasErrors;
+        public bool HasErrors
+        {
+            get => _hasErrors;
+            set => Set(ref _hasErrors, value);
+        }
+        #endregion
+
         #endregion
 
         #region IsPart / IsSheetMetal / IsPurchased
         public bool IsPart => ComponentType == AGR_ComponentType_e.Part ||
                               ComponentType == AGR_ComponentType_e.SheetMetallPart;
         public bool IsSheetMetal => ComponentType == AGR_ComponentType_e.SheetMetallPart;
-        public bool IsPurchased => ComponentType == AGR_ComponentType_e.Purchased;
+        public bool IsPurchased => ComponentType == AGR_ComponentType_e.Purchased 
+                                || BaseAvaTypeEnum == AGR_AvaType_e.DontBuy;
+        #endregion
+
+        public string PropertiesIsVisible => IsPurchased ? "Collapsed" : "Visible";
+
+        #region Тип ава
+        private string _baseAvaType;
+        public string BaseAvaType
+        {
+            get => _baseAvaType;
+            set => Set(ref _baseAvaType, value);
+        }
+
+        private AGR_AvaType_e _baseAvaTypeEnum;
+        public AGR_AvaType_e BaseAvaTypeEnum
+        {
+            get => _baseAvaTypeEnum;
+            set
+            {
+                if (Set(ref _baseAvaTypeEnum, value))
+                {
+                    _component.AvaType = value;
+                    OnPropertyChanged(nameof(BaseAvaType));
+                    OnPropertyChanged(nameof(PropertiesIsVisible));
+                    ValidateComponent();
+                }
+            }
+        }
         #endregion
 
         #endregion
@@ -344,30 +373,48 @@ namespace Agrovent.ViewModels.Windows
         }
         #endregion
 
+        #region SelectArticleCommand
+        private ICommand _SelectArticleCommand;
+        public ICommand SelectArticleCommand => _SelectArticleCommand
+            ??= new RelayCommand(OnSelectArticleCommandExecuted, CanSelectArticleCommandExecute);
+        private bool CanSelectArticleCommandExecute(object p) => NoArticle == false;
+        private void OnSelectArticleCommandExecuted(object p)
+        {
+            SelectArticle();
+        }
+        private void SelectArticle()
+        {
+            try
+            {
+                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
+
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
+                selectVm.SearchText = _component.Name;
+
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+                selectView.ShowActivated = true;
+                selectView.ShowDialog();
+
+                if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
+                {
+                    AvaArticle = selectVm.SelectedArticle;
+                }
+                ValidateComponent();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Ошибка при выборе артикула для главной сборки.");
+            }
+        }
+
+        #endregion
+
         #endregion
 
         #region Private Methods
 
-        private void InitializeProperties()
-        {
-            ErrorMessages = new ObservableCollection<string>();
-            Preview = _component.Preview;
 
-            if (_component is AGR_PartComponentVM part)
-            {
-                BaseMaterial = part.BaseMaterial;
-                Paint = part.Paint;
-                AvaArticle = part.AvaArticle;
-
-                // Если цвет не установлен, по умолчанию ставим "без покрытия"
-                NoPaint = Paint == null;
-
-                // Load blank properties based on component type
-                LoadBlankProperties(part.PropertiesCollection);
-            }
-
-            ValidateComponent();
-        }
 
         private void LoadBlankProperties(IAGR_PropertiesCollection propertiesCollection)
         {
@@ -383,22 +430,23 @@ namespace Agrovent.ViewModels.Windows
 
         private void ValidateComponent()
         {
-            ErrorMessages.Clear();
+            ErrorMessages = string.Empty;
+            var errorList = new List<string>();
 
-            if (IsPart)
+            if (!IsPurchased)
             {
+
                 if (string.IsNullOrEmpty(MaterialName) || string.IsNullOrWhiteSpace(MaterialName))
                 {
-                    ErrorMessages.Add(AGR_SaveConfirmationErrors.NoMaterial);
+                    errorList.Add(AGR_SaveConfirmationErrors.NoMaterial);
                 }
-
-                if (string.IsNullOrEmpty(ColorName) || string.IsNullOrWhiteSpace(ColorName))
+                if (NoPaint != true && (string.IsNullOrEmpty(ColorName) || string.IsNullOrWhiteSpace(ColorName)))
                 {
-                    ErrorMessages.Add(AGR_SaveConfirmationErrors.NoColor);
+                    errorList.Add(AGR_SaveConfirmationErrors.NoColor);
                 }
-                if (string.IsNullOrEmpty(Article) || string.IsNullOrWhiteSpace(Article))
+                if (NoPaint != true && (string.IsNullOrEmpty(Article) || string.IsNullOrWhiteSpace(Article)))
                 {
-                    ErrorMessages.Add(AGR_SaveConfirmationErrors.NoArticle);
+                    errorList.Add(AGR_SaveConfirmationErrors.NoArticle);
                 }
             }
 
@@ -406,19 +454,19 @@ namespace Agrovent.ViewModels.Windows
             {
                 if (string.IsNullOrEmpty(Article) || string.IsNullOrWhiteSpace(Article))
                 {
-                    ErrorMessages.Add(AGR_SaveConfirmationErrors.NoArticle);
+                    errorList.Add(AGR_SaveConfirmationErrors.NoArticle);
                 }
             }
 
-            if (NoPaint)
+            if (errorList.Any())
             {
-                ErrorMessages.Remove(AGR_SaveConfirmationErrors.NoColor);
+                ErrorMessages = string.Join("\n", errorList);
+                HasErrors = true;
             }
-            if (NoArticle)
+            else
             {
-                ErrorMessages.Remove(AGR_SaveConfirmationErrors.NoArticle);
+                HasErrors = false;
             }
-
             OnPropertyChanged(nameof(HasErrors));
             OnPropertyChanged(nameof(ErrorMessages));
 

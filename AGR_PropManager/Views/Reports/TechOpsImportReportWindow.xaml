@@ -8,6 +8,14 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vmRep:TechOpsImportReportViewModel, IsDesignTimeCreatable=True}"
              d:DesignHeight="600" d:DesignWidth="1000">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -23,7 +31,7 @@
             </StackPanel>
         </StackPanel>
 
-        <DataGrid Grid.Row="1"
+        <DataGrid Grid.Row="1" Style="{StaticResource PropertiesDataGrid}"
                   ItemsSource="{Binding ReportData, Mode=OneWay}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
@@ -31,28 +39,16 @@
                   Margin="10"
                   HeadersVisibility="Column">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Имя" Binding="{Binding ComponentName}" Width="*" />
-                <DataGridTextColumn Header="Артикул" Binding="{Binding Article, TargetNullValue=''}" Width="*" />
-                <DataGridTextColumn Header="Partnumber" Binding="{Binding Partnumber}" Width="*" />
-                <DataGridTextColumn Header="" IsReadOnly="True" />
-                <DataGridTextColumn Header="" IsReadOnly="True" />
-                <DataGridTextColumn Header="Трудоемкость" Binding="{Binding LabourIntensity, StringFormat=F3}" Width="*" />
-                <DataGridTextColumn Header="" IsReadOnly="True" />
-                <DataGridTextColumn Header="" IsReadOnly="True" />
-                <DataGridTextColumn Header="Доступность" Binding="{Binding Availability}" Width="*" />
-                <DataGridTextColumn Header="Порядок" Binding="{Binding Order}" Width="*" />
-                <DataGridTextColumn Header="Добавочная" Binding="{Binding Additional}" Width="*" />
+                <DataGridTextColumn Header="Имя" Binding="{Binding ComponentName}" Width="SizeToCells" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Артикул" Binding="{Binding Article, TargetNullValue=''}" Width="1*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Partnumber" Binding="{Binding Partnumber}" Width="1*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Порядок" Binding="{Binding Order}" Width="0.5*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Операция" Binding="{Binding OperationName}" Width="SizeToCells" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Трудоемкость" Binding="{Binding LabourIntensity, StringFormat=F3}" Width="0.6*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+
+                <DataGridTextColumn Header="Доступность" Binding="{Binding Availability}" Width="0.5*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Добавочная" Binding="{Binding Additional}" Width="0.5*" ElementStyle="{StaticResource CenterAlignedTextStyle}" />
             </DataGrid.Columns>
-            <DataGrid.RowStyle>
-                <Style TargetType="DataGridRow">
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding LabourIntensity}" Value="0">
-                            <Setter Property="Background" Value="IndianRed"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </DataGrid.RowStyle>
-            
         </DataGrid>
     </Grid>
 </Window>

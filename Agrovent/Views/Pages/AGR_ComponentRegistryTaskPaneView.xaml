@@ -9,17 +9,9 @@
             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
             xmlns:behaviors="clr-namespace:Agrovent.Infrastructure.Behaviours"
             mc:Ignorable="d"
-            d:DataContext="{d:DesignInstance Type=vm:AGR_ComponentRegistryTaskPaneVM, IsDesignTimeCreatable=True}"
             d:DesignHeight="600" d:DesignWidth="800">
     <UserControl.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <!-- Подключаем стили из PartComponentStyles.xaml -->
-                <ResourceDictionary Source="../../Resources/Styles/PartComponentStyles.xaml"/>
-                <!-- Подключаем стили спецификации -->
-                <ResourceDictionary Source="../../Resources/Styles/SpecificationStyles.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
-
             <!-- DataTemplate для отображения изображения в ячейке -->
             <DataTemplate x:Key="PreviewImageTemplate">
                 <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform" />
@@ -35,7 +27,7 @@
                     Command="{Binding DataContext.AddToAssemblyCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
                 <MenuItem 
                     Header="Подробная информация" CommandParameter="{Binding}"
-                    Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                    Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" Visibility="Collapsed" />
             </ContextMenu>
             
             <Style x:Key="DefaultRowStyle" TargetType="{x:Type DataGridRow}">
@@ -100,7 +92,7 @@
                           IsReadOnly="True"
                           RowStyle="{StaticResource DefaultRowStyle}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" CanUserResize="False"/>
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" CanUserResize="False" Width="SizeToCells"/>
                 <!-- Превью -->
                 <DataGridTemplateColumn Width="45" CanUserResize="False">
                     <DataGridTemplateColumn.CellStyle>

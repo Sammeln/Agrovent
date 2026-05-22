@@ -1,13 +1,8 @@
-﻿using Agrovent.DAL.Infrastructure.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using AgroventInfrastructure.Interfaces.Entities;
 
 namespace Agrovent.DAL.Entities.Base
 {
-    public class BaseEntity : IAGR_BaseEntity
+    public class BaseEntity
     {
         public int Id { get; set; }
 

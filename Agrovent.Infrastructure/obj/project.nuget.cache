@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "YkYBCubEcLA=",
+  "dgSpecHash": "XOWTWaBJXUk=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\Agrovent.Infrastructure.csproj",
+  "projectFilePath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\AgroventInfrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Usr\\.nuget\\packages\\microsoft.win32.systemevents\\7.0.0\\microsoft.win32.systemevents.7.0.0.nupkg.sha512",
     "C:\\Users\\Usr\\.nuget\\packages\\system.drawing.common\\7.0.0\\system.drawing.common.7.0.0.nupkg.sha512",

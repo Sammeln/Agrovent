@@ -15,6 +15,8 @@ using AGR_PropManager.ViewModels.TechProcess;
 using Agrovent.DAL.Services.Repositories;
 using System.Windows;
 using AGR_PropManager.Views;
+using AGR_PropManager.ViewModels.Reports;
+using AGR_PropManager.Views.Reports;
 
 namespace AGR_PropManager.ViewModels.Windows
 {
@@ -29,6 +31,9 @@ namespace AGR_PropManager.ViewModels.Windows
         private readonly ILogger _logger;
         private readonly ComponentItemViewModel _selectedComponent;
 
+        private ImportClassifierReportViewModel _importClassifierReportViewModel;
+        private TreeImportReportViewModel _treeImportReportViewModel;
+        private TechOpsImportReportViewModel _techOpsImportReportViewModel;
         #region CTOR
 
         public TechProcessEditorViewModel(
@@ -42,13 +47,39 @@ namespace AGR_PropManager.ViewModels.Windows
             _logger = logger;
             _unitOfWork = unitOfWork;
 
+            Initialize(selectedComponent);
+        }
+
+        private void Item_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            ValidateSpecification();
+        }
+
+        private async void Initialize(ComponentItemViewModel selectedComponent)
+        {
             // Инициализируем коллекцию компонентов из выбранных
-            LoadAssemblyStructureAsync(selectedComponent.PartNumber);
+            if (selectedComponent.ComponentType == AGR_ComponentType_e.Assembly)
+            {
+                await LoadAssemblyStructureAsync(selectedComponent.PartNumber);
+            }
+            else if (selectedComponent.ComponentType == AGR_ComponentType_e.Part ||
+                selectedComponent.ComponentType == AGR_ComponentType_e.SheetMetallPart)
+            {
+                await LoadPartDataAsync(selectedComponent.PartNumber);
+            }
+
 
             // Настраиваем CollectionViewSource
             Components_CVS.Source = Components;
             RefreshGrouping();
+            foreach (var item in Components)
+            {
+                item.PropertyChanged += Item_PropertyChanged;
+            }
+            ValidateSpecification();
         }
+
+
 
         // Конструктор по умолчанию (для Design-time)
         public TechProcessEditorViewModel() { }
@@ -89,6 +120,24 @@ namespace AGR_PropManager.ViewModels.Windows
         {
             EditProcess();
         }
+
+        #region Метод редактирования процесса (открывает окно выбора операции)
+        private void EditProcess()
+        {
+            var selectedComponents = Components.Where(c => c.IsSelected).ToList();
+            if (selectedComponents.Any())
+            {
+                _logger?.LogInformation($"Открытие окна выбора операции для {selectedComponents.Count} компонентов.");
+                var operationSelectionViewModel = new OperationSelectionViewModel(
+                    new ObservableCollection<ComponentItemViewModel>(selectedComponents),
+                    _unitOfWork,
+                    _logger);
+
+                var selectionWindow = new OperationSelectionWindow(operationSelectionViewModel);
+                DeselectAllComponents();
+            }
+        }
+        #endregion
         #endregion
 
         #region SelectComponentCommand
@@ -113,11 +162,11 @@ namespace AGR_PropManager.ViewModels.Windows
         private async void OnDeleteOperationCommandExecuted(TechOperationViewModel? operation)
         {
             if (operation == null || operation.ParentComponent == null) return;
-            
+
             if (operation.TechProcess != null)
             {
-                var entOp = _dataContext.Operations.FirstOrDefault(o => 
-                    o.TechnologicalProcessId == operation.TechProcess.Id && 
+                var entOp = _dataContext.Operations.FirstOrDefault(o =>
+                    o.TechnologicalProcessId == operation.TechProcess.Id &&
                     o.SequenceNumber == operation.SequenceNumber);
                 if (entOp != null)
                 {
@@ -132,6 +181,108 @@ namespace AGR_PropManager.ViewModels.Windows
             }
             OnPropertyChanged(nameof(ComponentItemViewModel.HasZeroTimeOperations));
         }
+        #endregion
+
+        #region REPORTS
+
+        #region ShowImportClassifierReportCommand
+        private ICommand _ShowImportClassifierReportCommand;
+        public ICommand ShowImportClassifierReportCommand => _ShowImportClassifierReportCommand
+            ??= new RelayCommand(OnShowImportClassifierReportCommandExecuted, CanShowImportClassifierReportCommandExecute);
+        private bool CanShowImportClassifierReportCommandExecute(object p) => true;
+        private void OnShowImportClassifierReportCommandExecuted(object p)
+        {
+            var mainComponents = Components;
+
+            try
+            {
+                _importClassifierReportViewModel = new ImportClassifierReportViewModel(mainComponents);
+
+                var reportWindow = new ImportClassifierReportWindow(_importClassifierReportViewModel)
+                {
+                    Width = 1000,
+                    Height = 700,
+                    ResizeMode = ResizeMode.CanResizeWithGrip,
+                };
+
+                reportWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        #endregion
+
+        #region ShowTreeImportReportCommand
+        private ICommand _ShowTreeImportReportCommand;
+        public ICommand ShowTreeImportReportCommand => _ShowTreeImportReportCommand
+            ??= new RelayCommand(OnShowTreeImportReportCommandExecuted, CanShowTreeImportReportCommandExecute);
+        private bool CanShowTreeImportReportCommandExecute(object p) => true;
+        private void OnShowTreeImportReportCommandExecuted(object p)
+        {
+            var mainComponent = Components?.FirstOrDefault();
+            if (mainComponent == null)
+            {
+                MessageBox.Show("Нет доступных компонентов.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                _treeImportReportViewModel = new TreeImportReportViewModel(mainComponent, _unitOfWork);
+
+                // Display the view in a new window
+                var reportWindow = new TreeImportReportWindow(_treeImportReportViewModel)
+                {
+                    Width = 1200,
+                    Height = 800,
+                    ResizeMode = ResizeMode.CanResizeWithGrip
+                };
+                reportWindow.ShowDialog(); // Modal
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        #endregion
+
+
+        #region ShowTechOpsImportReportCommand
+        private ICommand _ShowTechOpsImportReportCommand;
+        public ICommand ShowTechOpsImportReportCommand => _ShowTechOpsImportReportCommand
+            ??= new RelayCommand(OnShowTechOpsImportReportCommandExecuted, CanShowTechOpsImportReportCommandExecute);
+        private bool CanShowTechOpsImportReportCommandExecute(object p) => true;
+        private void OnShowTechOpsImportReportCommandExecuted(object p)
+        {
+
+            if (Components == null || !Components.Any())
+            {
+                MessageBox.Show("Нет доступных компонентов.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                _techOpsImportReportViewModel = new TechOpsImportReportViewModel(Components);
+
+                // Display the view in a new window
+                var reportWindow = new TechOpsImportReportWindow(_techOpsImportReportViewModel)
+                {
+                    Width = 1600,
+                    Height = 800,
+                    ResizeMode = ResizeMode.CanResizeWithGrip
+                };
+                reportWindow.ShowDialog(); // Modal
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        #endregion 
+
         #endregion
 
         #endregion
@@ -184,6 +335,25 @@ namespace AGR_PropManager.ViewModels.Windows
         }
         #endregion
 
+        #region HasErrors
+        private bool _hasErrors;
+        public bool HasErrors
+        {
+            get => _hasErrors;
+            set => Set(ref _hasErrors, value);
+        }
+        #endregion
+
+        #region Errors
+
+        private string _errors;
+        public string Errors
+        {
+            get => _errors;
+            set => Set(ref _errors, value);
+        }
+        #endregion
+
         #endregion
 
         #region Methods
@@ -197,14 +367,14 @@ namespace AGR_PropManager.ViewModels.Windows
             switch (SelectedGroupingMode)
             {
                 case "По материалу":
-                    Components_CVS.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ComponentItemViewModel.Material)));
-                    ComponentsView.Filter = FilterGroupedItemByMaterial;
-                    break;
+                Components_CVS.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ComponentItemViewModel.Material)));
+                ComponentsView.Filter = FilterGroupedItemByMaterial;
+                break;
                 case "По типу":
-                    Components_CVS.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ComponentItemViewModel.ComponentType)));
-                    break;
+                Components_CVS.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ComponentItemViewModel.ComponentType)));
+                break;
                 default:
-                    break;
+                break;
             }
 
             Components_CVS.View.Refresh();
@@ -218,24 +388,6 @@ namespace AGR_PropManager.ViewModels.Windows
             if (compItem.ComponentType is AGR_ComponentType_e.Purchased) return false;
 
             return true;
-        }
-        #endregion
-
-        #region Метод редактирования процесса (открывает окно выбора операции)
-        private void EditProcess()
-        {
-            var selectedComponents = Components.Where(c => c.IsSelected).ToList();
-            if (selectedComponents.Any())
-            {
-                _logger?.LogInformation($"Открытие окна выбора операции для {selectedComponents.Count} компонентов.");
-                var operationSelectionViewModel = new OperationSelectionViewModel(
-                    new ObservableCollection<ComponentItemViewModel>(selectedComponents),
-                    _unitOfWork,
-                    _logger);
-                
-                var selectionWindow = new OperationSelectionWindow(operationSelectionViewModel);
-                DeselectAllComponents();
-            }
         }
         #endregion
 
@@ -312,6 +464,19 @@ namespace AGR_PropManager.ViewModels.Windows
                     Article = assemblyVersion.AvaArticleArticle.ToString(),
                     AvaArticle = assemblyVersion.AvaArticle
                 };
+                var assemblyTP = await  _unitOfWork.TechProcessRepository.GetByPartNumberAsync(vmMainAssembly.PartNumber);
+                if (assemblyTP != null)
+                {
+                    if (assemblyTP.Operations.Count != 0)
+                    {
+                        var operationsList = assemblyTP.Operations.Select(
+                            op => new TechOperationViewModel(op) {
+                                ParentComponent = vmMainAssembly })
+                            .OrderBy(o => o.SequenceNumber).ToList();
+                        vmMainAssembly.Operations = new ObservableCollection<TechOperationViewModel>(operationsList);
+                    }
+                }
+
 
                 Components.Add(vmMainAssembly);
 
@@ -377,7 +542,11 @@ namespace AGR_PropManager.ViewModels.Windows
                         Article = compVer.AvaArticleArticle.ToString(),
                         AvaArticle = compVer.AvaArticle
                     };
-                    var operationsList = techProcess?.Operations.Select(op => new TechOperationViewModel(op) { ParentComponent = vm }).ToList();
+                    var operationsList = techProcess?.Operations
+                        .Select(op => new TechOperationViewModel(op) {
+                            ParentComponent = vm })
+                        .OrderBy(o => o.SequenceNumber)
+                        .ToList();
 
                     // Заполняем Operations и TechProcessSummary из найденного TechnologicalProcess
                     if (operationsList != null && operationsList.Count != 0)
@@ -414,7 +583,89 @@ namespace AGR_PropManager.ViewModels.Windows
                 _logger.LogError(ex, $"Ошибка при загрузке структуры сборки {partNumber}");
             }
         }
+        private async Task LoadPartDataAsync(string partNumber)
+        {
+            if (string.IsNullOrWhiteSpace(partNumber))
+            {
+                _logger.LogWarning("PartNumber пуст при попытке загрузки данных.");
+                return;
+            }
 
+            _logger.LogInformation($"Загрузка данных для PartNumber: {partNumber}");
+
+            // Очищаем текущую коллекцию
+            Components.Clear();
+
+            // Найдем версию сборки по PartNumber (берем последнюю по версии)
+            var partVersion = await _dataContext.ComponentVersions
+                .Include(cv => cv.Component) // Загружаем связанный компонент
+                    .ThenInclude(c => c.TechnologicalProcess)
+                .Include(c => c.Material)
+                .Include(cv => cv.Properties) // Загружаем свойства
+                .Where(cv => cv.Component.PartNumber == partNumber)
+                .OrderByDescending(cv => cv.Version) // Берем последнюю версию
+                .FirstOrDefaultAsync();
+
+            if (partVersion == null)
+            {
+                _logger.LogWarning($"Деталь с PartNumber {partNumber} не найдена.");
+                return;
+            }
+            var props = partVersion.Properties;
+            var bendCountProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankBends)?.Value; // Получаем .Value
+            var blankOuterContourProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankOuterContour)?.Value; // Получаем .Value
+            var blankInnerContourProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankInnerContour)?.Value; // Получаем .Value
+
+            // Парсим длину контура
+            var contourSum = (decimal.TryParse(blankInnerContourProp, out decimal innerLen) ? innerLen : 0) +
+                             (decimal.TryParse(blankOuterContourProp, out decimal outerLen) ? outerLen : 0);
+
+            //добавляем саму сборку
+            var vmMainPart = new ComponentItemViewModel(_dataContext, _unitOfWork)
+            {
+                PartNumber = partVersion.Component.PartNumber,
+                Name = partVersion.Name,
+                Version = partVersion.Version,
+                Quantity = 1,
+                Material = partVersion.Material?.BaseMaterial,
+                Paint = partVersion.Material?.Paint,
+                ComponentType = partVersion.ComponentType,
+                PreviewImage = LoadImageFromBytes(partVersion.PreviewImage),
+                Article = partVersion.AvaArticleArticle.ToString(),
+                AvaArticle = partVersion.AvaArticle,
+                BendCount = int.TryParse(bendCountProp, out int bc) ? bc : 0,
+                ContourLength = contourSum
+
+            };
+
+            var assemblyTP = await _unitOfWork.TechProcessRepository.GetByPartNumberAsync(vmMainPart.PartNumber);
+            if (assemblyTP != null)
+            {
+                if (assemblyTP.Operations.Count != 0)
+                {
+                    var operationsList = assemblyTP.Operations.Select(
+                        op => new TechOperationViewModel(op)
+                        {
+                            ParentComponent = vmMainPart
+                        })
+                        .OrderBy(o => o.SequenceNumber).ToList();
+                    vmMainPart.Operations = new ObservableCollection<TechOperationViewModel>(operationsList);
+                }
+            }
+
+            Components.Add(vmMainPart);
+
+            // Обновляем CollectionViewSource Source, чтобы он отслеживал изменения в коллекции
+            Components_CVS.Source = Components;
+
+            _logger.LogInformation($"Загружено {Components.Count} уникальных компонентов (суммарные количества) для сборки {partNumber}.");
+
+            // Обновляем группировку
+            RefreshGrouping();
+            ComponentsView.Refresh();
+
+            OnPropertyChanged(nameof(ComponentsView));
+        }
         #region Вспомогательный метод для загрузки изображения
         private BitmapImage? LoadImageFromBytes(byte[] imageData)
         {
@@ -435,6 +686,92 @@ namespace AGR_PropManager.ViewModels.Windows
             }
         }
         #endregion
+
+        public void ValidateSpecification()
+        {
+
+            Errors = null;
+            HasErrors = false;
+
+            var errorList = new List<string>();
+
+            //у каждой производимой детали должен быть указан материал
+            foreach (var item in Components)
+            {
+
+                //проверяем чтобы было указано количество
+                if (item.Quantity == 0 || string.IsNullOrEmpty(item.Quantity.ToString()))
+                    errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указано количество");
+
+                if (item.IsProduced)
+                {
+                    if (item.IsPart)
+                    {
+                        //проверяем указан ли материал
+                        if (string.IsNullOrEmpty(item.Material))
+                        {
+                            errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указан материал");
+                        }
+                        //проверяем обязательные свойства листовой детали
+                        if (item.IsSheetMetallPart)
+                        {
+                            //у каждой листовой детали должен быть указан контур
+                            //если свойство есть но пустое, добавляем ошибку
+                            if (string.IsNullOrEmpty(item.ContourLength.ToString()) || string.IsNullOrWhiteSpace(item.ContourLength.ToString()))
+                            {
+                                errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указана сумма контуров резки");
+                            }
+
+                            //у каждой листовой детали должно быть указано количество сгибов
+                            if (string.IsNullOrEmpty(item.BendCount.ToString()) || string.IsNullOrWhiteSpace(item.BendCount.ToString()))
+                            {
+                                errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указано количество сгибов");
+                            }
+                        }
+                    }
+                    //у всех производимых должен быть техпроцесс
+                    //if (item.TechnologicalProcessModel == null)
+                    //errorList.Add($"У компонента {item.PartNumber}.{item.Name} нет техпроцесса");
+
+                    //в каждом техпроцессе должна быть как минимум 1 операция
+                    if (item.Operations.Count == 0)
+                        errorList.Add($"У компонента {item.PartNumber}.{item.Name} нет ни одной операции в техпроцессе");
+                    else
+                    {
+                        foreach (var operation in item.Operations)
+                        {
+                            //у каждой операции техпроцесса должна быть заполнена трудоемкость, трудоемкость не должна равняться нулю
+                            if (string.IsNullOrEmpty(operation.CostPerHour.ToString()) || operation.CostPerHour == 0)
+                                errorList.Add($"У компонента {item.PartNumber}.{item.Name} не заполнена трудоемкость для операции #{operation.SequenceNumber}.{operation.Name}");
+                        }
+                    }
+                    //Если у производимого указан цвет, обязательно должна быть операция покраски
+                    if (!string.IsNullOrEmpty(item.Paint) && item.Paint != "Без покраски")
+                    {
+                        if (item.Operations.FirstOrDefault(x => x.Name == AGR_PropertyNames.Color) == null)
+                        {
+                            errorList.Add($"У компонента {item.PartNumber}.{item.Name} указан цвет покраски но не операции покраски");
+                        }
+                    }
+                    if (item.Paint == "Без покраски" || string.IsNullOrEmpty(item.Paint))
+                    {
+                        //Операция покраски не может быть указана если не указан цвет
+                        if (item.Operations.FirstOrDefault(x => x.Name == AGR_PropertyNames.Color) != null)
+                        {
+                            errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указан цвет покраски но есть операции покраски");
+                        }
+                    }
+                }
+            }
+
+
+            if (errorList.Any())
+            {
+                Errors = string.Join("\n", errorList);
+                HasErrors = true;
+            }
+            HasErrors = !string.IsNullOrEmpty(Errors);
+        }
 
         #endregion
 

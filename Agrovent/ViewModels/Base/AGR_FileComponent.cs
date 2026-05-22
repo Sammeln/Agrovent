@@ -35,7 +35,7 @@ namespace Agrovent.ViewModels.Base
             }
         }
 
-        private string? GetDrawFilePath()
+        public string? GetDrawFilePath()
         {
             var drawPath = Path.ChangeExtension(mDocument.Path, "slddrw");
             if (File.Exists(drawPath))

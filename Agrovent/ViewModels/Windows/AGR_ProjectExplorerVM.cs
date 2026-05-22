@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Agrovent.Infrastructure.Commands;
 using Agrovent.DAL;
+using AgroventInfrastructure.Interfaces.Entities.Projects;
 
 namespace Agrovent.ViewModels.Windows
 {

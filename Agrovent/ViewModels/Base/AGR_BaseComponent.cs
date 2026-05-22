@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using Microsoft.VisualStudio.Shell.Interop;
 using Xarial.XCad.Base.Attributes;
 using Agrovent.Properties;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 
 namespace Agrovent.ViewModels.Base
 {
@@ -34,7 +35,11 @@ namespace Agrovent.ViewModels.Base
         public string PartNumber
         {
             get => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
+                OnPropertyChanged(nameof(PartNumber));
+            }
         }
         public string Article
         {
@@ -42,7 +47,11 @@ namespace Agrovent.ViewModels.Base
             {
                 return AvaArticle != null ? AvaArticle.Article.ToString() : mProperties.AGR_TryGetProp(AGR_PropertyNames.Article).Value.ToString();
             }
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Article).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.Article).Value = value;
+                OnPropertyChanged(nameof(Article));
+            }
         }
         public int Version
         {
@@ -73,7 +82,11 @@ namespace Agrovent.ViewModels.Base
                 return 0;
             }
 
-            set => mProperties.AGR_TryGetProp(AGR_PropertyNames.HashSum).Value = value;
+            set
+            {
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.HashSum).Value = value;
+                OnPropertyChanged(nameof(HashSum));
+            }
         }
         public bool IsLoaded  { get; set; }
 
@@ -93,7 +106,7 @@ namespace Agrovent.ViewModels.Base
             protected set => _Preview = value;
         } 
         #endregion
-        public string FilePath => mDocument.Path;
+        public string FilePath => mDocument?.Path ?? "";
 
         #region Property - IAGR_AvaArticleModel _AvaArticle
         private IAGR_AvaArticleModel _AvaArticle;
@@ -105,8 +118,17 @@ namespace Agrovent.ViewModels.Base
                 Set(ref _AvaArticle, value);
             }
         }
-        public bool HasAvaArticle => _AvaArticle != null;
         #endregion
+
+
+        #region Property - ComponentVersion
+        private IAGR_ComponentVersionEntity _ComponentVersion;
+        public IAGR_ComponentVersionEntity ComponentVersion
+        {
+            get => _ComponentVersion;
+            set => Set(ref _ComponentVersion, value);
+        }
+        #endregion 
 
         #region IsInDatabase
         private AGR_ComponentDatabaseState_e _isInDatabase = AGR_ComponentDatabaseState_e.NotLoaded;
@@ -172,6 +194,7 @@ namespace Agrovent.ViewModels.Base
                 {
                     ComponentType = mDocument.ComponentType();
                 }
+                OnPropertyChanged(nameof(AvaType));
             }
         }
         #endregion

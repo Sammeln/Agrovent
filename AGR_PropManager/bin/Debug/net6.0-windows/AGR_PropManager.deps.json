@@ -9,6 +9,7 @@
       "AGR_PropManager/1.0.0": {
         "dependencies": {
           "Agrovent.DAL": "1.0.0",
+          "AgroventInfrastructure": "1.0.0",
           "Microsoft.EntityFrameworkCore": "7.0.20",
           "Microsoft.EntityFrameworkCore.Tools": "7.0.20",
           "Microsoft.Extensions.Configuration.Json": "10.0.0",
@@ -837,7 +838,7 @@
       },
       "Agrovent.DAL/1.0.0": {
         "dependencies": {
-          "Agrovent.Infrastructure": "1.0.0",
+          "AgroventInfrastructure": "1.0.0",
           "Microsoft.EntityFrameworkCore": "7.0.20",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "7.0.18",
           "Xarial.XCad": "0.8.2"
@@ -849,13 +850,13 @@
           }
         }
       },
-      "Agrovent.Infrastructure/1.0.0": {
+      "AgroventInfrastructure/1.0.0": {
         "dependencies": {
           "Xarial.XCad": "0.8.2",
           "Xarial.XCad.SolidWorks": "0.8.2"
         },
         "runtime": {
-          "Agrovent.Infrastructure.dll": {
+          "AgroventInfrastructure.dll": {
             "assemblyVersion": "1.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -1364,7 +1365,7 @@
       "serviceable": false,
       "sha512": ""
     },
-    "Agrovent.Infrastructure/1.0.0": {
+    "AgroventInfrastructure/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

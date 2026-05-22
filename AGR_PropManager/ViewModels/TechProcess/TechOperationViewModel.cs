@@ -8,12 +8,13 @@ using System.Threading.Tasks;
 using AGR_PropManager.ViewModels.Base;
 using Agrovent.DAL.Entities.TechProcess;
 using AGR_PropManager.ViewModels.Components;
+using AgroventInfrastructure.Interfaces.Entities.TechProcess;
 
 namespace AGR_PropManager.ViewModels.TechProcess
 {
     public class TechOperationViewModel : BaseViewModel
     {
-        public Operation? OperationEntity { get; }
+        public Operation? Operation { get; }
 
         #region CTOR
         public TechOperationViewModel()
@@ -24,7 +25,7 @@ namespace AGR_PropManager.ViewModels.TechProcess
         public TechOperationViewModel(Operation operation)
         {
 
-            OperationEntity = operation;
+            Operation = operation;
             WorkstationName = operation.WorkstationName;
             Name = operation.Name;
             CostPerHour = operation.CostPerHour;
@@ -76,7 +77,7 @@ namespace AGR_PropManager.ViewModels.TechProcess
             {
                 if (Set(ref _CostPerHour, value))
                 {
-                    OperationEntity.CostPerHour = value;
+                    Operation.CostPerHour = value;
                     ParentComponent?.OnOperationCostChanged(this);
                 }
             }
