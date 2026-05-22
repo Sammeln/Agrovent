@@ -4,16 +4,16 @@
 winexe
 C#
 .cs
-C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\
+C:\Users\Usr\Source\Repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\
 AGR_PropManager
 none
 false
 TRACE;DEBUG;NET;NET6_0;NETCOREAPP
-C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\App.xaml
+C:\Users\Usr\Source\Repos\Agrovent\AGR_PropManager\App.xaml
 6-2116420608
 
 28-1069028480
-2601078693085
+260-1586420388
 Views\MainWindow.xaml;Views\OperationSelectionWindow.xaml;Views\Reports\ImportClassifierReportWindow.xaml;Views\Reports\TechOpsImportReportWindow.xaml;Views\Reports\TreeImportReportWindow.xaml;Views\TechProcessEditorWindow.xaml;
 
 True
