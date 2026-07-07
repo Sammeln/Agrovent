@@ -3,7 +3,6 @@ using System.Windows.Controls;
 using System.Windows.Forms;
 using AGR_PropManager;
 using Agrovent.DAL;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
@@ -47,7 +46,6 @@ namespace Agrovent.Infrastructure.Handlers
         protected override void OnInit(ISwApplication app, ISwDocument doc)
         {
             m_Doc = doc;
-
             app.Documents.DocumentActivated += Documents_DocumentActivated;
             doc.Destroyed += SwDoc3D_Destroyed;
             if (doc is ISwPart part)
@@ -98,18 +96,15 @@ namespace Agrovent.Infrastructure.Handlers
             {
                 try
                 {
-                    if (!EditWarningShown)
+                    if (!EditWarningShown && _BaseComponent != null)
                     {
-                        if (_viewModelCache.Count == 0) return 0;
-                        var cv = _viewModelCache.Get(Document as ISwDocument3D).Value.componentVersion;
-                        if (cv != null)
+                        if (_BaseComponent.IsInDatabase == AGR_ComponentDatabaseState_e.SavedInDataBase)
                         {
-                            if (cv.ParentAssembliesCount >= 1)
+                            if (_BaseComponent.ParentAssembliesCount > 1)
                             {
                                 EditWarningShown = true;
-
                                 AGR_Helper.ShowMessage(
-                                    "Внимание! Вы пытаетесь изменить деталь которая используется в других сборках. Количество сборок: " + cv.ParentAssembliesCount,
+                                    "Внимание! Вы пытаетесь изменить деталь которая используется в других сборках.\nКоличество сборок: " + _BaseComponent.ParentAssembliesCount,
                                     MessageBoxIcon_e.Warning,
                                     MessageBoxButtons_e.Ok);
                             }

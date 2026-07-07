@@ -444,7 +444,7 @@ namespace Agrovent.ViewModels.Windows
                 {
                     errorList.Add(AGR_SaveConfirmationErrors.NoColor);
                 }
-                if (NoPaint != true && (string.IsNullOrEmpty(Article) || string.IsNullOrWhiteSpace(Article)))
+                if (NoArticle != true && (string.IsNullOrEmpty(Article) || string.IsNullOrWhiteSpace(Article)))
                 {
                     errorList.Add(AGR_SaveConfirmationErrors.NoArticle);
                 }

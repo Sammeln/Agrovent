@@ -1,11 +1,12 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
-                    xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=Agrovent.Infrastructure">
-                    
+                    xmlns:AGR_converter="clr-namespace:AgroventInfrastructure.AGR_Converters;assembly=AgroventInfrastructure">
+
     <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="PartComponentStyles.xaml"/>
+        <ResourceDictionary Source="PartComponentStyle.xaml"/>
     </ResourceDictionary.MergedDictionaries>
+
     <AGR_converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
     <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
     <converter:GroupHeaderColorConverter x:Key="GroupHeaderColorConverter"/>

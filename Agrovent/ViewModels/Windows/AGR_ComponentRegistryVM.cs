@@ -1,6 +1,5 @@
 ﻿// File: ViewModels/Windows/AGR_ComponentRegistryVM.cs
 using Agrovent.DAL;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.DAL.Services.Repositories;
 using Agrovent.Infrastructure;
 using Agrovent.Infrastructure.Commands;
@@ -8,6 +7,7 @@ using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows.Details;
 using Agrovent.Views.Windows.Details;
+using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -80,7 +80,7 @@ namespace Agrovent.ViewModels.Windows
                 // Преобразуем сущности в VM и добавляем в коллекцию
                 foreach (var version in versions)
                 {
-                    var itemVm = new AGR_ComponentRegistryItemVM(version, AGR_Options.StorageRootFolderPath);
+                    var itemVm = new AGR_ComponentRegistryItemVM(version);
                     RegistryItems.Add(itemVm);
                 }
 

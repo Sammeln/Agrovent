@@ -37,5 +37,12 @@ namespace AGR_PropManager.Views
                 viewModel.CloseRequested += (s, e) => this.Close();
             }
         }
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is TechProcessEditorViewModel vm)
+            {
+                await vm.InitializeAsync();
+            }
+        }
     }
 }

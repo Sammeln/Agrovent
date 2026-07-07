@@ -12,5 +12,7 @@
         string? Brand { get; set; }
         string? Company { get; set; }
         string? SecondaryUOM { get; set; }
+        string? ArchiveType { get; set; }
+
     }
 }

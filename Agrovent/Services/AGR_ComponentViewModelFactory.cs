@@ -60,7 +60,6 @@ namespace Agrovent.Services
         public async Task<AGR_AssemblyComponentVM> CreateAssemblyComponentAsync(ISwDocument3D document)
         {
             throw new NotImplementedException();
-
             //_logger.LogDebug($"Creating assembly component async: {document.Title}");
 
             //try

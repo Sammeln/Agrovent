@@ -40,31 +40,27 @@
         <DataGrid Grid.Row="1" Grid.Column="0"  Style="{StaticResource PropertiesDataGrid}"
                   ItemsSource="{Binding ReportData, Mode=OneWay}" 
                   AutoGenerateColumns="False"
+                  GridLinesVisibility="Vertical"
+                  VerticalGridLinesBrush="LightGray"
                   CanUserAddRows="False"
+                  SelectionUnit="Cell"
                   IsReadOnly="True"
                   Margin="10">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="#" Binding="{Binding RowCount}" Width="SizeToHeader" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
                 <!--Наименование -->
-                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="SizeToCells" />
+                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="2*" />
                 <!--ТИП -->
-                <DataGridTextColumn Header="ТИП" Binding="{Binding Type}" Width="SizeToHeader" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="ТИП" Binding="{Binding Type}" Width="*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
                 <!--Partnumber -->
-                <DataGridTextColumn Header="Partnumber" Binding="{Binding Partnumber}" Width="SizeToHeader" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Partnumber" Binding="{Binding Partnumber}" Width="*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
                 <!--Основная ЕИ -->
-                <DataGridTextColumn Header="Основная ЕИ" Binding="{Binding MainUnit}" Width="SizeToHeader" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Основная ЕИ" Binding="{Binding MainUnit}" Width="*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
                 <!--URL -->
                 <DataGridTextColumn Header="URL" Binding="{Binding URL}" Width="3*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
                 <!--Артикул -->
                 <DataGridTextColumn Header="Артикул" Binding="{Binding Article}" Width="1*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
             </DataGrid.Columns>
-            <!-- Define dummy properties for empty columns if needed by binding -->
-            <DataGrid.Resources>
-                <!-- This style ensures empty cells display nothing visually if bound to non-existent properties -->
-                <Style TargetType="DataGridCell">
-                    <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Content.Text}"/>
-                </Style>
-            </DataGrid.Resources>
         </DataGrid>
         <!--<Border Grid.Column="1" Grid.Row="1"
              Style="{StaticResource ErrorBorderStyle}"

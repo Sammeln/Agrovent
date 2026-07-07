@@ -1,8 +1,6 @@
-﻿using Agrovent.DAL.Entities.Components;
-using Agrovent.DAL.Services.Repositories;
+﻿using Agrovent.DAL.Services.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Xarial.XCad.Documents;
 
 namespace Agrovent.DAL
 {
@@ -49,7 +47,6 @@ namespace Agrovent.DAL
             _transaction = await _context.Database.BeginTransactionAsync();
             return _transaction;
         }
-
         public async Task CommitTransactionAsync()
         {
             if (_transaction != null)
@@ -59,7 +56,6 @@ namespace Agrovent.DAL
                 _transaction = null;
             }
         }
-
         public async Task RollbackTransactionAsync()
         {
             if (_transaction != null)

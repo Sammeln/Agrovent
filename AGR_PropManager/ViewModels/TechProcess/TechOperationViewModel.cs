@@ -6,9 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AGR_PropManager.ViewModels.Base;
-using Agrovent.DAL.Entities.TechProcess;
 using AGR_PropManager.ViewModels.Components;
 using AgroventInfrastructure.Interfaces.Entities.TechProcess;
+using AgroventInfrastructure.Entities.TechProcess;
 
 namespace AGR_PropManager.ViewModels.TechProcess
 {

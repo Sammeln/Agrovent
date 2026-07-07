@@ -112,3 +112,5 @@ C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\Agro
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Debug\net6.0-windows\AgroventInfrastructure.pdb
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\Style\PartComponentStyle.baml
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\Style\SpecificationStyle.baml
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\AGR_SelectAvaArticleView.g.cs
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Debug\net6.0-windows\Views\AGR_SelectAvaArticleView.baml

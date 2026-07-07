@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Agrovent.DAL.Entities.Components;
+using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 
-namespace Agrovent.DAL.Entities.Base
+namespace AgroventInfrastructure.Entities.Base
 {
     public class UserEntity : BaseEntity
     {

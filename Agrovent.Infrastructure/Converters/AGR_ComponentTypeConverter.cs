@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Data;
 using Agrovent.Infrastructure.Enums;
 
-namespace Agrovent.Infrastructure.AGR_Converters
+namespace AgroventInfrastructure.AGR_Converters
 {
     public class AGR_ComponentTypeConverter : IValueConverter
     {

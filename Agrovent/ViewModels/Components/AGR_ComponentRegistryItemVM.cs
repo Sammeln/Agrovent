@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Agrovent.DAL.Entities.Components;
 using System.Windows.Media.Imaging;
 using Agrovent.ViewModels.Base;
 using System.Runtime.InteropServices;
@@ -12,23 +11,29 @@ using System.Windows.Input;
 using System.Windows;
 using Agrovent.Infrastructure.Commands;
 using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Entities.Components;
+using Agrovent.Infrastructure;
 
 namespace Agrovent.ViewModels.Components
 {
-    public class AGR_ComponentRegistryItemVM : BaseViewModel
+    public class AGR_ComponentRegistryItemVM : BaseViewModel, IAGR_ComponentRegistryItemVM
     {
         // Приватные поля для хранения данных
         private readonly ComponentVersion _entity; // Хранит оригинальную сущность из БД
         private readonly string _storageRootFolder; // Путь к корню хранилища
 
-        public AGR_ComponentRegistryItemVM(ComponentVersion entity, string storageRootFolder)
+        public AGR_ComponentRegistryItemVM()
+        {
+                
+        }
+        public AGR_ComponentRegistryItemVM(ComponentVersion entity)
         {
             _entity = entity ?? throw new ArgumentNullException(nameof(entity));
-            _storageRootFolder = storageRootFolder ?? throw new ArgumentNullException(nameof(storageRootFolder));
+            _storageRootFolder = AGR_Options.StorageRootFolderPath;
         }
 
         // Свойства для отображения в DataGrid
-        public int Id => _entity.Component.Id;
+        public int Id => _entity.Component?.Id ?? 0;
         public BitmapImage? Preview
         {
             get
@@ -56,20 +61,17 @@ namespace Agrovent.ViewModels.Components
             }
         }
         public string Name => _entity.Name ?? "N/A";
-        //public string PartNumber => _entity.Component?.PartNumber ?? "N/A";
 
         public string PartNumber
         {
             get
             {
                 if (_entity?.AvaType == Infrastructure.Enums.AGR_AvaType_e.Component
-                    || _entity?.AvaType == Infrastructure.Enums.AGR_AvaType_e.Production) return _entity.Component.PartNumber;
+                    || _entity?.AvaType == Infrastructure.Enums.AGR_AvaType_e.Production) return _entity.Component?.PartNumber;
                 return "";
             }
         }
-
         public string SavedByUserInitials => _entity.SavedByUser?.Initials ?? "N/A";
-
         public DateTime CreatedAt => _entity.CreatedAt;
         public string ComponentTypeDisplay => GetDisplayString(_entity.ComponentType);
         public string AvaTypeDisplay => GetDisplayString(_entity.AvaType);
@@ -84,7 +86,7 @@ namespace Agrovent.ViewModels.Components
                 // Предполагаем, что файл хранится как Model.FileName (например, Cube.SLDPRT)
                 // и путь формируется как StorageRootFolder + HashSum + FileName
                 if (!string.IsNullOrEmpty(_entity.Files.First
-                        (x => x.FilePath.EndsWith("prt",StringComparison.OrdinalIgnoreCase)
+                        (x => x.FilePath.EndsWith("prt", StringComparison.OrdinalIgnoreCase)
                         || x.FilePath.EndsWith("asm", StringComparison.OrdinalIgnoreCase)
                     ).FilePath))
                 {

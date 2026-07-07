@@ -13,6 +13,7 @@ namespace Agrovent.Infrastructure.Extensions
     {
         public static IXProperty? AGR_TryGetProp(this IXPropertyRepository repo, string propertyName)
         {
+            if (repo is null) return null;
             try
             {
                 IXProperty xProperty = repo.GetOrPreCreate(propertyName);

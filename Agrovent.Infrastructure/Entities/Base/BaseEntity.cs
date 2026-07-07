@@ -1,6 +1,6 @@
 ﻿using AgroventInfrastructure.Interfaces.Entities;
 
-namespace Agrovent.DAL.Entities.Base
+namespace AgroventInfrastructure.Entities.Base
 {
     public class BaseEntity
     {

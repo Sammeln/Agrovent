@@ -53,15 +53,17 @@ namespace Agrovent
             services.AddDbContext<DataContext>(options =>
             {
                 options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
-                options.EnableSensitiveDataLogging();
-                options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
-            });
+                //options.EnableSensitiveDataLogging();
+                //options.UseQueryTrackingBehavior(QueryTrackingBehavior.TrackAll);
+            },
+                ServiceLifetime.Scoped);
+
 
             // 5. Репозитории
-            services.AddScoped<IAGR_ComponentRepository, ComponentRepository>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddTransient<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IAGR_ComponentVersionService, ComponentVersionService>();
-            services.AddScoped<IAGR_TechnologicalProcessRepository, AGR_TechnologicalProcessRepository>();
+            services.AddTransient<IAGR_ComponentRepository, ComponentRepository>();
+            services.AddTransient<IAGR_TechnologicalProcessRepository, AGR_TechnologicalProcessRepository>();
 
 
             // 6. Сервисы

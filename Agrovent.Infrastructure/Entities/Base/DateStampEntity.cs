@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using AgroventInfrastructure.Interfaces.Entities;
 
-namespace Agrovent.DAL.Entities.Base
+namespace AgroventInfrastructure.Entities.Base
 {
     public class DateStampEntity : BaseEntity
     {

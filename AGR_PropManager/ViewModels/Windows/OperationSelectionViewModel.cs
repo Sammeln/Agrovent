@@ -8,7 +8,6 @@ using AGR_PropManager.ViewModels.Base;
 using AGR_PropManager.ViewModels.Components;
 using AGR_PropManager.ViewModels.TechProcess;
 using Agrovent.DAL;
-using Agrovent.DAL.Entities.TechProcess;
 using Agrovent.DAL.Services.Repositories;
 using Agrovent.Infrastructure.Enums;
 using Microsoft.EntityFrameworkCore;

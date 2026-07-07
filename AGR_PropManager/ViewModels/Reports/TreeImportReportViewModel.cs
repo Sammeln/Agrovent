@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,10 +14,16 @@ using System.Windows.Input;
 using AGR_PropManager.Infrastructure.Commands;
 using AGR_PropManager.ViewModels.Base;
 using AGR_PropManager.ViewModels.Components;
+using AGR_PropManager.ViewModels.Reports.Interfaces;
 using Agrovent.DAL;
-using Agrovent.DAL.Entities.Components;
+using Agrovent.Infrastructure;
 using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.Components;
+using MathNet.Numerics;
+using MathNet.Numerics.LinearAlgebra.Factorization;
+
+
 
 //using Microsoft.Win32;
 using NPOI.HSSF.UserModel;
@@ -27,7 +34,7 @@ using NPOI.XSSF.UserModel;
 
 namespace AGR_PropManager.ViewModels.Reports
 {
-    public class TreeImportReportItem : BaseViewModel
+    public class TreeImportReportItem : BaseViewModel, IAGR_ReportItem
     {
         public int RowNumber { get; set; }
         public string MainArtName { get; set; }
@@ -48,14 +55,12 @@ namespace AGR_PropManager.ViewModels.Reports
         public ComponentVersion? Child { get; set; }
     }
 
-    public class TreeImportReportViewModel : BaseViewModel
+    public class TreeImportReportViewModel : AGR_BaseReport
     {
         #region Fields
         private readonly UnitOfWork _unitOfWork;
         private readonly ComponentItemViewModel _mainComponent;
         private readonly string _mainProductName; // Name for the filename
-        private string _statusMessage;
-        private bool _isGenerating;
         private string FilePath = string.Empty;
 
         #endregion
@@ -67,16 +72,14 @@ namespace AGR_PropManager.ViewModels.Reports
             _mainComponent = mainComponent ?? throw new ArgumentNullException(nameof(mainComponent));
             _mainProductName = _mainComponent.Name ?? "Неизвестное_изделие";
             _unitOfWork = unitOfWork;
-
-
-            ReportData = new ObservableCollection<TreeImportReportItem>();
+            ReportData = new ObservableCollection<IAGR_ReportItem>();
             Initialize();
         }
 
         private async void Initialize()
         {
 
-            if (_mainComponent.ComponentType ==AGR_ComponentType_e.Assembly)
+            if (_mainComponent.ComponentType == AGR_ComponentType_e.Assembly)
             {
                 await LoadReportDataAsync();
             }
@@ -85,49 +88,13 @@ namespace AGR_PropManager.ViewModels.Reports
                 await LoadReportDataForPartAsync();
             }
             Validate();
-
-        }
-
-        #endregion
-
-        #region Properties
-
-        #region HasErrors
-        private bool _hasErrors = true;
-        public bool HasErrors
-        {
-            get => _hasErrors;
-            set => Set(ref _hasErrors, value);
-        }
-        #endregion
-
-        #region Errors
-
-        private string _errors;
-        public string Errors
-        {
-            get => _errors;
-            set => Set(ref _errors, value);
-        }
-        #endregion
-        public ObservableCollection<TreeImportReportItem> ReportData { get; }
-        public string StatusMessage
-        {
-            get => _statusMessage;
-            set => Set(ref _statusMessage, value);
-        }
-        public bool IsGenerating
-        {
-            get => _isGenerating;
-            set => Set(ref _isGenerating, value);
         }
 
         #endregion
 
         #region Commands
 
-
-        #region CanExportToExcelCommand
+        #region ExportToExcelCommand
         private ICommand _ExportToExcelCommand;
         public ICommand ExportToExcelCommand => _ExportToExcelCommand
             ??= new RelayCommand(OnExportToExcelCommandExecuted, CanExportToExcelCommandExecute);
@@ -149,17 +116,16 @@ namespace AGR_PropManager.ViewModels.Reports
             IsGenerating = true; // Используем IsGenerating как индикатор загрузки тоже
             try
             {
-                // Предполагаем, что _mainComponent.PartNumber и Version установлены корректно
-                var structureEntries = await _unitOfWork.ComponentRepository.GetAssemblyStructureRecursive(_mainComponent.PartNumber, _mainComponent.Version); // Используем DataService или UnitOfWork из _mainComponent
+                List<AssemblyStructure> structureEntries = new();
+                List<ComponentVersion> uniqueParts = new();
+                int rowNumber = 1; 
+
+                 structureEntries = await _unitOfWork.ComponentRepository.GetAssemblyStructureRecursive(_mainComponent.PartNumber, _mainComponent.Version); // Используем DataService или UnitOfWork из _mainComponent
 
                 // Очищаем старые данные
                 ReportData.Clear();
 
-                // Найдем версию сборки по PartNumber (берем последнюю по версии)
-                //var assemblyVersion = await _unitOfWork.ComponentRepository.GetLatestComponentVersion(_mainComponent.PartNumber);
-
                 // Проходим по структуре и формируем строки отчета
-                int rowNumber = 1;
 
                 foreach (var entry in structureEntries)
                 {
@@ -175,13 +141,10 @@ namespace AGR_PropManager.ViewModels.Reports
                         ChildName = child.Name,
                         MainPartNumber = parent.Component.PartNumber ?? "",
                         MainArticleAVA = parent.AvaArticle?.Article.ToString() ?? "",
-                        Quantity = entry.Quantity, // Quantity из AssemblyStructure
+                        Quantity = entry.Quantity,
 
                         ChildPartNumber = child.ComponentType == AGR_ComponentType_e.Purchased ? "" : child.Component.PartNumber,
                         ChildArticleAVA = child.AvaArticle?.Article.ToString() ?? "",
-                        //ChildUnit = "шт",//DetermineUnit(childComponentVM.ComponentType), // Определяем ЕИ
-                        //ChildType = "Комплектующие", //DetermineType(childComponentVM.ComponentType), // Определяем Тип
-                        //ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{child.Component.PartNumber}" // Формируем URL
                     };
                     if (reportItem.Child.ComponentType == AGR_ComponentType_e.Purchased)
                     {
@@ -190,120 +153,213 @@ namespace AGR_PropManager.ViewModels.Reports
                     }
                     else
                     {
-                        reportItem.ChildUnit = "шт";
+                        reportItem.ChildUnit = "Штука";
                         reportItem.ChildType = "Комплектующие";
                         if (!string.IsNullOrEmpty(reportItem.ChildPartNumber))
                         {
-                            reportItem.ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{child.Component.PartNumber}";
+                            reportItem.ChildURL = $@"{AGR_Options.ProductionRootFolderPath}\{child.Component.PartNumber}";
                         }
+                    }
+                    ReportData.Add(reportItem);
                     }
 
 
-                    ReportData.Add(reportItem);
+                // 2. Получаем уникальные компоненты с типом Part и SheetMetallPart
+                 uniqueParts = structureEntries
+                    .SelectMany(e => new[] { e.ParentComponentVersion, e.ChildComponentVersion })
+                    .Where(cv => cv != null && (cv.ComponentType == AGR_ComponentType_e.Part
+                                    || cv.ComponentType == AGR_ComponentType_e.SheetMetallPart
+                                    || cv.ComponentType == AGR_ComponentType_e.Assembly))
+                    .GroupBy(cv => cv.Id)
+                    .Select(g => g.First())
+                    .ToList();
+                
+                // 3. Обработка каждой уникальной детали (добавление строк материала и покраски)
+                foreach (var part in uniqueParts)
+                {
+                    var material = part.Material;
+                    if (material?.BaseMaterial != null)
+                    {
+                        string uom = material.MaterialAvaArticle?.MainUOM?.Trim().ToLower() ?? "";
+                        double quantity = 0;
+
+                        // Анализ единицы измерения и выбор свойства
+                        if (uom == "кв метр" || uom == "м2" || uom == "квадратный метр")
+                        {
+                            quantity = GetPropertyValue(part, AGR_PropertyNames.BlankArea);
+                        }
+                        else if (uom == "метр" || uom == "м" || uom == "пог. м" || uom == "пог м" || uom == "погонный метр")
+                        {
+                            quantity = Math.Round(GetPropertyValue(part, AGR_PropertyNames.BlankLen) / 1000, 3, MidpointRounding.ToPositiveInfinity);
+                        }
+                        else if (uom == "шт" || uom == "штука" || uom == "шт." || uom == "штук")
+                        {
+                            quantity = 1;
+                        }
+
+                        // Добавляем строку Содержания материала
+                        var materialRow = new TreeImportReportItem
+                        {
+                            RowNumber = rowNumber++,
+                            Parent = part,
+                            Child = null,
+                            MainArtName = part.Name,
+                            ChildName = material.BaseMaterial,
+                            MainPartNumber = part.Component?.PartNumber ?? "",
+                            MainArticleAVA = part.AvaArticle?.Article.ToString() ?? "",
+                            Quantity = quantity,
+                            ChildPartNumber = "",
+                            ChildArticleAVA = material.MaterialAvaArticle?.Article.ToString() ?? "",
+                            ChildUnit = material.MaterialAvaArticle?.MainUOM ?? "",
+                            ChildType = "",
+                            ChildURL = ""
+                        };
+                        ReportData.Add(materialRow);
+
+                    }
+                    // 4. Проверка наличия операции "покраска" в техпроцессе
+                    bool hasPainting = HasPaintingOperation(part);
+
+                    // Если есть покраска, добавляем дополнительную строку
+                    if (hasPainting)
+                    {
+                        double blankArea = GetPropertyValue(part, AGR_PropertyNames.BlankArea);
+                        double paintQuantity = Math.Round(blankArea * 0.22, 3, MidpointRounding.ToPositiveInfinity);
+
+                        var paintRow = new TreeImportReportItem
+                        {
+                            RowNumber = rowNumber++,
+                            Parent = part,
+                            Child = null,
+                            MainArtName = part.Name,
+                            ChildName = material.Paint?.ToString() ?? "",
+                            MainPartNumber = part.Component?.PartNumber ?? "",
+                            MainArticleAVA = part.AvaArticle?.Article.ToString() ?? "",
+                            Quantity = paintQuantity,
+                            ChildPartNumber = "",
+                            ChildArticleAVA = material.PaintAvaArticleID?.ToString() ?? "",
+                            ChildUnit = "Кг",
+                            ChildType = "",
+                            ChildURL = ""
+                        };
+                        ReportData.Add(paintRow);
+                    }
                 }
 
-                // Добавляем строки для материалов, связанных с деталями в структуре
-                // Здесь нужно будет пройтись по структуре снова и найти детали (Part, SheetMetalPart),
-                // затем получить их материалы и добавить строки.
-
-                // Псевдокод для демонстрации:
-                // foreach (var entry in structureEntries)
-                // {
-                //     var childComponent = entry.ChildComponentVersion.Component;
-                //     if (childComponent.ComponentType == AGR_ComponentType_e.Part || childComponent.ComponentType == AGR_ComponentType_e.SheetMetallPart)
-                //     {
-                //         // Получить материал для детали (например, через DataService)
-                //         var materialComponent = await _mainComponent.DataService.GetMaterialForPart(childComponent.PartNumber);
-                //         if (materialComponent != null)
-                //         {
-                //              var materialComponentVM = new ComponentItemViewModel(materialComponent);
-                //              var matReportItem = new TreeImportReportItem
-                //              {
-                //                  MainArtName = childComponentVM.Name, // Имя детали
-                //                  MainPartNumber = childComponentVM.PartNumber,
-                //                  ChildPartNumber = materialComponentVM.PartNumber,
-                //                  ChildName = materialComponentVM.Name,
-                //                  MainArticleAVA = childComponentVM.Article ?? "",
-                //                  ChildArticleAVA = materialComponentVM.Article ?? "",
-                //                  Quantity = CalculateMaterialQuantity(...), // Необходимо рассчитать
-                //                  ChildUnit = "м2", // Для материала
-                // "", // Для материала
-                //                  ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{materialComponentVM.PartNumber}"
-                //              };
-                //              matReportItem.Validate(childComponentVM, materialComponentVM, calculatedQuantity); // Проверить
-                //              ReportData.Add(matReportItem);
-                //         }
-                //         // Также можно добавить покраску, если она есть
-                //         var paintComponent = await _mainComponent.DataService.GetPaintForPart(childComponent.PartNumber);
-                //         if (paintComponent != null)
-                //         {
-                //              var paintComponentVM = new ComponentItemViewModel(paintComponent);
-                //              var paintReportItem = new TreeImportReportItem
-                //              {
-                //                  MainArtName = childComponentVM.Name, // Имя детали
-                //                  MainPartNumber = childComponentVM.PartNumber,
-                //                  ChildPartNumber = paintComponentVM.PartNumber,
-                //                  ChildName = paintComponentVM.Name,
-                //                  MainArticleAVA = childComponentVM.Article ?? "",
-                //                  ChildArticleAVA = paintComponentVM.Article ?? "",
-                //                  Quantity = 1, // Пример
-                //                  ChildUnit = "шт", // Или другая ЕИ для покраски
-                //                  ChildType = "", // Для покраски
-                //                  ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{paintComponentVM.PartNumber}"
-                //              };
-                //              paintReportItem.Validate(childComponentVM, paintComponentVM, 1); // Проверить
-                //              ReportData.Add(paintReportItem);
-                //         }
-                //     }
-                // }
 
                 StatusMessage = $"Загружено {ReportData.Count} строк.";
             }
             catch (Exception ex)
             {
                 StatusMessage = $"Ошибка при загрузке данных: {ex.Message}";
-                //MessageBox.Show(StatusMessage, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
                 IsGenerating = false; // Завершаем индикатор загрузки
             }
         }
-
         private async Task LoadReportDataForPartAsync()
         {
             StatusMessage = "Загрузка данных отчета...";
             IsGenerating = true; // Используем IsGenerating как индикатор загрузки тоже
+            int rowNumber = 1;
             try
             {
                 // Предполагаем, что _mainComponent.PartNumber и Version установлены корректно
-                var parent = await _unitOfWork.ComponentRepository.GetLatestComponentVersion(_mainComponent.PartNumber);
+                var part = await _unitOfWork.ComponentRepository.GetLatestComponentVersion(_mainComponent.PartNumber);
                 //var structureEntries = await _unitOfWork.ComponentRepository.GetAssemblyStructureRecursive(_mainComponent.PartNumber, _mainComponent.Version); // Используем DataService или UnitOfWork из _mainComponent
-                var child = parent.Material;
+                //var material = parent.Material;
                 // Очищаем старые данные
                 ReportData.Clear();
 
                 // Найдем версию сборки по PartNumber (берем последнюю по версии)
                 //var assemblyVersion = await _unitOfWork.ComponentRepository.GetLatestComponentVersion(_mainComponent.PartNumber);
-                var reportItem = new TreeImportReportItem
+                //var reportItem = new TreeImportReportItem
+                //{
+                //    RowNumber = 1,
+                //    Parent = parent,
+                //    MainArtName = parent.Name,
+                //    MainPartNumber = parent.Component.PartNumber ?? "",
+                //    MainArticleAVA = parent.AvaArticle?.Article.ToString() ?? "",
+                //    Child = null,
+                //    ChildName = material.BaseMaterial,
+                //    Quantity = 1 // Quantity из AssemblyStructure
+
+                //    //ChildPartNumber = "",
+                //    //ChildArticleAVA = child.BaseMaterial,
+                //    //ChildUnit = "шт",//DetermineUnit(childComponentVM.ComponentType), // Определяем ЕИ
+                //    //ChildType = "Комплектующие", //DetermineType(childComponentVM.ComponentType), // Определяем Тип
+                //    //ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{child.Component.PartNumber}" // Формируем URL
+                //};
+
+                //ReportData.Add(reportItem);
+                var material = part.Material;
+                if (material.BaseMaterial != null)
                 {
-                    RowNumber = 1,
-                    Parent = parent,
-                    Child = null,
-                    MainArtName = parent.Name,
-                    ChildName = child.BaseMaterial,
-                    MainPartNumber = parent.Component.PartNumber ?? "",
-                    MainArticleAVA = parent.AvaArticle?.Article.ToString() ?? "",
-                    Quantity = 1 // Quantity из AssemblyStructure
+                    string uom = material.MaterialAvaArticle?.MainUOM?.Trim().ToLower() ?? "";
+                    double quantity = 0;
 
-                    //ChildPartNumber = "",
-                    //ChildArticleAVA = child.BaseMaterial,
-                    //ChildUnit = "шт",//DetermineUnit(childComponentVM.ComponentType), // Определяем ЕИ
-                    //ChildType = "Комплектующие", //DetermineType(childComponentVM.ComponentType), // Определяем Тип
-                    //ChildURL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{child.Component.PartNumber}" // Формируем URL
-                };
+                    // Анализ единицы измерения и выбор свойства
+                    if (uom == "кв метр" || uom == "м2" || uom == "квадратный метр")
+                    {
+                        quantity = GetPropertyValue(part, AGR_PropertyNames.BlankArea);
+                    }
+                    else if (uom == "метр" || uom == "м" || uom == "пог. м" || uom == "пог м" || uom == "погонный метр")
+                    {
+                        quantity = Math.Round(GetPropertyValue(part, AGR_PropertyNames.BlankLen) / 1000, 3, MidpointRounding.ToPositiveInfinity);
+                    }
+                    else if (uom == "шт" || uom == "штука" || uom == "шт." || uom == "штук")
+                    {
+                        quantity = 1;
+                    }
 
-                ReportData.Add(reportItem);
+                    // Добавляем строку Содержания материала
+                    var materialRow = new TreeImportReportItem
+                    {
+                        RowNumber = rowNumber++,
+                        Parent = part,
+                        Child = null,
+                        MainArtName = part.Name,
+                        ChildName = material.BaseMaterial,
+                        MainPartNumber = part.Component?.PartNumber ?? "",
+                        MainArticleAVA = part.AvaArticle?.Article.ToString() ?? "",
+                        Quantity = quantity,
+                        ChildPartNumber = "",
+                        ChildArticleAVA = material.MaterialAvaArticle?.Article.ToString() ?? "",
+                        ChildUnit = material.MaterialAvaArticle?.MainUOM ?? "",
+                        ChildType = "",
+                        ChildURL = ""
+                    };
+                    ReportData.Add(materialRow);
+
+                }
+                // 4. Проверка наличия операции "покраска" в техпроцессе
+                bool hasPainting = HasPaintingOperation(part);
+
+                // Если есть покраска, добавляем дополнительную строку
+                if (hasPainting)
+                {
+                    double blankArea = GetPropertyValue(part, AGR_PropertyNames.BlankArea);
+                    double paintQuantity = Math.Round(blankArea * 0.22, 3, MidpointRounding.ToPositiveInfinity);
+
+                    var paintRow = new TreeImportReportItem
+                    {
+                        RowNumber = rowNumber++,
+                        Parent = part,
+                        Child = null,
+                        MainArtName = part.Name,
+                        ChildName = material.Paint?.ToString() ?? "",
+                        MainPartNumber = part.Component?.PartNumber ?? "",
+                        MainArticleAVA = part.AvaArticle?.Article.ToString() ?? "",
+                        Quantity = paintQuantity,
+                        ChildPartNumber = "",
+                        ChildArticleAVA = material.PaintAvaArticleID?.ToString() ?? "",
+                        ChildUnit = "Кг",
+                        ChildType = "",
+                        ChildURL = ""
+                    };
+                    ReportData.Add(paintRow);
+                }
 
                 StatusMessage = $"Загружено {ReportData.Count} строк.";
             }
@@ -317,12 +373,6 @@ namespace AGR_PropManager.ViewModels.Reports
                 IsGenerating = false; // Завершаем индикатор загрузки
             }
         }
-
-        private void CloseWindow()
-        {
-            CloseRequested?.Invoke(this, EventArgs.Empty);
-        }
-
         private string DetermineUnit(AGR_ComponentType_e type)
         {
             return type switch
@@ -332,7 +382,6 @@ namespace AGR_PropManager.ViewModels.Reports
                 _ => "м2"
             };
         }
-
         private string DetermineType(AGR_ComponentType_e type)
         {
             return type switch
@@ -341,7 +390,6 @@ namespace AGR_PropManager.ViewModels.Reports
                 _ => ""
             };
         }
-
         private void GenerateAndSaveExcel()
         {
             if (IsGenerating) return;
@@ -398,8 +446,9 @@ namespace AGR_PropManager.ViewModels.Reports
                         partNumberStyle.DataFormat = HSSFDataFormat.GetBuiltinFormat("@");
 
                         int rowIndex = 1;
-                        foreach (var item in ReportData)
+                        foreach (var rowitem in ReportData)
                         {
+                            var item = rowitem as TreeImportReportItem;
                             IRow row = sheet.CreateRow(rowIndex++);
 
                             row.CreateCell(0).SetCellValue(item.MainArtName);
@@ -452,6 +501,12 @@ namespace AGR_PropManager.ViewModels.Reports
                         }
 
                         StatusMessage = $"Файл успешно сохранен: {filePath}";
+
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = Path.GetDirectoryName(filePath),
+                            UseShellExecute = true
+                        });
                     }
                 }
                 else
@@ -477,26 +532,33 @@ namespace AGR_PropManager.ViewModels.Reports
             HasErrors = false;
 
             var errorList = new List<string>();
+            var warningList = new List<string>();
 
             //errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указано количество");
 
-            foreach (var row in ReportData)
+            foreach (var item in ReportData)
             {
+                var row = item as TreeImportReportItem;
                 if (row.RowNumber == 1)
                 {
-                    if (string.IsNullOrEmpty(row.MainArticleAVA) 
+                    if (string.IsNullOrEmpty(row.MainArticleAVA)
                         && string.IsNullOrEmpty(row.MainPartNumber))
                     {
                         errorList.Add($"У основного изделия {row.MainArtName} пустые артикул и partnumber");
                     }
                 }
 
-                if (row.Child.ComponentType == AGR_ComponentType_e.Purchased)
+                if (row.Child?.ComponentType == AGR_ComponentType_e.Purchased)
                 {
                     if (string.IsNullOrEmpty(row.ChildArticleAVA))
                         errorList.Add($"В строке {row.RowNumber} не указан артикул {row.ChildName}");
                     if (string.IsNullOrEmpty(row.ChildUnit))
                         errorList.Add($"В строке {row.RowNumber} не указан ЕИ {row.ChildName}");
+                }
+                if (row.ChildUnit == null && !string.IsNullOrEmpty(row.ChildUnit) 
+                            && row.ChildUnit.Contains("шт", StringComparison.OrdinalIgnoreCase))
+                {
+                    warningList.Add($"В строке {row.RowNumber} указан ЕИ ШТ, внимательно проверьте количество");
                 }
 
                 if (row.Quantity == 0 || row.Quantity == double.NaN)
@@ -510,10 +572,50 @@ namespace AGR_PropManager.ViewModels.Reports
                 Errors = string.Join("\n", errorList);
                 HasErrors = true;
             }
-            HasErrors = !string.IsNullOrEmpty(Errors);
+            if (warningList.Any())
+            {
+                Warnings = string.Join("\n", warningList);
+                HasErrors = true;
+                HasWarnings = true;
+            }
+        }
+        private double GetPropertyValue(ComponentVersion componentVersion, string propertyName)
+        {
+            if (componentVersion?.Properties == null || string.IsNullOrEmpty(propertyName))
+                return 0;
+
+            // Ищем свойство по имени (без учета регистра)
+            var property = componentVersion.Properties
+                .FirstOrDefault(p => string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
+
+            if (property == null)
+                return 0;
+
+            // Пытаемся получить значение из различных возможных полей
+            // Замените на актуальные поля вашего класса ComponentProperty
+            try
+            {
+                // Если значение хранится как строка
+                if (!string.IsNullOrEmpty(property.Value) && double.TryParse(property.Value, out double result))
+                    return result;
+            }
+            catch
+            {
+                // Игнорируем ошибки преобразования
+            }
+
+            return 0;
+        }
+        private bool HasPaintingOperation(ComponentVersion componentVersion)
+        {
+            if (componentVersion?.Component?.TechnologicalProcess?.Operations == null)
+                return false;
+
+            return componentVersion.Component.TechnologicalProcess.Operations
+                .Any(op => !string.IsNullOrEmpty(op.Name) &&
+                           op.Name.IndexOf("покраска", StringComparison.OrdinalIgnoreCase) >= 0);
         }
         #endregion
 
-        public event EventHandler? CloseRequested;
     }
 }

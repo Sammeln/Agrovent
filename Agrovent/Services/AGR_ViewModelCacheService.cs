@@ -7,23 +7,23 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using Agrovent.DAL;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Base;
+using AgroventInfrastructure.Entities.Components;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.Services
 {
     public interface IAGR_ViewModelCacheService
     {
-        public ConcurrentDictionary<string, (ISwDocument3D Document, IAGR_BaseComponent ViewModel, ComponentVersion? componentVersion)> ViewModelsDictonary { get; }
+        public ConcurrentDictionary<string, (ISwDocument3D Document, IAGR_BaseComponent ViewModel)> ViewModelsDictonary { get; }
          IAGR_BaseComponent? GetOrCreate(ISwDocument3D document, Func<ISwDocument3D, IAGR_BaseComponent?> factory);
          Task<IAGR_BaseComponent?> GetOrCreateAsync(ISwDocument3D document, Func<ISwDocument3D, IAGR_BaseComponent?> factory);
 
-        (ISwDocument3D Document, IAGR_BaseComponent ViewModel, ComponentVersion? componentVersion)? Get(ISwDocument3D doc);
+        (ISwDocument3D Document, IAGR_BaseComponent ViewModel)? Get(ISwDocument3D doc);
 
         void Remove(ISwDocument3D document);
         void Clear();
@@ -32,11 +32,11 @@ namespace Agrovent.Services
 
     public class AGR_ViewModelCacheService : IAGR_ViewModelCacheService
     {
-        public ConcurrentDictionary<string, (ISwDocument3D Document, IAGR_BaseComponent ViewModel, ComponentVersion? componentVersion)> ViewModelsDictonary { get; private set; }
+        public ConcurrentDictionary<string, (ISwDocument3D Document, IAGR_BaseComponent ViewModel)> ViewModelsDictonary { get; private set; }
         private IUnitOfWork _unitOfWork;
         public AGR_ViewModelCacheService(IUnitOfWork unitOfWork)
         {
-            ViewModelsDictonary = new ConcurrentDictionary<string, (ISwDocument3D Document, IAGR_BaseComponent ViewModel, ComponentVersion? componentVersion)>();
+            ViewModelsDictonary = new ConcurrentDictionary<string, (ISwDocument3D Document, IAGR_BaseComponent ViewModel)>();
             _unitOfWork = unitOfWork;
         }
 
@@ -44,16 +44,16 @@ namespace Agrovent.Services
         public IAGR_BaseComponent? GetOrCreate(ISwDocument3D document, Func<ISwDocument3D, IAGR_BaseComponent?> factory)
         {
             if (document is null) return null;
-            var key = document.Title;
+            var key = document.Path;
             //var pn = document.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
             //пытаемся получить componentVersion для открытой 3д модели
             //var cv = GetComponentVersionAsync(pn).Result;
 
-            var cached = ViewModelsDictonary.GetOrAdd(key, _ => (document, factory(document), null));
+            var cached = ViewModelsDictonary.GetOrAdd(key, _ => (document, factory(document)));
             // Обновляем ссылку на документ, если она изменилась
             if (!ReferenceEquals(cached.Document, document))
             {
-                ViewModelsDictonary[key] = (document, cached.ViewModel, cached.componentVersion);
+                ViewModelsDictonary[key] = (document, cached.ViewModel);
             }
 
             return cached.ViewModel;
@@ -62,25 +62,25 @@ namespace Agrovent.Services
         public async Task<IAGR_BaseComponent?> GetOrCreateAsync(ISwDocument3D document, Func<ISwDocument3D, IAGR_BaseComponent?> factory)
         {
             if (document is null) return null;
-            var key = document.Title;
+            var key = document.Path;
             var pn = document.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
             //пытаемся получить componentVersion для открытой 3д модели
-            var cv = await GetComponentVersionAsync(pn);
+            //var cv = await GetComponentVersionAsync(pn);
 
-            var cached = ViewModelsDictonary.GetOrAdd(key, _ => (document, factory(document), cv));
+            var cached = ViewModelsDictonary.GetOrAdd(key, _ => (document, factory(document)));
             // Обновляем ссылку на документ, если она изменилась
             if (!ReferenceEquals(cached.Document, document))
             {
-                ViewModelsDictonary[key] = (document, cached.ViewModel, cached.componentVersion);
+                ViewModelsDictonary[key] = (document, cached.ViewModel);
             }
 
             return cached.ViewModel;
         }
 
-        public (ISwDocument3D Document, IAGR_BaseComponent ViewModel, ComponentVersion? componentVersion)? Get(ISwDocument3D doc)
+        public (ISwDocument3D Document, IAGR_BaseComponent ViewModel)? Get(ISwDocument3D doc)
         {
             if (doc is null) return null;
-            var VM = ViewModelsDictonary.GetValueOrDefault(doc.Title);
+            var VM = ViewModelsDictonary.GetValueOrDefault(doc.Path);
             
             return VM;
 
@@ -97,7 +97,7 @@ namespace Agrovent.Services
             {
                 if (document.IsAlive != false && ViewModelsDictonary.Count > 0)
                 {
-                    ViewModelsDictonary.TryRemove(document.Title, out _);
+                    ViewModelsDictonary.TryRemove(document.Path, out _);
                 }
             }
             catch (COMException ex)

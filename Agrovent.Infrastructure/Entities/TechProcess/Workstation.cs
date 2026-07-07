@@ -1,10 +1,10 @@
 ﻿// File: DAL/Entities/TechProcess/Workstation.cs
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Agrovent.DAL.Entities.Base;
-using Agrovent.DAL.Entities.TechProcess;
+using AgroventInfrastructure.Entities.Base;
 
-namespace Agrovent.DAL.Entities.TechProcess
+namespace AgroventInfrastructure.Entities.TechProcess
 {
     [Table("Workstations")]
     public class Workstation : BaseEntity

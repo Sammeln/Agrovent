@@ -34,16 +34,20 @@
         <DataGrid Grid.Row="1" Style="{StaticResource PropertiesDataGrid}"
                   ItemsSource="{Binding ReportData, Mode=OneWay}"
                   AutoGenerateColumns="False"
+                  GridLinesVisibility="Vertical"
+                  VerticalGridLinesBrush="LightGray"
                   CanUserAddRows="False"
                   IsReadOnly="True"
                   Margin="10"
                   HeadersVisibility="Column">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Имя" Binding="{Binding ComponentName}" Width="SizeToCells" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="Артикул" Binding="{Binding Article, TargetNullValue=''}" Width="1*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="Partnumber" Binding="{Binding Partnumber}" Width="1*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="#" Binding="{Binding RowNumber}" Width="SizeToCells"
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Имя" Binding="{Binding ComponentName}" Width="SizeToCells" ElementStyle="{StaticResource LeftAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Артикул" Binding="{Binding Article, TargetNullValue=''}" Width="*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Partnumber" Binding="{Binding Partnumber}" Width="*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
                 <DataGridTextColumn Header="Порядок" Binding="{Binding Order}" Width="0.5*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="Операция" Binding="{Binding OperationName}" Width="SizeToCells" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                <DataGridTextColumn Header="Операция" Binding="{Binding OperationName}" Width="*" ElementStyle="{StaticResource LeftAlignedTextStyle}"/>
                 <DataGridTextColumn Header="Трудоемкость" Binding="{Binding LabourIntensity, StringFormat=F3}" Width="0.6*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                 <DataGridTextColumn Header="Доступность" Binding="{Binding Availability}" Width="0.5*" ElementStyle="{StaticResource CenterAlignedTextStyle}"/>

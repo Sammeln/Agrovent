@@ -177,7 +177,7 @@
         "projectName": "AGR_PropManager",
         "projectPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\AGR_PropManager\\AGR_PropManager.csproj",
         "packagesPath": "C:\\Users\\Usr\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Usr\\Source\\Repos\\Agrovent\\AGR_PropManager\\obj\\",
+        "outputPath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\AGR_PropManager\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "D:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",

@@ -1,9 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
-using Agrovent.DAL.Entities.Base;
 using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Entities.Base;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 
-namespace Agrovent.DAL.Entities.Components
+namespace AgroventInfrastructure.Entities.Components
 {
     public class ComponentProperty : DateStampEntity
     {

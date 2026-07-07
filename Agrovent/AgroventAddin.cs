@@ -2,7 +2,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Agrovent.DAL;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Handlers;
@@ -16,6 +15,7 @@ using Agrovent.ViewModels.Specification;
 using Agrovent.ViewModels.TaskPane;
 using Agrovent.Views.Pages;
 using Agrovent.Views.Windows;
+using AgroventInfrastructure.Entities.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NPOI.Util;
@@ -217,8 +217,12 @@ namespace Agrovent
                     Application.Sw.RunCommand(1993, string.Empty);
                     break;
 
-                    case AGR_Commands_e.TestCommand:
+                    case AGR_Commands_e.CopyFilesToStorage:
+                        _commandService.CopyFilesToStorageAsync();
+                    break;
 
+                    case AGR_Commands_e.CopyFilesToProd:
+                    _commandService.CopyFilesToProdAsync();
                     break;
 
                     default:
@@ -417,6 +421,10 @@ namespace Agrovent
                 folder,
                 pn + "." + Path.ChangeExtension(docName, "IGS"));
             Application.Documents.Active.SaveAs(igesDoc);
+
+            Application.ShowMessageBox(
+                $"Файл сохранен\n{igesDoc}",
+                Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info);
         }
     }
 }

@@ -1,6 +1,4 @@
 ﻿// File: ViewModels/Windows/ProjectExplorerVM.cs
-using Agrovent.DAL.Entities.Components;
-using Agrovent.DAL.Entities.Projects;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Tree;
@@ -14,6 +12,7 @@ using System.Windows.Input;
 using Agrovent.Infrastructure.Commands;
 using Agrovent.DAL;
 using AgroventInfrastructure.Interfaces.Entities.Projects;
+using AgroventInfrastructure.Entities.Projects;
 
 namespace Agrovent.ViewModels.Windows
 {

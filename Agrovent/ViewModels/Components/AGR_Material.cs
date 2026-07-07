@@ -1,9 +1,9 @@
 ﻿using Agrovent.DAL;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.ViewModels.Base;
+using AgroventInfrastructure.Entities.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -11,7 +11,7 @@ using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Components
 {
-       public class AGR_Material : BaseViewModel, IAGR_Material
+    public class AGR_Material : BaseViewModel, IAGR_Material
     {
         private readonly ILogger<AGR_Material>? _logger; // Добавим логгер (опционально)
 
@@ -69,8 +69,8 @@ namespace Agrovent.ViewModels.Components
         #endregion
 
         #region AvaModel
-        private IAGR_AvaArticleModel? _avaModel;
-        public IAGR_AvaArticleModel? AvaModel
+        private AvaArticleModel? _avaModel;
+        public AvaArticleModel? AvaModel
         {
             get => _avaModel;
             set

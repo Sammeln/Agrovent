@@ -1,12 +1,11 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
-using Agrovent.DAL.Entities.Base;
-using Agrovent.DAL.Entities.Components;
+using AgroventInfrastructure.Entities.Base;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 
-namespace Agrovent.DAL.Entities.Components
+namespace AgroventInfrastructure.Entities.Components
 {
-     public class AssemblyStructure : DateStampEntity
+    public class AssemblyStructure : DateStampEntity
     {
         // ID родительской версии компонента (сборки)
         public int ParentComponentVersionId { get; set; }

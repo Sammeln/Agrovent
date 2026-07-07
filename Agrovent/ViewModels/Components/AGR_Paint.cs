@@ -1,5 +1,4 @@
-﻿using Agrovent.DAL.Entities.Components;
-using Agrovent.DAL;
+﻿using Agrovent.DAL;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
@@ -8,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Xarial.XCad.Data;
 using Xarial.XCad.SolidWorks.Documents;
 using Microsoft.EntityFrameworkCore;
+using AgroventInfrastructure.Entities.Components;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -16,7 +16,7 @@ namespace Agrovent.ViewModels.Components
         public string Name { get; set; }
         public string Article { get; set; }
         public string UOM { get; set; }
-        public IAGR_AvaArticleModel AvaModel { get; set; }
+        public AvaArticleModel AvaModel { get; set; }
 
         public AGR_Paint2(ISwDocument3D doc3D)
         {
@@ -78,8 +78,8 @@ namespace Agrovent.ViewModels.Components
         #endregion
 
         #region AvaModel
-        private IAGR_AvaArticleModel? _avaModel;
-        public IAGR_AvaArticleModel? AvaModel
+        private AvaArticleModel? _avaModel;
+        public AvaArticleModel? AvaModel
         {
             get => _avaModel;
             set

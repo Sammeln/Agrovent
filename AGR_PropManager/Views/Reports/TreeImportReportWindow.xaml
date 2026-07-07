@@ -46,31 +46,42 @@
                   ItemsSource="{Binding ReportData, Mode=OneWay}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
-                  IsReadOnly="True"
+                  SelectionUnit="Cell"
+                  VerticalGridLinesBrush="LightGray" GridLinesVisibility="Vertical"
                   Style="{StaticResource PropertiesDataGrid}"
                   HeadersVisibility="Column">
             
             <DataGrid.Columns>
                 <DataGridTextColumn Header="#" Binding="{Binding RowNumber}" Width="SizeToCells"
-                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="Наименование главного артикула" Binding="{Binding MainArtName}"
-                                    Width="SizeToCells" />
-                <DataGridTextColumn Header="Part Number главного артикула" Binding="{Binding MainPartNumber}" Width="SizeToHeader" 
-                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="Part Number child" Binding="{Binding ChildPartNumber}" Width="SizeToHeader" 
-                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="Наименование child" Binding="{Binding ChildName}" Width="SizeToCells" />
-                <DataGridTextColumn Header="Артикул AVA гл.артикула" Binding="{Binding MainArticleAVA}" Width="SizeToHeader" 
-                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="Артикул AVA child" Binding="{Binding ChildArticleAVA}" Width="SizeToHeader" 
-                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity, StringFormat=F2}" Width="0.5*" 
-                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="ЕИ child" Binding="{Binding ChildUnit}" Width="0.5*" 
-                                    ElementStyle="{StaticResource CenterAlignedTextStyle}" />
-                <DataGridTextColumn Header="Тип child" Binding="{Binding ChildType}" Width="SizeToCells" 
-                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
-                <DataGridTextColumn Header="URL child" Binding="{Binding ChildURL}" Width="3*" />
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}" IsReadOnly="True"/>
+                
+                <DataGridTextColumn Header="Parent Name" Binding="{Binding MainArtName}"
+                                    Width="SizeToCells"  IsReadOnly="True"/>
+                
+                <DataGridTextColumn Header="Parent PartNumber" Binding="{Binding MainPartNumber}" Width="SizeToHeader" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"  IsReadOnly="True"/>
+                
+                <DataGridTextColumn Header="Child PartNumber" Binding="{Binding ChildPartNumber}" Width="SizeToHeader" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"  IsReadOnly="True"/>
+
+                <DataGridTextColumn Header="Child Name" Binding="{Binding ChildName}" Width="SizeToCells"  IsReadOnly="True"/>
+                
+                <DataGridTextColumn Header="Parent Article" Binding="{Binding MainArticleAVA}" Width="SizeToHeader" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"  IsReadOnly="True"/>
+                
+                <DataGridTextColumn Header="Child Article " Binding="{Binding ChildArticleAVA}" Width="SizeToHeader" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"  IsReadOnly="True"/>
+
+                <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity, StringFormat=F3}" Width="*"
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}" IsReadOnly="False"/>
+
+                <DataGridTextColumn Header="ЕИ child" Binding="{Binding ChildUnit}" Width="*" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"  IsReadOnly="True"/>
+                
+                <DataGridTextColumn Header="Тип child" Binding="{Binding ChildType}" Width="*" 
+                                    ElementStyle="{StaticResource CenterAlignedTextStyle}"  IsReadOnly="True"/>
+
+                <DataGridTextColumn Header="URL child" Binding="{Binding ChildURL}" Width="2*"  IsReadOnly="True"/>
             </DataGrid.Columns>
         </DataGrid>
         <Border Grid.Column="1" Grid.Row="1"
@@ -84,6 +95,8 @@
                         Style="{StaticResource ErrorTextblockStyle}"/>
                     <TextBlock Text="{Binding Errors}"
                         Style="{StaticResource ErrorTextblockStyle}"/>
+                    <TextBlock Text="{Binding Warnings}" 
+                                Style="{StaticResource WarningTextblockStyle}"/>
                 </StackPanel>
             </ScrollViewer>
         </Border>

@@ -11,5 +11,7 @@ namespace Agrovent.Infrastructure.Interfaces
         Task<bool> OpenComponentRegistryAsync();
         Task<bool> OpenProjectExplorerWindowAsync();
         Task<bool> SaveActiveComponentAsync();
+        Task<bool> CopyFilesToStorageAsync();
+        Task<bool> CopyFilesToProdAsync();
     }
 }

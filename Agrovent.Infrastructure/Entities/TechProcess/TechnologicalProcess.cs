@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Agrovent.DAL.Entities.Base;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.TechProcess;
 
-namespace Agrovent.DAL.Entities.TechProcess
+namespace AgroventInfrastructure.Entities.TechProcess
 {
     [Table("TechnologicalProcesses")]
     public class TechnologicalProcess : DateStampEntity

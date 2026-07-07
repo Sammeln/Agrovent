@@ -7,7 +7,6 @@ using System.Windows.Input;
 using AGR_PropManager;
 using AGR_PropManager.ViewModels.Components;
 using Agrovent.DAL;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Commands;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Helpers;
@@ -19,9 +18,12 @@ using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
+using AgroventInfrastructure.Enums;
 using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.Base.Enums;
+using Xarial.XCad.Documents;
+using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Specification
 {
@@ -280,6 +282,25 @@ namespace Agrovent.ViewModels.Specification
         }
         #endregion
 
+        #region Warnings
+
+        private string _Warnings;
+        public string Warnings
+        {
+            get => _Warnings;
+            set => Set(ref _Warnings, value);
+        }
+        #endregion
+
+        #region HasWarnings
+        private bool _hasWarnings;
+        public bool HasWarnings
+        {
+            get => _hasWarnings;
+            set => Set(ref _hasWarnings, value);
+        }
+        #endregion
+
         #region Property - IgnoreErrors
         private bool _IgnoreErrors = false;
         public bool IgnoreErrors
@@ -319,9 +340,12 @@ namespace Agrovent.ViewModels.Specification
 
             Errors = null;
             HasErrors = false;
+            Warnings = null;
+            HasWarnings = false;
             if (IgnoreErrors == true) return;
 
             var errorList = new List<string>();
+            var warningList = new List<string>();
 
             // Проверка: есть ли артикул у главной сборки (если не установлен чекбокс "без артикула")
             if (!NoArticle && string.IsNullOrEmpty(_baseComponent.AvaArticle?.Article.ToString()))
@@ -350,9 +374,24 @@ namespace Agrovent.ViewModels.Specification
                         var drawWarning = CheckDrawingUpToDate(_baseComponent, drawPath);
                         if (!string.IsNullOrEmpty(drawWarning))
                         {
-                            errorList.Add(drawWarning);
+                            warningList.Add(drawWarning);
                         }
                     }
+                }
+            }
+
+            var assembly = _baseComponent.SwDocument as ISwAssembly;
+            var docsReadOnly = assembly.Configurations.Active.Components.TryFlatten()
+                .Where(x => (File.GetAttributes(x.ReferencedDocument.Path).HasFlag(FileAttributes.ReadOnly)) == true)
+                .Select(x => Path.GetFileName(x.ReferencedDocument.Path)).Distinct()
+                .ToList();
+
+            //Проверяем файлы только для чтения
+            if (docsReadOnly.Count != 0)
+            {
+                foreach (var item in docsReadOnly)
+                {
+                    errorList.Add($"Файл {Path.GetFileName(item)} Только для чтения! Сохранение невозможно");
                 }
             }
 
@@ -393,7 +432,7 @@ namespace Agrovent.ViewModels.Specification
                             var drawWarning = CheckDrawingUpToDate(comp.Component, drawPath);
                             if (!string.IsNullOrEmpty(drawWarning))
                             {
-                                errorList.Add(drawWarning);
+                                warningList.Add(drawWarning);
                             }
                         }
                     }
@@ -404,6 +443,12 @@ namespace Agrovent.ViewModels.Specification
             {
                 Errors = string.Join("\n", errorList);
                 HasErrors = true;
+            }
+            if (warningList.Any())
+            {
+                Warnings = string.Join("\n", warningList);
+                HasErrors = true;
+                HasWarnings = true;
             }
         }
         private string CheckDrawingUpToDate(IAGR_BaseComponent component, string drawFilePath)
@@ -440,7 +485,7 @@ namespace Agrovent.ViewModels.Specification
 
             try
             {
-                var allComponents = _baseComponent.GetFlatComponents().ToList();
+                var allComponents = _baseComponent.GetFlatComponents(true).ToList();
 
                 var sortedComponents = allComponents
                     .OrderBy(c => c.ComponentType switch
@@ -473,7 +518,7 @@ namespace Agrovent.ViewModels.Specification
                 // 1. Собрать уникальные имена материалов из нужных компонентов
                 var componentsWithMaterial = Components
                     .Where(c => (c.ComponentType == AGR_ComponentType_e.Part || c.ComponentType == AGR_ComponentType_e.SheetMetallPart) 
-                    && !string.IsNullOrEmpty(c.MaterialName))
+                    && !string.IsNullOrEmpty(c.BaseMaterial.Name))
                     .ToList();
 
                 if (!componentsWithMaterial.Any()) return; // Нечего загружать
@@ -522,7 +567,7 @@ namespace Agrovent.ViewModels.Specification
                 // 1. Собрать уникальные имена материалов из нужных компонентов
                 var componentsWithMaterial = Components
                     .Where(c => (c.ComponentType != AGR_ComponentType_e.Purchased && c.ComponentType != AGR_ComponentType_e.NA) 
-                            && !string.IsNullOrEmpty(c.PaintName))
+                            && !string.IsNullOrEmpty(c.BasePaint.Name))
                     .ToList();
 
                 if (!componentsWithMaterial.Any()) return; // Нечего загружать
@@ -570,7 +615,8 @@ namespace Agrovent.ViewModels.Specification
             {
                 // 1. Собрать компоненты типа Purchased, у которых AvaArticle == null и Article не пуст
                 var componentsToSearch = Components
-                    .Where(c => c.ComponentType == AGR_ComponentType_e.Purchased && c.AvaArticle == null &&  !string.IsNullOrEmpty(c.Component.Article))
+                    //.Where(c => c.ComponentType == AGR_ComponentType_e.Purchased && c.AvaArticle == null &&  !string.IsNullOrEmpty(c.Component.Article))
+                    .Where(c => c.AvaArticle == null &&  !string.IsNullOrEmpty(c.Component.Article))
                     .ToList();
 
                 if (!componentsToSearch.Any()) return; // Нечего загружать
@@ -687,7 +733,9 @@ namespace Agrovent.ViewModels.Specification
         }
         private void OnSetBaseMaterialCommandExecuted(object p)
         {
-            var _selectedComponents = Components.Where(x => x.IsSelected == true) ?? SelectedComponents;
+            var _selectedComponents = Components.Any(x => x.IsSelected) ?
+                 Components.Where(x => x.IsSelected)
+                : SelectedComponents;
 
             try
             {
@@ -744,19 +792,23 @@ namespace Agrovent.ViewModels.Specification
         private ICommand _SetPaintCommand;
         public ICommand SetPaintCommand => _SetPaintCommand
             ??= new RelayCommand(OnSetPaintCommandExecuted, CanSetPaintCommandExecute);
-        private bool CanSetPaintCommandExecute(object p)
+        public bool CanSetPaintCommandExecute(object p)
         {
-            var _selectedComponents = Components.Where(x => x.IsSelected == true);
-            if (_selectedComponents.Count() == 0) _selectedComponents = SelectedComponents;
-            //if (_selectedComponents.Any(p => p.Component.ComponentType != AGR_ComponentType_e.Part && p.Component.ComponentType != AGR_ComponentType_e.SheetMetallPart))
-            //{
-            //    return false;
-            //}
+            var _selectedComponents = Components.Any(x => x.IsSelected) ?
+                             Components.Where(x => x.IsSelected)
+                            : SelectedComponents;
+            if (_selectedComponents.Any(
+                p => p.Component.ComponentType == AGR_ComponentType_e.Purchased))
+            {
+                return false;
+            }
             return true;
         }
         private void OnSetPaintCommandExecuted(object p)
         {
-            var _selectedComponents = Components.Where(x => x.IsSelected == true) ?? SelectedComponents;
+            var _selectedComponents = Components.Any(x => x.IsSelected) ?
+                             Components.Where(x => x.IsSelected)
+                            : SelectedComponents;
             if (p.ToString() == "NoPaint")
             {
                 foreach (var item in _selectedComponents)
@@ -836,7 +888,18 @@ namespace Agrovent.ViewModels.Specification
 
                 // Создаем ViewModel
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
-                selectVm.SearchText = comp.Name;
+
+                if (comp.ComponentType != AGR_ComponentType_e.Purchased)
+                {
+                    selectVm.SelectedAvaType = AGR_AvaTypeNames.Component;
+                    selectVm.SearchText = comp.PartNumber;
+                }
+                else
+                {
+                    selectVm.SelectedAvaType = AGR_AvaTypeNames.Purchased;
+                    selectVm.SearchText = comp.Name;
+                }
+
 
                 // Создаем View и устанавливаем DataContext
                 var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };

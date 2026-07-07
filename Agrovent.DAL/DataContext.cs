@@ -1,15 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Agrovent.DAL.Entities;
-using Agrovent.DAL.Entities.Components;
 using Microsoft.Extensions.Configuration;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.DAL.Entities.TechProcess;
-using Agrovent.DAL.Entities.Projects;
-using Agrovent.DAL.Entities.Base;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities;
 using AgroventInfrastructure.Interfaces.Entities.Projects;
 using AgroventInfrastructure.Interfaces.Entities.TechProcess;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Entities.Projects;
+using AgroventInfrastructure.Entities.TechProcess;
 
 namespace Agrovent.DAL
 {
@@ -40,20 +39,14 @@ namespace Agrovent.DAL
         {
             if (!optionsBuilder.IsConfigured)
             {
-                //var connectionString = _configuration?.GetConnectionString("DefaultConnection") ?? "Host=192.168.15.200;Port=5432;Database=PRPMDB2;Username=user;Password=sauser#1;";
                 var connectionString = _configuration?.GetConnectionString("DefaultConnection");
                 optionsBuilder.UseNpgsql(connectionString);
             }
-            //optionsBuilder.UseNpgsql($"Host=localhost;Database=PRPMDB;Username=user;Password=sauser#1;");
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Компоненты - уникальный PartNumber
-            modelBuilder.Entity<Component>()
-                .HasIndex(c => c.PartNumber)
-                .IsUnique();
 
             // Версии компонентов - уникальная комбинация ComponentId + Version
             modelBuilder.Entity<ComponentVersion>()
@@ -62,15 +55,23 @@ namespace Agrovent.DAL
 
             // Хеш-сумма должна быть уникальной для версии
             modelBuilder.Entity<ComponentVersion>()
-                .HasIndex(cv => cv.HashSum)
-                .IsUnique();
+                .HasIndex(cv => cv.HashSum);
 
+            // Компоненты - уникальный PartNumber
+            modelBuilder.Entity<Component>()
+                .HasIndex(c => c.PartNumber)
+                .IsUnique();
             // Связи
             modelBuilder.Entity<Component>()
                 .HasMany(c => c.Versions)
                 .WithOne(cv => cv.Component)
                 .HasForeignKey(cv => cv.ComponentId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Component>()
+                .Property(e => e.PartNumber)
+                .HasDefaultValueSql("get_next_formatted_part_number()")
+                .ValueGeneratedOnAdd();
 
             modelBuilder.Entity<ComponentVersion>()
                 .HasMany(cv => cv.Properties)

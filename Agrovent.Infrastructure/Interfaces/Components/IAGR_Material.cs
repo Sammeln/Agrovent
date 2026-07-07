@@ -1,4 +1,6 @@
 ﻿
+using AgroventInfrastructure.Entities.Components;
+
 namespace Agrovent.Infrastructure.Interfaces
 {
     public interface IAGR_Material
@@ -6,6 +8,6 @@ namespace Agrovent.Infrastructure.Interfaces
         abstract string Name { get; set; }
         abstract string Article { get; set; }
         abstract string UOM { get; set; }
-        abstract IAGR_AvaArticleModel AvaModel { get; set; }
+        abstract AvaArticleModel AvaModel { get; set; }
     }
 }

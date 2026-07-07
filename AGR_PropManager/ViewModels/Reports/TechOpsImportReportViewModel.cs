@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -10,6 +11,7 @@ using System.Windows.Input;
 using AGR_PropManager.Infrastructure.Commands;
 using AGR_PropManager.ViewModels.Base;
 using AGR_PropManager.ViewModels.Components;
+using AGR_PropManager.ViewModels.Reports.Interfaces;
 using AGR_PropManager.ViewModels.TechProcess; // For TechOperationViewModel
 using Agrovent.Infrastructure.Enums; // Assuming AGR_ComponentType_e is here
 using Microsoft.Win32; // For SaveFileDialog
@@ -19,8 +21,9 @@ using NPOI.XSSF.UserModel;
 
 namespace AGR_PropManager.ViewModels.Reports
 {
-    public class TechOpsImportReportItem : INotifyPropertyChanged
+    public class TechOpsImportReportItem : INotifyPropertyChanged, IAGR_ReportItem
     {
+        public int RowNumber { get; set; }
         // Свойства для отображения в DataGrid/Excel
         public string ComponentName { get; set; }
         public int? Article { get; set; } // Может быть null для не-главного изделия
@@ -38,15 +41,13 @@ namespace AGR_PropManager.ViewModels.Reports
         }
     }
 
-    public class TechOpsImportReportViewModel : BaseViewModel
+    public class TechOpsImportReportViewModel : AGR_BaseReport
     {
         #region Fields
 
         private readonly ObservableCollection<ComponentItemViewModel> _sourceComponents;
         private readonly ComponentItemViewModel _mainComponent; // Main product component
         private readonly string _mainProductName; // Name for the filename
-        private string _statusMessage;
-        private bool _isGenerating;
 
         #endregion
 
@@ -55,28 +56,13 @@ namespace AGR_PropManager.ViewModels.Reports
         public TechOpsImportReportViewModel(ObservableCollection<ComponentItemViewModel> sourceComponents)
         {
             _sourceComponents = sourceComponents ?? throw new ArgumentNullException(nameof(sourceComponents));
-
-            ReportData = new ObservableCollection<TechOpsImportReportItem>();
+            _mainProductName = _sourceComponents.First().Name;
+            ReportData = new ObservableCollection<IAGR_ReportItem>();
             LoadReportData(); // Load synchronously for simplicity, though operations list could be large
         }
 
         #endregion
 
-        #region Properties
-
-        public ObservableCollection<TechOpsImportReportItem> ReportData { get; }
-        public string StatusMessage
-        {
-            get => _statusMessage;
-            set => Set(ref _statusMessage, value);
-        }
-        public bool IsGenerating
-        {
-            get => _isGenerating;
-            set => Set(ref _isGenerating, value);
-        }
-
-        #endregion
 
         #region Commands
 
@@ -106,6 +92,7 @@ namespace AGR_PropManager.ViewModels.Reports
             {
                 // Очищаем старые данные
                 ReportData.Clear();
+                int _rowNumber = 1;
 
                 var relevantComponents = _sourceComponents
                     .Where(c => c.ComponentType == AGR_ComponentType_e.Assembly ||
@@ -113,9 +100,8 @@ namespace AGR_PropManager.ViewModels.Reports
                                 c.ComponentType == AGR_ComponentType_e.SheetMetallPart)
                     .ToList();
 
-                for (int i = 0; i < relevantComponents.Count; i++)
+                foreach (var component in relevantComponents)
                 {
-                    var component = relevantComponents[i];
                     var reportItem = new TechOpsImportReportItem();
                     reportItem.ComponentName = component.Name;
                     reportItem.Partnumber = component.PartNumber ?? "";
@@ -129,27 +115,19 @@ namespace AGR_PropManager.ViewModels.Reports
                         foreach (var operation in component.Operations.OrderBy(o => o.SequenceNumber)) // Iterate through each operation of the component
                         {
                             reportItem = new TechOpsImportReportItem();
+                            reportItem.RowNumber = _rowNumber++;
                             reportItem.ComponentName = component.Name;
                             reportItem.Partnumber = component.PartNumber ?? "";
-                            if (i == 0)
-                            {
-                                reportItem.Article = int.TryParse(component.Article, out int articleVal) ? articleVal : null;
-                                reportItem.Partnumber = reportItem.Article == null ? component.PartNumber : "";
-                                reportItem.LabourIntensity = operation.CostPerHour;
-                                reportItem.OperationName = operation.Name;
-                                reportItem.Availability = "1";
-                                reportItem.Order = operation.SequenceNumber;
-                                reportItem.Additional = "";
-                            }
-                            else
-                            {
-                                reportItem.Article = null;
-                                reportItem.Partnumber = component.PartNumber ?? "";
-                                reportItem.LabourIntensity = operation.CostPerHour;
-                                reportItem.Availability = "1";
-                                reportItem.Order = operation.SequenceNumber;
-                                reportItem.Additional = "";
-                            }
+
+                            if (_rowNumber == 0) reportItem.Article = int.TryParse(component.Article, out int articleVal) ? articleVal : null;
+                            else reportItem.Article = null;
+
+                            reportItem.Partnumber = component.PartNumber ?? "";
+                            reportItem.LabourIntensity = operation.CostPerHour;
+                            reportItem.OperationName = operation.Name;
+                            reportItem.Availability = "1";
+                            reportItem.Order = operation.SequenceNumber;
+                            reportItem.Additional = "";
                             ReportData.Add(reportItem);
                         }
                     }
@@ -213,8 +191,9 @@ namespace AGR_PropManager.ViewModels.Reports
                         partNumberStyle.DataFormat = HSSFDataFormat.GetBuiltinFormat("@"); // Format as text
 
                         int rowIndex = 1;
-                        foreach (var item in ReportData)
+                        foreach (var reportItem in ReportData)
                         {
+                            var item = reportItem as TechOpsImportReportItem;
                             IRow row = sheet.CreateRow(rowIndex++);
 
                             // Article: Write as number only if not null
@@ -262,6 +241,11 @@ namespace AGR_PropManager.ViewModels.Reports
                         }
 
                         StatusMessage = $"Файл успешно сохранен: {filePath}";
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = Path.GetDirectoryName(filePath),
+                            UseShellExecute = true
+                        });
                     }
                 }
                 else
@@ -279,13 +263,7 @@ namespace AGR_PropManager.ViewModels.Reports
                 IsGenerating = false;
             }
         }
-
-        private void CloseWindow()
-        {
-            CloseRequested?.Invoke(this, EventArgs.Empty);
-        }
+      
         #endregion
-
-        public event EventHandler? CloseRequested;
     }
 }

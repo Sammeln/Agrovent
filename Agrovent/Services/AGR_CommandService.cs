@@ -1,5 +1,4 @@
 ﻿// File: Services/AGR_CommandService.cs
-using Agrovent.DAL.Entities.Components; // Если нужно для AvaArticle
 using Agrovent.DAL; // Для IUnitOfWork
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions; // Для AGR_TryGetProp и т.д.
@@ -8,6 +7,7 @@ using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Specification; // Для AGR_SpecificationViewModel
+using Agrovent.ViewModels.TaskPane;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
 using Microsoft.Extensions.Logging;
@@ -59,40 +59,40 @@ namespace Agrovent.Services
             //{
             //    _logger.LogDebug($"Starting property update for document: {component.mDocument.Title}");
 
-                // 1. Обновление базовых свойств (Наименование, Обозначение, Признак, Расширение, Путь файла)
-                // Эти свойства, скорее всего, управляются извне или из базы данных.
-                // Предположим, что их значения нужно получить из соответствующего ViewModel или базы данных.
-                // Пример (псевдокод - нужно интегрировать с логикой получения актуальных значов):
-                // var componentData = await _componentVersionService.GetComponentByPartNumber(...);
-                // props[AGR_PropertyNames.Name].Value = componentData.Name;
-                // props[AGR_PropertyNames.Partnumber].Value = componentData.PartNumber;
-                // props[AGR_PropertyNames.AvaType].Value = componentData.AvaType.ToString();
-                // props[AGR_PropertyNames.Extension].Value = Path.GetExtension(document.Path);
-                // props[AGR_PropertyNames.FilePath].Value = document.Path; // Не рекомендуется хранить путь в файле, но как пример
+            // 1. Обновление базовых свойств (Наименование, Обозначение, Признак, Расширение, Путь файла)
+            // Эти свойства, скорее всего, управляются извне или из базы данных.
+            // Предположим, что их значения нужно получить из соответствующего ViewModel или базы данных.
+            // Пример (псевдокод - нужно интегрировать с логикой получения актуальных значов):
+            // var componentData = await _componentVersionService.GetComponentByPartNumber(...);
+            // props[AGR_PropertyNames.Name].Value = componentData.Name;
+            // props[AGR_PropertyNames.Partnumber].Value = componentData.PartNumber;
+            // props[AGR_PropertyNames.AvaType].Value = componentData.AvaType.ToString();
+            // props[AGR_PropertyNames.Extension].Value = Path.GetExtension(document.Path);
+            // props[AGR_PropertyNames.FilePath].Value = document.Path; // Не рекомендуется хранить путь в файле, но как пример
 
-                // 2. Обновление массы
-                //await UpdateMassPropertyAsync(config);
+            // 2. Обновление массы
+            //await UpdateMassPropertyAsync(config);
 
-                // 3. Обновление специфических свойств для деталей
-                //if (document is ISwPart)
-                //{
-                //    await UpdatePartSpecificPropertiesAsync(document, config);
-                //}
-                //else if (document is ISwAssembly)
-                //{
-                //    // Для сборок может быть логика обновления AvaArticle на основе дочерних компонентов
-                //    // Это сложнее и требует отдельного обсуждения/реализации
-                //    // await UpdateAssemblyAvaArticleAsync(document, props);
-                //}
+            // 3. Обновление специфических свойств для деталей
+            //if (document is ISwPart)
+            //{
+            //    await UpdatePartSpecificPropertiesAsync(document, config);
+            //}
+            //else if (document is ISwAssembly)
+            //{
+            //    // Для сборок может быть логика обновления AvaArticle на основе дочерних компонентов
+            //    // Это сложнее и требует отдельного обсуждения/реализации
+            //    // await UpdateAssemblyAvaArticleAsync(document, props);
+            //}
 
-                // 4. Подтверждение изменений свойств
-                //foreach (var prop in props)
-                //{
-                //    if (!prop.IsCommitted)
-                //    {
-                //        await prop.Commit(CancellationToken.None);
-                //    }
-                //}
+            // 4. Подтверждение изменений свойств
+            //foreach (var prop in props)
+            //{
+            //    if (!prop.IsCommitted)
+            //    {
+            //        await prop.Commit(CancellationToken.None);
+            //    }
+            //}
 
             //    _logger.LogDebug($"Successfully updated properties for document: {component.mDocument.Title}");
             //    return true;
@@ -119,7 +119,7 @@ namespace Agrovent.Services
                 registryVM.LoadDataCommand.Execute(null);
 
                 // Создаем View и устанавливаем DataContext
-                var registryView = new AGR_ComponentRegistryView 
+                var registryView = new AGR_ComponentRegistryView
                 {
                     DataContext = registryVM,
                     Title = "Реестр компонентов",
@@ -204,11 +204,11 @@ namespace Agrovent.Services
 
 
                 IAGR_BaseComponent component = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
-                
+
                 var componentName = component.Name;
                 var componentType = activeDoc is ISwAssembly ? "Сборка" : "Деталь";
 
-                
+
                 //если сборка - своё окно специфкации
                 if (component.ComponentType == AGR_ComponentType_e.Assembly)
                 {
@@ -253,7 +253,7 @@ namespace Agrovent.Services
 
 
                     var dialogResult = confirmationDialog.ShowDialog();
-                    
+
                     // Если пользователь нажал "Отмена" или закрыл окно - прерываем сохранение
                     if (confirmationVM.DialogResult != true)
                     {
@@ -278,7 +278,7 @@ namespace Agrovent.Services
                 // --- ПОКАЗЫВАЕМ ОКНО С ПРОГРЕССОМ (в UI-потоке SolidWorks) ---
                 var progressDialog = new SaveProgressView();
                 progressDialog.DataContext = progressVM;
-                
+
                 progressDialog.Show(); // Используем Show(), а не ShowDialog(), чтобы UI не блокировался *до* вызова сохранения
                 progressDialog.ShowInTaskbar = true;
 
@@ -287,24 +287,6 @@ namespace Agrovent.Services
                 {
                     if (activeDoc is ISwAssembly)
                     {
-                        var assembly = activeDoc as ISwAssembly;
-                        var docsReadOnly = assembly.Configurations.Active.Components.TryFlatten()
-                            .Where(x => (File.GetAttributes(x.ReferencedDocument.Path).HasFlag(FileAttributes.ReadOnly)) == true)
-                            .Select(x => Path.GetFileName(x.ReferencedDocument.Path)).Distinct()
-                            .ToList();
-
-                        if (docsReadOnly.Count != 0)
-                        {
-                            progressVM.AddLogMessage("В сборке есть файлы 'Только для чтения':");
-                            foreach (var item in docsReadOnly)
-                            {
-                                progressVM.AddLogMessage(item);
-                            }
-                            progressVM.AddLogMessage($"Сохранение отменено: {componentName}");
-                            return false;
-                        }
-
-                        // Сохраняем как сборку
                         saved = await _componentVersionService.CheckAndSaveAssemblyAsync((AGR_AssemblyComponentVM)component);
                     }
                     else
@@ -337,6 +319,8 @@ namespace Agrovent.Services
                 }
 
                 progressDialog.Activate();
+
+
                 return saved; // Возвращаем результат сохранения
             }
             catch (Exception ex)
@@ -351,6 +335,109 @@ namespace Agrovent.Services
                 return false;
             }
         }
+        public async Task<bool> CopyFilesToStorageAsync()
+        {
+            try
+            {
+                var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swApp == null)
+                {
+                    _logger.LogError("Не удалось получить ISwApplication.");
+                    return false;
+                }
+
+                var activeDoc = swApp.Documents.Active;
+                if (activeDoc == null)
+                {
+                    swApp.ShowMessageBox("Нет активного документа.",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+                    return false;
+                }
+
+                ISwDocument3D swDoc = activeDoc as ISwDocument3D;
+                if (swDoc == null)
+                {
+                    swApp.ShowMessageBox("Активный документ не является 3D-моделью.",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+                    return false;
+                }
+
+
+                IAGR_BaseComponent component = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
+
+                if (activeDoc is ISwAssembly)
+                {
+                    await _componentVersionService.CopyFilesToStorageAsync(component, component.CalculateComponentHash());
+                    return true;
+                }
+                return false;
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Неожиданная ошибка при вызове CopyFilesToStorageAsync");
+                var swAppFallback = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swAppFallback != null)
+                {
+                    swAppFallback.ShowMessageBox($"Ошибка: {ex.Message}",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
+                }
+                return false;
+            }
+
+        }
+        public async Task<bool> CopyFilesToProdAsync()
+        {
+            try
+            {
+                var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swApp == null)
+                {
+                    _logger.LogError("Не удалось получить ISwApplication.");
+                    return false;
+                }
+
+                var activeDoc = swApp.Documents.Active;
+                if (activeDoc == null)
+                {
+                    swApp.ShowMessageBox("Нет активного документа.",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+                    return false;
+                }
+
+                ISwDocument3D swDoc = activeDoc as ISwDocument3D;
+                if (swDoc == null)
+                {
+                    swApp.ShowMessageBox("Активный документ не является 3D-моделью.",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+                    return false;
+                }
+
+
+                IAGR_BaseComponent component = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
+
+                if (activeDoc is ISwAssembly)
+                {
+                    await _componentVersionService.CopyFilesToProdAsync(component, component.CalculateComponentHash());
+                    return true;
+                }
+                return false;
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Неожиданная ошибка при вызове CopyFilesToProdAsync");
+                var swAppFallback = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swAppFallback != null)
+                {
+                    swAppFallback.ShowMessageBox($"Ошибка: {ex.Message}",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
+                }
+                return false;
+            }
+
+        }
+
         private async Task UpdateMassPropertyAsync(ISwConfiguration configuration)
         {
             ISwDocument3D document3D = configuration.OwnerDocument as ISwDocument3D;

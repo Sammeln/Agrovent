@@ -1,9 +1,11 @@
-﻿using Agrovent.DAL.Entities.Base;
-using Agrovent.DAL.Entities.TechProcess;
+﻿using System.Collections.Generic;
+using System.Linq;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Entities.TechProcess;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.TechProcess;
 
-namespace Agrovent.DAL.Entities.Components
+namespace AgroventInfrastructure.Entities.Components
 {
     public class Component : DateStampEntity
     {

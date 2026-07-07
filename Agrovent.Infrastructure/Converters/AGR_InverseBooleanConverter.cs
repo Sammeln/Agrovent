@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace Agrovent.Infrastructure.AGR_Converters
+namespace AgroventInfrastructure.AGR_Converters
 {
     public class AGR_InverseBooleanConverter : IValueConverter
     {

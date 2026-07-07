@@ -76,7 +76,7 @@ namespace AGR_PropManager.Views {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/AGR_PropManager;V1.0.0.0;component/views/operationselectionwindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/AGR_PropManager;component/views/operationselectionwindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\Views\OperationSelectionWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

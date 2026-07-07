@@ -30,8 +30,8 @@
             <DataTemplate DataType="{x:Type VM:AGR_HomePageVM}">
                 <page:AGR_EmptyPage/>
             </DataTemplate>
-            
-            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             
         </ResourceDictionary>
     </UserControl.Resources>
@@ -41,7 +41,7 @@
     </UserControl.DataContext>
 
     <Grid>
-        <Border Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+        <Border Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"
                 Background="#CCFFFFFF"
                 Panel.ZIndex="1000">
             <Grid>
@@ -69,6 +69,28 @@
             </Grid>
         </Border>
         <ContentControl Content="{Binding ActiveView, UpdateSourceTrigger=PropertyChanged}"/>
+        <!-- Индикатор загрузки -->
+        <Border Background="#80000000" 
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="400">
+                <TextBlock Text="{Binding LoadingMessage}" 
+                           Foreground="White" 
+                           FontSize="14" 
+                           Margin="0,0,0,10"
+                           HorizontalAlignment="Center"/>
+
+                <ProgressBar Value="{Binding LoadingProgress}" 
+                             Maximum="100" 
+                             Height="25"
+                             Foreground="#007ACC"/>
+
+                <TextBlock Text="{Binding LoadingProgress, StringFormat={}{0}%}" 
+                           Foreground="White" 
+                           FontSize="12" 
+                           Margin="0,5,0,0"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
     </Grid>
     
 </UserControl>

@@ -25,6 +25,8 @@ using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.Documents;
+using AgroventInfrastructure.Enums;
+using Xarial.XCad.Documents.Enums;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -51,13 +53,28 @@ namespace Agrovent.ViewModels.Components
         }
         #endregion
 
+        #region Property - SimpleTopComponents
+        private ObservableCollection<AGR_SimpleSpecificationComponent> _SimpleTopComponents;
+        public ObservableCollection<AGR_SimpleSpecificationComponent> SimpleTopComponents
+        {
+            get => _SimpleTopComponents;
+            set => Set(ref _SimpleTopComponents, value);
+        }
+        #endregion 
+
+        #region Paint
         // Реализация IAGR_HasPaint
         private IAGR_Material? _paint;
         public IAGR_Material? Paint
         {
             get => _paint;
-            set => Set(ref _paint, value);
+            set
+            {
+                Set(ref _paint, value);
+                mProperties.AGR_TryGetProp(AGR_PropertyNames.Color).Value = value?.Name ?? "";
+            }
         }
+        #endregion
 
         #region PaintCount
         private decimal? _PaintCount;
@@ -65,42 +82,109 @@ namespace Agrovent.ViewModels.Components
         #endregion
 
         #region METHODS
-        public IEnumerable<IAGR_SpecificationItem> GetChildComponents()
+        [Obsolete]
+        public IEnumerable<IAGR_SpecificationItem> GetChildComponents2()
         {
             // Получаем компоненты верхнего уровня
             //var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_ActiveComponents().AGR_BaseComponents();
-            if (mDocument.IsAlive)
+            if (SwDocument.IsAlive)
             {
 
-                var topComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_BaseComponents(true);
+                var topComponents = (SwDocument as ISwAssembly).Configurations.Active.Components.AGR_BaseComponents(true);
 
                 // Группируем и создаем SpecificationItemVM для верхнего уровня
                 var groupedTop = topComponents
                     .GroupBy(c => new { c.Name, c.ConfigName })
                     .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
-                AGR_TopComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
+                AGR_TopComponents = new ObservableCollection<AGR_SpecificationItemVM>();
+                foreach (var item in groupedTop)
+                {
+                    AGR_TopComponents.Add(item);
+                }
+
                 return AGR_TopComponents;
             }
             return new List<AGR_SpecificationItemVM>();
         }
-        public IEnumerable<IAGR_SpecificationItem> GetFlatComponents()
+        public IEnumerable<IAGR_SpecificationItem> GetChildComponents()
         {
-            if (mDocument.IsAlive)
+            if (SwDocument.IsAlive)
             {
+                // 🔥 Материализуем IEnumerable сразу, чтобы не делать COM-вызовы повторно
+                var topComponents = (SwDocument as ISwAssembly).Configurations.Active.Components
+                    .AGR_BaseComponents(true)
+                    .ToList();
 
+                // 🔥 Кешируем Name и ConfigName, чтобы не обращаться к COM при GroupBy
+                var componentsWithData = topComponents.Select(c => new
+                {
+                    Component = c,
+                    Name = c.Name,
+                    ConfigName = c.ConfigName,
+                    Extension = c.Extension
+                }).ToList();
 
+                // Группируем по кешированным данным
+                var groupedTop = componentsWithData
+                    .GroupBy(c => new { c.Name, c.ConfigName, c.Extension})
+                    .Select(g => new AGR_SpecificationItemVM(g.First().Component, g.Count()))
+                    .ToList();
+
+                // 🔥 Создаем ObservableCollection сразу из списка (быстрее, чем Add в цикле)
+                AGR_TopComponents = new ObservableCollection<AGR_SpecificationItemVM>(groupedTop);
+
+                return AGR_TopComponents;
+            }
+            return new List<AGR_SpecificationItemVM>();
+        }
+        public IEnumerable<IAGR_SpecificationItem> GetFlatComponents(bool onlyActive)
+        {
+            if (SwDocument.IsAlive)
+            {
                 // Получаем все компоненты (плоский список)
                 //var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents();
-                var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.TryFlatten().AGR_BaseComponents(true);
+                var flatComponents = (SwDocument as ISwAssembly).Configurations.Active.Components.TryFlatten().AGR_BaseComponents(onlyActive);
                 // Группируем и создаем SpecificationItemVM для плоского списка
                 var groupedFlat = flatComponents
-                    .GroupBy(c => new { c.Name, c.ConfigName })
+                    .GroupBy(c => new { c.Name, c.ConfigName, c.Extension })
                     .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
                 return groupedFlat;
             }
             return new List<AGR_SpecificationItemVM>();
         }
+        public IEnumerable<AGR_SimpleSpecificationComponent> GetSimpleTopComponentsList()
+        {
+            if (SwDocument.IsAlive)
+            {
+                // 🔥 Материализуем IEnumerable сразу, чтобы не делать COM-вызовы повторно
+                var topComponents = (SwDocument as ISwAssembly).Configurations.Active.Components
+                     .Where(xComp => !xComp.State.HasFlag(ComponentState_e.Suppressed)
+                                && !xComp.State.HasFlag(ComponentState_e.SuppressedIdMismatch)
+                                && !xComp.State.HasFlag(ComponentState_e.ExcludedFromBom)
+                                && !xComp.State.HasFlag(ComponentState_e.Envelope))
+                    .ToList();
 
+                // 🔥 Кешируем Name и ConfigName, чтобы не обращаться к COM при GroupBy
+                var componentsWithData = topComponents.Select(c => new
+                {
+                    Component = c,
+                    Name =  Path.GetFileNameWithoutExtension(c.ReferencedDocument.Path),
+                    ConfigName = c.ReferencedConfiguration.Name
+                }).ToList();
+
+                // Группируем по кешированным данным
+                var groupedTop = componentsWithData
+                    .GroupBy(c => new { c.Name, c.ConfigName })
+                    .Select(g => new AGR_SimpleSpecificationComponent(g.First().Component, g.Count()))
+                    .ToList();
+
+                // 🔥 Создаем ObservableCollection сразу из списка (быстрее, чем Add в цикле)
+                SimpleTopComponents = new ObservableCollection<AGR_SimpleSpecificationComponent>(groupedTop);
+
+                return SimpleTopComponents;
+            }
+            return new List<AGR_SimpleSpecificationComponent>();
+        }
         public void Refresh()
         {
             GetChildComponents();
@@ -153,6 +237,7 @@ namespace Agrovent.ViewModels.Components
                 // Создаем ViewModel
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
                 selectVm.SearchText = "Краска порошковая ";
+                selectVm.SelectedAvaType = AGR_AvaTypeNames.Purchased;
 
                 // Создаем View и устанавливаем DataContext
                 var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
@@ -182,6 +267,17 @@ namespace Agrovent.ViewModels.Components
             {
                 _logger?.LogError(ex, "Ошибка при открытии окна выбора AvaArticle для компонента {PartNumber}", PartNumber);
             }
+        }
+        #endregion
+
+        #region ClearPaintCommand
+        private ICommand _ClearPaintCommand;
+        public ICommand ClearPaintCommand => _ClearPaintCommand
+            ??= new RelayCommand(OnClearPaintCommandExecuted, CanClearPaintCommandExecute);
+        private bool CanClearPaintCommandExecute(object p) => true;
+        private void OnClearPaintCommandExecuted(object p)
+        {
+            Paint = null;
         }
         #endregion 
 

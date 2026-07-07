@@ -1,10 +1,10 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Agrovent.DAL.Entities.Base;
+using AgroventInfrastructure.Entities.Base;
 using AgroventInfrastructure.Interfaces.Entities.TechProcess;
 
-namespace Agrovent.DAL.Entities.TechProcess
+namespace AgroventInfrastructure.Entities.TechProcess
 {
     [Table("Operations")]
     public class Operation : DateStampEntity

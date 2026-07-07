@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using Agrovent.Infrastructure;
+using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Xarial.XCad.SolidWorks.Documents;
 
@@ -7,37 +8,79 @@ namespace Agrovent.ViewModels.Base
 {
     public class AGR_FileComponent : AGR_BaseComponent, IAGR_HasFile
     {
-
-        public string CurrentModelFilePath  => mDocument.Path; 
-        public string CurrentDrawFilePath => GetDrawFilePath();
-        public string? StorageModelFilePath  => GetStorageModelFilePath();
-        public string? StorageDrawFilePath  => GetStorageDrawFilePath();
-        public string? ProductionModelFilePath  => GetProdModelFilePath();
-        public string? ProductionDrawFilePath  => GetProdDrawFilePath();
-
-        public string? UnfoldPath => null;//GetUnfoldPath();
-
-        private string? GetUnfoldPath()
+        public AGR_FileComponent(ISwDocument3D swDocument3D) : base(swDocument3D)
         {
-            try
-            {
-                var fileList = Directory.GetFiles(@"\\192.168.10.56\pdm").Select(path => Path.GetFileName(path)).ToList();
-                var unfoldPath = fileList
-                    .Where(path => path.StartsWith(PartNumber, StringComparison.OrdinalIgnoreCase) && path.EndsWith("geo", StringComparison.OrdinalIgnoreCase))
-                    .FirstOrDefault();
-
-                return unfoldPath;
-            }
-            catch (Exception)
-            {
-
-                throw;
-            }
+            _CurrentModelFilePath = SwDocument.Path;
+            _CurrentDrawFilePath = GetDrawFilePath();
+            _StorageModelFilePath = GetStorageModelFilePath();
+            _StorageDrawFilePath = GetStorageDrawFilePath();
+            _ProductionModelFilePath = GetProdModelFilePath();
+            _ProductionDrawFilePath = GetProdDrawFilePath();
         }
+
+        #region Property - CurrentModelFilePath
+        private string _CurrentModelFilePath = "";
+        public string CurrentModelFilePath
+        {
+            get => _CurrentModelFilePath;
+            set => Set(ref _CurrentModelFilePath, value);
+        } 
+        #endregion
+
+        #region Property - CurrentDrawFilePath
+        private string _CurrentDrawFilePath = "";
+        public string CurrentDrawFilePath
+        {
+            get => _CurrentDrawFilePath;
+            set => Set(ref _CurrentDrawFilePath, value);
+        }
+        #endregion 
+
+        #region Property - StorageModelFilePath
+        private string _StorageModelFilePath = "";
+        public string StorageModelFilePath
+        {
+            get => _StorageModelFilePath;
+            set => Set(ref _StorageModelFilePath, value);
+        }
+        #endregion
+
+        public bool StorageModelFileIsExist => File.Exists(StorageModelFilePath);
+
+        #region Property - StorageDrawFilePath
+        private string _StorageDrawFilePath = "";
+        public string StorageDrawFilePath
+        {
+            get => _StorageDrawFilePath;
+            set => Set(ref _StorageDrawFilePath, value);
+        }
+        #endregion 
+        public bool StorageDrawFileIsExist => File.Exists(StorageDrawFilePath);
+
+
+        #region Property - ProductionModelFilePath
+        private string _ProductionModelFilePath = "";
+        public string ProductionModelFilePath
+        {
+            get => _ProductionModelFilePath;
+            set => Set(ref _ProductionModelFilePath, value);
+        }
+        #endregion    
+        public bool ProductionModelFileIsExist => File.Exists(ProductionModelFilePath);
+
+        #region Property - ProductionDrawFilePath
+        private string _ProductionDrawFilePath = "";
+        public string ProductionDrawFilePath
+        {
+            get => _ProductionDrawFilePath;
+            set => Set(ref _ProductionDrawFilePath, value);
+        }
+        #endregion 
+        public bool ProductionDrawFileIsExist => File.Exists(ProductionDrawFilePath);
 
         public string? GetDrawFilePath()
         {
-            var drawPath = Path.ChangeExtension(mDocument.Path, "slddrw");
+            var drawPath = Path.ChangeExtension(SwDocument.Path, "slddrw");
             if (File.Exists(drawPath))
             {
                 return drawPath;
@@ -47,6 +90,7 @@ namespace Agrovent.ViewModels.Base
                 return null;
             }
         }
+  
         private string? GetStorageModelFilePath()
         {
             var storageModelPath = Path.Combine(
@@ -76,6 +120,7 @@ namespace Agrovent.ViewModels.Base
                 return null;
             }
         }
+
         private string? GetProdModelFilePath()
         {
             var prodFilePath = Path.Combine(
@@ -104,9 +149,8 @@ namespace Agrovent.ViewModels.Base
                 return null;
             }
         }
-        public AGR_FileComponent(ISwDocument3D swDocument3D) : base(swDocument3D)
-        {
-        }
 
+
+ 
     }
 }

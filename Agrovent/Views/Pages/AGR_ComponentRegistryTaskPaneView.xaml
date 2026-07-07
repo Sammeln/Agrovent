@@ -12,6 +12,12 @@
             d:DesignHeight="600" d:DesignWidth="800">
     <UserControl.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+
             <!-- DataTemplate для отображения изображения в ячейке -->
             <DataTemplate x:Key="PreviewImageTemplate">
                 <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform" />
@@ -29,7 +35,7 @@
                     Header="Подробная информация" CommandParameter="{Binding}"
                     Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" Visibility="Collapsed" />
             </ContextMenu>
-            
+
             <Style x:Key="DefaultRowStyle" TargetType="{x:Type DataGridRow}">
                 <Setter Property="ContextMenu" Value="{StaticResource RowMenu}" />
             </Style>
@@ -53,7 +59,7 @@
                                  MinWidth="200" />
             </StackPanel>
         </Border>-->
-        <Border Grid.Row="0" Background="LightGray" Padding="10" Margin="5">
+        <Border Grid.Row="0" Background="#c4b5fd" Padding="10" Margin="0">
             <StackPanel Orientation="Vertical">
                 <DockPanel>
                     <Label Content="Поиск:" VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -67,7 +73,7 @@
                           ItemsSource="{Binding AvailableComponentTypes}"
                           SelectedItem="{Binding SelectedComponentType}"
                           MinWidth="120" Margin="0,0,10,0">
-                </ComboBox>
+                    </ComboBox>
                 </DockPanel>
                 <DockPanel>
                     <Label Content="Тип Ava:" VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -83,16 +89,27 @@
 
         <!-- DataGrid -->
         <DataGrid Grid.Row="1"
-                          x:Name="RegistryDataGrid"
-                          ItemsSource="{Binding RegistryItemsView}"
-                          AutoGenerateColumns="False"
-                          CanUserAddRows="False"
-                          HeadersVisibility="Column"
-                          SelectionMode="Single"
-                          IsReadOnly="True"
-                          RowStyle="{StaticResource DefaultRowStyle}">
+                  x:Name="RegistryDataGrid"
+                  ItemsSource="{Binding RegistryItemsView}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  HeadersVisibility="Column"
+                  SelectionMode="Single"
+                  IsReadOnly="True"
+                  Style="{StaticResource ComponentsRegistryDataGrid}"
+                  RowStyle="{StaticResource DefaultRowStyle}"
+                  >
+
             <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" CanUserResize="False" Width="SizeToCells"/>
+                <!-- ID -->
+                <DataGridTemplateColumn Header="ID" Width="SizeToCells"
+                                        CanUserResize="False" SortMemberPath="Id">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Id, Mode=OneWay}" Style="{StaticResource DGComponentsRegistry_ReadOnlyTextBox}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <!-- Превью -->
                 <DataGridTemplateColumn Width="45" CanUserResize="False">
                     <DataGridTemplateColumn.CellStyle>
@@ -104,6 +121,7 @@
                             </Setter>
                             <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
                             <Setter Property="ToolTipService.Placement" Value="Right"/>
+                            <Setter Property="Background" Value="White"/>
                         </Style>
                     </DataGridTemplateColumn.CellStyle>
                     <DataGridTemplateColumn.CellTemplate>
@@ -114,13 +132,37 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <!-- Наименование -->
-                <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="3*" />
+                <DataGridTemplateColumn Header="Наименование" Width="2*" SortMemberPath="Name">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Name, Mode=OneWay}" Style="{StaticResource DGComponentsRegistry_ReadOnlyTextBox}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <!-- PartNumber -->
-                <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="*" />
+                <DataGridTemplateColumn Header="Обозначение" Width="1*" SortMemberPath="PartNumber">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding PartNumber, Mode=OneWay}" Style="{StaticResource DGComponentsRegistry_ReadOnlyTextBox}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <!-- Кто сохранил -->
-                <DataGridTextColumn Header="Сохранил" Binding="{Binding SavedByUserInitials}" Width="*" />
+                <DataGridTemplateColumn Header="Сохранил" Width="1*" SortMemberPath="SavedByUserInitials">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding SavedByUserInitials, Mode=OneWay}" Style="{StaticResource DGComponentsRegistry_ReadOnlyTextBox}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <!-- Дата создания -->
-                <DataGridTextColumn Header="Дата сохранения" Binding="{Binding CreatedAt, StringFormat='dd.MM.yyyy'}" Width="*" />
+                <DataGridTemplateColumn Header="Дата сохранения" Width="*" SortMemberPath="CreatedAt">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding CreatedAt,StringFormat='dd.MM.yyyy', Mode=OneWay}" Style="{StaticResource DGComponentsRegistry_ReadOnlyTextBox}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <!-- ComponentType -->
                 <!--<DataGridTextColumn Header="Тип компонента" Binding="{Binding ComponentTypeDisplay, Converter={StaticResource ComponentTypeConverter}}" Width="*" />-->
                 <!-- AvaType -->

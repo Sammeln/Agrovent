@@ -1,15 +1,16 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
-using Agrovent.DAL.Entities.Base;
-using Agrovent.DAL.Entities.Projects;
+using System.Linq;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Entities.Projects;
 using AgroventInfrastructure.Interfaces.Entities;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.Projects;
 
-
-namespace Agrovent.DAL.Entities.Components
+namespace AgroventInfrastructure.Entities.Components
 {
     [DebuggerDisplay("{" + nameof(Name) + "}")]
     public class ComponentVersion : DateStampEntity
@@ -50,10 +51,10 @@ namespace Agrovent.DAL.Entities.Components
         public ICollection<ComponentProperty> Properties { get; set; } = new List<ComponentProperty>();
         public ICollection<ComponentFile> Files { get; set; } = new List<ComponentFile>();
         public ICollection<ProjectComponent> ProjectComponents { get; set; } = new List<ProjectComponent>();
-        
+
         [NotMapped]
-        public List<ComponentVersion> ParentAssemblies {get; set;} = new List<ComponentVersion>();
-        
+        public List<ComponentVersion> ParentAssemblies { get; set; } = new List<ComponentVersion>();
+
         public int ParentAssembliesCount => ParentAssemblies.Count;
 
         // Метод для проверки, является ли версия последней

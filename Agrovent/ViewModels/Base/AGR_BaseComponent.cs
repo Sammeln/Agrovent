@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces.Properties;
 using Agrovent.Infrastructure.Extensions;
@@ -16,29 +15,63 @@ using Microsoft.VisualStudio.Shell.Interop;
 using Xarial.XCad.Base.Attributes;
 using Agrovent.Properties;
 using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Entities.Components;
+using System.Windows.Input;
+using AGR_PropManager.Infrastructure.Commands;
+using Agrovent.DAL;
+using Agrovent.ViewModels.Windows;
+using Agrovent.Views.Windows;
+using Microsoft.Extensions.Logging;
+using AgroventInfrastructure.Enums;
+using Xarial.XCad.Data;
+using NPOI.SS.Formula.Functions;
+using System.Collections.ObjectModel;
+using Agrovent.ViewModels.Windows.Details;
+using Agrovent.Views.Windows.Details;
+using Xarial.XCad.Base;
+using Xarial.XCad.Documents.Extensions;
+using Xarial.XCad.Documents;
+using System.Windows;
+using Agrovent.ViewModels.TaskPane;
 
 namespace Agrovent.ViewModels.Base
 {
     public class AGR_BaseComponent : BaseViewModel, IAGR_BaseComponent
     {
+        private readonly IAGR_ComponentVersionService _componentVersionService;
+        private readonly AGR_TaskPaneViewModel _taskPane;
+
         #region FIELDS
         internal ISwDocument3D? mDocument;
         internal ISwConfiguration? mConfiguration => mDocument.IsAlive ? mDocument.Configurations.Active : null;
         internal ISwCustomPropertiesCollection? mProperties => mDocument.IsAlive ? mConfiguration.Properties : null;
         #endregion
 
+        #region CTOR
+
+        public AGR_BaseComponent(ISwDocument3D swDocument3D)
+        {
+            _componentVersionService = AGR_ServiceContainer.GetService<IAGR_ComponentVersionService>();
+            _taskPane = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
+            mDocument = swDocument3D;
+            ComponentType = mDocument.ComponentType();
+        }
+        #endregion
+
         #region PROPS
 
         public ISwDocument3D SwDocument => mDocument;
-        public string Name { get => Path.GetFileNameWithoutExtension(mDocument?.Title); }
+        public string Name { get => Path.GetFileNameWithoutExtension(mDocument?.Path); }
         public string ConfigName { get => mConfiguration?.Name ?? ""; }
+        public string Extension { get => Path.GetExtension(mDocument?.Path) ?? ""; }
         public string PartNumber
         {
-            get => mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
+            get => mProperties?.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString() ?? "";
             set
             {
                 mProperties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = value;
                 OnPropertyChanged(nameof(PartNumber));
+                PartnumberChanged?.Invoke(this, new EventArgs());
             }
         }
         public string Article
@@ -57,7 +90,7 @@ namespace Agrovent.ViewModels.Base
         {
             get
             {
-                var propValue = mProperties.AGR_TryGetProp(AGR_PropertyNames.Version).Value;
+                var propValue = mProperties?.AGR_TryGetProp(AGR_PropertyNames.Version).Value ?? 0;
                 try
                 {
                     return Convert.ToInt32(propValue);
@@ -70,7 +103,7 @@ namespace Agrovent.ViewModels.Base
             }
             set => mProperties.AGR_TryGetProp(AGR_PropertyNames.Version).Value = value;
         }
-        public int HashSum
+        public int? HashSum
         {
             get
             {
@@ -88,7 +121,9 @@ namespace Agrovent.ViewModels.Base
                 OnPropertyChanged(nameof(HashSum));
             }
         }
-        public bool IsLoaded  { get; set; }
+
+        public int ComponentHash => CalculateComponentHash();
+        public bool IsLoaded { get; set; }
 
         #region Preview
         private byte[]? _Preview;
@@ -104,7 +139,7 @@ namespace Agrovent.ViewModels.Base
             }
             // Устанавливать можно только извне, если нужно переопределить
             protected set => _Preview = value;
-        } 
+        }
         #endregion
         public string FilePath => mDocument?.Path ?? "";
 
@@ -120,15 +155,14 @@ namespace Agrovent.ViewModels.Base
         }
         #endregion
 
-
         #region Property - ComponentVersion
-        private IAGR_ComponentVersionEntity _ComponentVersion;
-        public IAGR_ComponentVersionEntity ComponentVersion
+        private ComponentVersion _ComponentVersion;
+        public ComponentVersion ComponentVersion
         {
             get => _ComponentVersion;
             set => Set(ref _ComponentVersion, value);
         }
-        #endregion 
+        #endregion
 
         #region IsInDatabase
         private AGR_ComponentDatabaseState_e _isInDatabase = AGR_ComponentDatabaseState_e.NotLoaded;
@@ -142,30 +176,34 @@ namespace Agrovent.ViewModels.Base
         public IAGR_PropertiesCollection PropertiesCollection { get; set; }
         public AGR_ComponentType_e ComponentType
         {
-            get => mDocument.ComponentType();
-            set
+            get
+            {
+                if (!mDocument.IsAlive) return AGR_ComponentType_e.NA;
+                return mDocument.ComponentType();
+            }
+                set
             {
                 switch (value)
                 {
                     case AGR_ComponentType_e.Assembly:
-                        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-                        break;
+                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
+                    break;
                     case AGR_ComponentType_e.Part:
-                        PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
-                        break;
+                    PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
+                    break;
                     case AGR_ComponentType_e.SheetMetallPart:
-                        PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
-                        PropertiesCollection.UpdateProperties();
-                        OnPropertyChanged(nameof(PropertiesCollection));
-                        break;
+                    PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
+                    PropertiesCollection.UpdateProperties();
+                    OnPropertyChanged(nameof(PropertiesCollection));
+                    break;
                     case AGR_ComponentType_e.Purchased:
-                        PropertiesCollection?.Properties.Clear();
-                        break;
+                    PropertiesCollection?.Properties.Clear();
+                    break;
                     case AGR_ComponentType_e.NA:
-                        PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
-                        break;
+                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
+                    break;
                     default:
-                        break;
+                    break;
                 }
                 OnPropertyChanged(nameof(ComponentType));
             }
@@ -174,6 +212,7 @@ namespace Agrovent.ViewModels.Base
         {
             get
             {
+                if (!mDocument.IsAlive) return AGR_AvaType_e.NA;
                 var val = mProperties.AGR_TryGetProp(AGR_PropertyNames.AvaType).Value;
                 if (!string.IsNullOrEmpty(val.ToString()))
                 {
@@ -197,6 +236,28 @@ namespace Agrovent.ViewModels.Base
                 OnPropertyChanged(nameof(AvaType));
             }
         }
+
+        #region Property - ParentAssemblies
+        private ICollection<IAGR_ComponentRegistryItemVM>? _ParentAssemblies = new ObservableCollection<IAGR_ComponentRegistryItemVM>();
+        
+        public ICollection<IAGR_ComponentRegistryItemVM>? ParentAssemblies
+        {
+            get => _ParentAssemblies;
+            set
+            {
+                Set(ref _ParentAssemblies, value);
+                OnPropertyChanged(nameof(ParentAssembliesCount));
+                OnPropertyChanged(nameof(CanUserEdit));
+            }
+        }
+        #endregion
+        public int ParentAssembliesCount => ParentAssemblies?.Count ?? 0;
+        public bool CanUserEdit => !(ParentAssembliesCount <= 1);
+
+        public bool IsPurchased => ComponentType != AGR_ComponentType_e.Part
+                                && ComponentType != AGR_ComponentType_e.SheetMetallPart
+                                && ComponentType != AGR_ComponentType_e.Assembly;
+
         #endregion
 
         #region METHODS
@@ -211,11 +272,6 @@ namespace Agrovent.ViewModels.Base
                 {
                     //hash = hash + (component.Name?.GetHashCode(StringComparison.Ordinal) ?? 0);
 
-                    foreach (var feat in part.SwDocument.Features)
-                    {
-                        
-                    }
-
                     string str = string.Empty;
                     double sum = 0d;
 
@@ -228,7 +284,7 @@ namespace Agrovent.ViewModels.Base
                         foreach (var dim in swPart.Dimensions)
                         {
                             hash += dim.Value.GetHashCode();
-                        } 
+                        }
                     }
                     foreach (var feat in swPart.Features)
                     {
@@ -328,17 +384,284 @@ namespace Agrovent.ViewModels.Base
                 return hash;
             }
         }
+
         #endregion
 
-        #region CTOR
+        #region COMMANDS
 
-        public AGR_BaseComponent(ISwDocument3D swDocument3D)
+        #region SelectAvaArticleCommand
+        private ICommand _SelectAvaArticleCommand;
+        public ICommand SelectAvaArticleCommand => _SelectAvaArticleCommand
+            ??= new RelayCommand(OnSelectAvaArticleCommandExecuted, CanSelectAvaArticleCommandExecute);
+        private bool CanSelectAvaArticleCommandExecute(object p) => true;
+        private void OnSelectAvaArticleCommandExecuted(object p)
         {
-            mDocument = swDocument3D;
-            ComponentType = mDocument.ComponentType();
+            try
+            {
+                //_logger?.LogDebug("Открытие окна выбора AvaArticle для компонента {PartNumber}", PartNumber);
 
-        } 
+                // Получаем IServiceProvider из вашего контейнера (предполагаем, что он доступен)
+                // Это может быть AGR_ServiceContainer или другой способ получения провайдера.
+                // Пример (может отличаться в вашем проекте):
+
+                // Получаем нужные сервисы для VM
+                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
+
+                // Создаем ViewModel
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
+                selectVm.SelectedAvaType = AGR_AvaTypeNames.AllTypes;
+                selectVm.SearchText = PartNumber;
+
+                // Создаем View и устанавливаем DataContext
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+
+                selectView.ShowActivated = true;
+                // Открываем окно модально
+                selectView.ShowDialog();
+
+                // Если окно закрыто с результатом OK и элемент выбран
+                if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
+                {
+                    // Присваиваем выбранный AvaArticleModel в BaseMaterial.AvaModel
+                    AvaArticle = selectVm.SelectedArticle;
+                    //_logger?.LogInformation("Выбран AvaArticle {Article} для компонента {PartNumber}", selectVm.SelectedArticle.Article, PartNumber);
+
+                    // Обновляем свойства, если это влияет на них (например, BaseMaterialCount)
+                    //Task.Run(async () => await UpdatePropertiesAsync()).ConfigureAwait(false); // Вызов асинхронного метода
+                }
+                else
+                {
+                    //_logger?.LogDebug("Окно выбора AvaArticle закрыто без выбора.");
+                }
+            }
+            catch (Exception ex)
+            {
+                //_logger?.LogError(ex, "Ошибка при открытии окна выбора AvaArticle для компонента {PartNumber}", PartNumber);
+            }
+        }
         #endregion
 
+        #region OpenComponentCommand
+        private ICommand _OpenComponentCommand;
+        public ICommand OpenComponentCommand => _OpenComponentCommand
+            ??= new RelayCommand<AGR_ComponentRegistryItemVM>(OnOpenComponentCommandExecuted, CanOpenComponentCommandExecute);
+        private bool CanOpenComponentCommandExecute(AGR_ComponentRegistryItemVM p) => p != null && !string.IsNullOrEmpty(p.StoragePath) && File.Exists(p.StoragePath);
+        private void OnOpenComponentCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
+        {
+            if (selectedItem == null || string.IsNullOrEmpty(selectedItem.StoragePath)) return;
+
+            var filePath = selectedItem.StoragePath;
+
+            if (!File.Exists(filePath))
+            {
+                //_logger.LogWarning($"Команда 'Открыть': Файл не существует: {filePath}");
+                return;
+            }
+
+            try
+            {
+                // Получаем ISwApplication
+                var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swApp == null)
+                {
+                    //_logger.LogError("Команда 'Открыть': Не удалось получить ISwApplication.");
+                    return;
+                }
+
+                // Проверяем, открыт ли документ
+                var openDoc = swApp.Documents.FirstOrDefault(x => x.Path == filePath);
+                if (openDoc != null)
+                {
+                    // Документ уже открыт, делаем его активным
+                    swApp.Documents.Active = openDoc as ISwDocument;
+
+                    //_logger.LogDebug($"Команда 'Открыть': Документ уже открыт, активирован: {filePath}");
+                }
+                else
+                {
+                    // Документ не открыт, открываем
+                    var newDoc = swApp.Documents.Open(filePath, Xarial.XCad.Documents.Enums.DocumentState_e.ReadOnly);// PreCreateFromPath(filePath);
+                    //newDoc.Commit(CancellationToken.None);
+                    //_logger.LogDebug($"Команда 'Открыть': Документ открыт: {filePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                //_logger.LogError(ex, $"Команда 'Открыть': Ошибка при открытии файла {filePath}");
+            }
+        }
+        #endregion
+
+        #region AddToAssemblyCommand
+        private ICommand _AddToAssemblyCommand;
+        public ICommand AddToAssemblyCommand => _AddToAssemblyCommand
+            ??= new RelayCommand<AGR_ComponentRegistryItemVM>(OnAddToAssemblyCommandExecuted, CanAddToAssemblyCommandExecute);
+        private bool CanAddToAssemblyCommandExecute(AGR_ComponentRegistryItemVM p)
+        {
+            if (p == null || string.IsNullOrEmpty(p.StoragePath) || !File.Exists(p.StoragePath)) return false;
+
+            // Проверяем, активен ли сборочный документ
+            var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+            if (swApp == null) return false;
+
+            var activeDoc = swApp.Documents.Active;
+            return activeDoc is ISwAssembly;
+        }
+        private void OnAddToAssemblyCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
+        {
+            if (selectedItem == null || string.IsNullOrEmpty(selectedItem.StoragePath)) return;
+
+            var filePath = selectedItem.StoragePath;
+            var drawPath = Path.ChangeExtension(filePath, ".slddrw");
+            var fileTitle = Path.GetFileNameWithoutExtension(filePath);
+
+            if (!File.Exists(filePath))
+            {
+                //_logger.LogWarning($"Команда 'Добавить в сборку': Файл не существует: {filePath}");
+                return;
+            }
+
+            try
+            {
+                var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+                if (swApp == null)
+                {
+                    //_logger.LogError("Команда 'Добавить в сборку': Не удалось получить ISwApplication.");
+                    return;
+                }
+
+                // Проверяем, активен ли сборочный документ
+                var activeDoc = swApp.Documents.Active;
+                if (!(activeDoc is ISwAssembly swAssembly))
+                {
+                    //_logger.LogWarning("Команда 'Добавить в сборку': Активный документ не является сборкой.");
+                    return;
+                }
+                //Папка текущей сборки
+                var assemblyFolderPath = Path.GetDirectoryName(swAssembly.Path);
+                if (string.IsNullOrEmpty(assemblyFolderPath))
+                {
+                    assemblyFolderPath = @"D:\Работа";
+                }
+                //Путь к файлу компонента для копирования из хранилища
+                var destFilePath = Path.Combine(assemblyFolderPath, Path.GetFileName(filePath));
+                var destDrawPath = Path.ChangeExtension(destFilePath, ".slddrw");
+                // Проверяем, открыт ли документ компонента
+                IXDocument3D? compDoc = swApp.Documents.FirstOrDefault(x => x.Title == fileTitle) as IXDocument3D;
+                if (compDoc == null)
+                {
+                    //Проверяем есть ли файл в рабочей папке, если есть убираем для чтения
+                    if (File.Exists(destFilePath))
+                    {
+                        File.SetAttributes(destFilePath, FileAttributes.Normal);
+                    }
+
+                    //Проверяем есть ли файл чертежа в рабочей папке, если есть убираем для чтения
+                    if (File.Exists(destDrawPath))
+                    {
+                        File.SetAttributes(destDrawPath, FileAttributes.Normal);
+                    }
+
+                    // Нельзя открывать документы из центрального хранилища, копируем файл в папку с активной сборкой
+                    File.Copy(filePath, destFilePath, true);
+                    //Если есть чертеж копируемого  компонента, то копируем его в папку тоже
+                    if (File.Exists(drawPath))
+                    {
+                        File.Copy(drawPath, destDrawPath, true);
+                    }
+
+
+                    // Документ не открыт, открываем его
+                    compDoc = swApp.Documents.PreCreateFromPath(destFilePath) as IXDocument3D;
+                    if (compDoc == null)
+                    {
+                        //_logger.LogError($"Команда 'Добавить в сборку': Не удалось открыть документ компонента: {destFilePath}");
+                        return;
+                    }
+                    //compDoc.Commit(CancellationToken.None);
+                    //_logger.LogDebug($"Команда 'Добавить в сборку': Документ компонента открыт: {destFilePath}");
+                }
+
+                // Создаем шаблон компонента
+                var xComp = swAssembly.Configurations.Active.Components.PreCreate<IXComponent>();
+                if (xComp == null)
+                {
+                    //_logger.LogError($"Команда 'Добавить в сборку': Не удалось создать шаблон компонента для {destFilePath}");
+                    return;
+                }
+
+                // Устанавливаем ссылку на документ
+                xComp.ReferencedDocument = compDoc;
+
+                // Добавляем в сборку
+                swAssembly.Configurations.Active.Components.Add(xComp);
+                //_logger.LogDebug($"Команда 'Добавить в сборку': Компонент добавлен в сборку: {filePath}");
+
+                // Выделяем компонент
+                xComp.Select(false);
+
+                // Запускаем внутреннюю команду для перемещения компонента (Move Component)
+                // 1993 - это ID команды "Move Component"
+                swApp.Sw.RunCommand(1993, "");
+
+
+            }
+            catch (Exception ex)
+            {
+                //_logger.LogError(ex, $"Команда 'Добавить в сборку': Ошибка при добавлении файла {filePath} в сборку.");
+            }
+        }
+        #endregion
+
+        #region ShowDetailsCommand
+        private ICommand _ShowDetailsCommand;
+        public ICommand ShowDetailsCommand => _ShowDetailsCommand
+            ??= new RelayCommand<AGR_ComponentRegistryItemVM>(OnShowDetailsCommandExecuted, CanShowDetailsCommandExecute);
+        private bool CanShowDetailsCommandExecute(AGR_ComponentRegistryItemVM p) => p != null; // Всегда доступна, если элемент выбран
+        private void OnShowDetailsCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
+        {
+            if (selectedItem == null) return;
+
+            // Создаем и открываем окно с деталями
+
+            var unitOfWork = AGR_ServiceContainer.GetService<IUnitOfWork>();
+
+            var detailsVM = new AGR_ComponentDetailsVM(selectedItem, unitOfWork); // Предполагаем, что ViewModel будет создана
+            var detailsView = new AGR_ComponentDetailsView { DataContext = detailsVM };
+
+            var window = new Window
+            {
+                Title = $"Детали: {selectedItem.Name} ({selectedItem.PartNumber})",
+                Content = detailsView,
+                Width = 800,
+                Height = 600,
+                ResizeMode = ResizeMode.CanResizeWithGrip
+            };
+
+            window.ShowDialog(); // Открываем модально
+        }
+        #endregion
+
+
+
+
+
+        #region SetNewPartnumberCommand
+        private ICommand _SetNewPartnumberCommand;
+        public ICommand SetNewPartnumberCommand => _SetNewPartnumberCommand
+            ??= new RelayCommand(OnSetNewPartnumberCommandExecuted, CanSetNewPartnumberCommandExecute);
+        private bool CanSetNewPartnumberCommandExecute(object p) => true;
+        private async void OnSetNewPartnumberCommandExecuted(object p)
+        {
+            await _componentVersionService.CreateNewComponent(this);
+        }
+        #endregion 
+
+        #endregion
+       
+        public event EventHandler? PartnumberChanged;
     }
+
+
 }

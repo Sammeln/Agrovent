@@ -10,7 +10,6 @@ namespace Agrovent.Infrastructure.Interfaces.Specification
         public string PartNumber { get; }
         public int Quantity { get; }
         public IAGR_BaseComponent Component { get; }
-
         public AGR_ComponentType_e ComponentType { get; }
 
         // Свойства для материалов (только для деталей)

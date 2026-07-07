@@ -1,9 +1,8 @@
 ﻿// File: ViewModels/TaskPane/AGR_ComponentRegistryTaskPaneVM.cs
 using Agrovent.DAL;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.DAL.Services.Repositories;
 using Agrovent.Infrastructure;
-using Agrovent.Infrastructure.AGR_Converters;
+using AgroventInfrastructure.AGR_Converters;
 using Agrovent.Infrastructure.Commands; // Для RelayCommand
 using Agrovent.Infrastructure.Converters;
 using Agrovent.Infrastructure.Enums;
@@ -11,6 +10,7 @@ using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows.Details;
 using Agrovent.Views.Windows.Details;
+using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 using Microsoft.Extensions.Logging;
 using SolidWorks.Interop.swconst;
@@ -29,6 +29,8 @@ using Xarial.XCad.Documents;
 using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
+using AgroventInfrastructure.Enums;
+using Agrovent.Infrastructure.Helpers;
 
 namespace Agrovent.ViewModels.TaskPane
 {
@@ -49,27 +51,26 @@ namespace Agrovent.ViewModels.TaskPane
 
             // Инициализация CollectionViewSource
             RegistryItemsView = CollectionViewSource.GetDefaultView(RegistryItems);
-            RegistryItemsView.Filter = FilterRegistryItems; // Устанавливаем метод фильтрации
+            RegistryItemsView.Filter = FilterRegistryItems;
 
             // Инициализация коллекций для ComboBox
             AvailableAvaTypes = new ObservableCollection<string>
             {
-                _avaTypeConverter.Convert(AGR_AvaType_e.Component, typeof(string), null, CultureInfo.CurrentCulture) as string,
-                _avaTypeConverter.Convert(AGR_AvaType_e.Production, typeof(string), null, CultureInfo.CurrentCulture) as string,
-                _avaTypeConverter.Convert(AGR_AvaType_e.Purchased, typeof(string), null, CultureInfo.CurrentCulture) as string,
-                _avaTypeConverter.Convert(AGR_AvaType_e.DontBuy, typeof(string), null, CultureInfo.CurrentCulture) as string,
-                _avaTypeConverter.Convert(AGR_AvaType_e.VirtualComponent, typeof(string), null, CultureInfo.CurrentCulture) as string,
-                "Все типы"
-
+                AGR_AvaTypeNames.Production,
+                AGR_AvaTypeNames.Component,
+                AGR_AvaTypeNames.Purchased,
+                AGR_AvaTypeNames.DontBuy,
+                AGR_AvaTypeNames.VirtualComponent,
+                AGR_AvaTypeNames.AllTypes
             };
 
             AvailableComponentTypes = new ObservableCollection<string>
             {
-                _componentTypeConverter.Convert(AGR_ComponentType_e.Assembly, typeof(string), null, CultureInfo.CurrentCulture) as string,
-                _componentTypeConverter.Convert(AGR_ComponentType_e.SheetMetallPart, typeof(string), null, CultureInfo.CurrentCulture) as string,
-                _componentTypeConverter.Convert(AGR_ComponentType_e.Part, typeof(string), null, CultureInfo.CurrentCulture) as string,
-                _componentTypeConverter.Convert(AGR_ComponentType_e.Purchased, typeof(string), null, CultureInfo.CurrentCulture) as string,
-                "Все типы"
+                AGR_ComponentTypeNames.Assembly,
+                AGR_ComponentTypeNames.SheetMetallPart,
+                AGR_ComponentTypeNames.Part,
+                AGR_ComponentTypeNames.Purchased,
+                AGR_ComponentTypeNames.AllTypes
             };
 
             // Загружаем данные при создании VM (или вызывайте LoadDataCommand извне)
@@ -111,7 +112,7 @@ namespace Agrovent.ViewModels.TaskPane
                 // Преобразуем сущности в VM и добавляем в коллекцию
                 foreach (var version in versions)
                 {
-                    var itemVm = new AGR_ComponentRegistryItemVM(version, AGR_Options.StorageRootFolderPath);
+                    var itemVm = new AGR_ComponentRegistryItemVM(version);
                     RegistryItems.Add(itemVm);
                 }
 
@@ -256,6 +257,15 @@ namespace Agrovent.ViewModels.TaskPane
                 }
                 //Папка текущей сборки
                 var assemblyFolderPath = Path.GetDirectoryName(swAssembly.Path);
+
+                if(assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath) || assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath))
+                {
+                    AGR_Helper.ShowMessage($"Попытка добавить компонент в папку хранилища\n{assemblyFolderPath}.\nОперация добавления отменена."
+                        ,Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
+                        Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                    return;
+                }
+
                 if (string.IsNullOrEmpty(assemblyFolderPath))
                 {
                     assemblyFolderPath = @"D:\Работа";
@@ -382,7 +392,7 @@ namespace Agrovent.ViewModels.TaskPane
         }
 
         #region SelectedComponentType
-        private string? _selectedComponentType = "Все типы";
+        private string? _selectedComponentType =  AGR_ComponentTypeNames.AllTypes;
         public string? SelectedComponentType
         {
             get => _selectedComponentType;
@@ -390,6 +400,14 @@ namespace Agrovent.ViewModels.TaskPane
             {
                 if (Set(ref _selectedComponentType, value))
                 {
+                    if (value == AGR_ComponentTypeNames.Purchased)
+                    {
+                        SelectedAvaType = AGR_AvaTypeNames.Purchased;
+                    }
+                    if (value == AGR_ComponentTypeNames.AllTypes)
+                    {
+                        SelectedAvaType = AGR_AvaTypeNames.AllTypes;
+                    }
                     RegistryItemsView.Refresh(); // Обновляем фильтр при изменении типа
                 }
             }
@@ -397,7 +415,7 @@ namespace Agrovent.ViewModels.TaskPane
         #endregion
 
         #region SelectedAvaType
-        private string? _selectedAvaType = "Все типы";
+        private string? _selectedAvaType = AGR_AvaTypeNames.AllTypes;
         public string? SelectedAvaType
         {
             get => _selectedAvaType;
@@ -405,6 +423,16 @@ namespace Agrovent.ViewModels.TaskPane
             {
                 if (Set(ref _selectedAvaType, value))
                 {
+                    if (value == AGR_AvaTypeNames.Purchased)
+                    {
+                        SelectedComponentType = AGR_ComponentTypeNames.Purchased;
+                    }
+                    if (value == AGR_AvaTypeNames.AllTypes)
+                    {
+                        SelectedComponentType = AGR_ComponentTypeNames.AllTypes;
+                    }
+
+
                     RegistryItemsView.Refresh(); // Обновляем фильтр при изменении AvaType
                 }
             }
@@ -435,12 +463,16 @@ namespace Agrovent.ViewModels.TaskPane
         {
             if (item is not AGR_ComponentRegistryItemVM registryItem)
                 return false;
+
             // 1. Фильтр по тексту поиска
             if (!string.IsNullOrWhiteSpace(SearchText))
             {
-                string[] splitSearch = SearchText.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToArray();
+                string[] splitSearch = SearchText
+                        .Split(new char[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                        .ToArray();
 
                 if (registryItem.Name is null) return false;
+
                 if (!splitSearch.All
                         (s => registryItem.Name.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)
                             || registryItem.SavedByUserInitials.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)
@@ -449,26 +481,12 @@ namespace Agrovent.ViewModels.TaskPane
                 {
                     return false;
                 }
-                //if (!splitSearch.All(s => registryItem.Name.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)))
-                //{
-                //    if (
-                //        (registryItem.PartNumber == null || !registryItem.PartNumber.Contains(SearchText, StringComparison.OrdinalIgnoreCase)) &&
-                //        (string.IsNullOrEmpty(registryItem.SavedByUserInitials) || !registryItem.SavedByUserInitials.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
-                //        )
-                //    {
-                //        return false; // Ни по имени, ни по PartNumber, ни по SavedByUserInitials не совпало
-                //    }
-                //}
-
-                // Если прошло проверку по SearchText, продолжаем
             }
-            // Если SearchText пустой, пропускаем проверку выше
 
             // 2. Фильтр по ComponentTypeDisplay
             if (!string.IsNullOrEmpty(SelectedComponentType))
             {
-                if (SelectedComponentType == "Все типы") { }
-                else
+                if (SelectedComponentType != AGR_ComponentTypeNames.AllTypes)
                 {
                     var itemCompType = _componentTypeConverter.Convert(registryItem.ComponentTypeDisplay, typeof(string), null, CultureInfo.CurrentCulture) as string;
                     if (itemCompType != SelectedComponentType) return false;
@@ -478,15 +496,69 @@ namespace Agrovent.ViewModels.TaskPane
             // 3. Фильтр по AvaTypeDisplay
             if (!string.IsNullOrEmpty(SelectedAvaType))
             {
-                if (SelectedAvaType == "Все типы") { }
-                else
+                if (SelectedAvaType != AGR_AvaTypeNames.AllTypes)
                 {
                     var itemAvaType = _avaTypeConverter.Convert(registryItem.AvaTypeDisplay, typeof(string), null, CultureInfo.CurrentCulture) as string;
                     if (itemAvaType != SelectedAvaType) return false;
                 }
             }
-
             // Если все проверки пройдены, показываем элемент
+            return true;
+        }
+        private bool FilterBySearch(object item)
+        {
+            if (item is not AGR_ComponentRegistryItemVM registryItem)
+                return false;
+
+            // 1. Фильтр по тексту поиска
+            if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                string[] splitSearch = SearchText
+                        .Split(new char[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                        .ToArray();
+
+                if (registryItem.Name is null) return false;
+
+                if (!splitSearch.All
+                        (s => registryItem.Name.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)
+                            || registryItem.SavedByUserInitials.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)
+                            || registryItem.PartNumber.Contains(s.ToString(), StringComparison.OrdinalIgnoreCase)
+                        ))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        private bool FilterByAvaType(object item)
+        {
+            if (item is not AGR_ComponentRegistryItemVM registryItem)
+                return false;
+            // 3. Фильтр по AvaTypeDisplay
+            if (!string.IsNullOrEmpty(SelectedAvaType))
+            {
+                if (SelectedAvaType != AGR_AvaTypeNames.AllTypes) return false;
+                else
+                {
+                    var itemAvaType = _avaTypeConverter.Convert(registryItem.AvaTypeDisplay, typeof(string), null, CultureInfo.CurrentCulture) as string;
+                    return itemAvaType == SelectedAvaType;
+                }
+            }
+            return true;
+        }
+        private bool FilterByComponentType(object item)
+        {
+            if (item is not AGR_ComponentRegistryItemVM registryItem)
+                return false;
+            // 2. Фильтр по ComponentTypeDisplay
+            if (!string.IsNullOrEmpty(SelectedComponentType))
+            {
+                if (SelectedComponentType != AGR_ComponentTypeNames.AllTypes)
+                {
+                    var itemCompType = _componentTypeConverter.Convert(registryItem.ComponentTypeDisplay, typeof(string), null, CultureInfo.CurrentCulture) as string;
+                    if (itemCompType != SelectedComponentType) return false;
+                }
+            }
             return true;
         }
     }

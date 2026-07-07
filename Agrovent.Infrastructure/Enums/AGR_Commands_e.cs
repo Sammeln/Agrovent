@@ -1,6 +1,7 @@
 ﻿using Xarial.XCad.Base.Attributes;
 using Xarial.XCad.UI.Commands.Attributes;
 using Xarial.XCad.UI.Commands.Enums;
+using Xarial.XCad.UI.PropertyPage.Attributes;
 
 namespace Agrovent.Infrastructure.Enums
 {
@@ -26,8 +27,11 @@ namespace Agrovent.Infrastructure.Enums
         [Title("Переместить компонент")]
         [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly)]
         MoveComponentWithTriade,
+
+        [Title("Сохранить файлы в хранилище")]
+        CopyFilesToStorage,
         
-        [Title("Тестовая команда")]
-        TestCommand
+        [Title("Сохранить файлы в производство")]
+        CopyFilesToProd
     }
 }

@@ -98,7 +98,14 @@
     
     <!-- Стиль для TextBox (только чтение) -->
     <Style x:Key="ReadOnlyTextBox" BasedOn="{StaticResource ModernTextBox}" TargetType="TextBox">
-        <Setter Property="BorderBrush" Value="#F5F5F5"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Background" Value="#F5F5F5"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+    </Style>
+    
+    <!-- Стиль для TextBox (только чтение) -->
+    <Style x:Key="DG_ReadOnlyTextBox" BasedOn="{StaticResource ModernTextBox}" TargetType="TextBox">
+        <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Background" Value="#F5F5F5"/>
         <Setter Property="IsReadOnly" Value="True"/>
     </Style>
@@ -153,17 +160,46 @@
         <Setter Property="IsReadOnly" Value="True"/>
         <Setter Property="SelectionMode" Value="Single"/>
         <Setter Property="SelectionUnit" Value="FullRow"/>
-        <Setter Property="GridLinesVisibility" Value="None"/>
-        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="RowBackground" Value="White"/>
-        <Setter Property="AlternatingRowBackground" Value="#F5F5F5"/>
+        <Setter Property="RowBackground" Value="#F5F5F5"/>
         <Setter Property="HeadersVisibility" Value="Column"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="LightGray"/>
         <Setter Property="Margin" Value="0,8,0,0"/>
-        <Setter Property="MaxHeight" Value="300"/>
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
         <Setter Property="ColumnHeaderStyle" Value="{StaticResource PropertiesDataGridHeader}"/>
     </Style>
+
+
+
+    <!-- Стиль для TextBox (только чтение) -->
+    <Style x:Key="DGComponentsRegistry_ReadOnlyTextBox" BasedOn="{StaticResource ModernTextBox}" TargetType="TextBox">
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="white"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+    </Style>
+
+
+    <Style x:Key="ComponentsRegistryDataGrid" TargetType="DataGrid">
+        <Setter Property="AutoGenerateColumns" Value="False"/>
+        <Setter Property="CanUserAddRows" Value="False"/>
+        <Setter Property="CanUserDeleteRows" Value="False"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="SelectionMode" Value="Single"/>
+        <Setter Property="SelectionUnit" Value="FullRow"/>
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="RowBackground" Value="White"/>
+        <Setter Property="HeadersVisibility" Value="Column"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="LightGray"/>
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ColumnHeaderStyle" Value="{StaticResource PropertiesDataGridHeader}"/>
+    </Style>
+    
+    
+
 
     <!-- Стиль для статистических блоков -->
     <Style x:Key="StatBlockStyle" TargetType="Border">

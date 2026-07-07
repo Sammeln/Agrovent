@@ -9,7 +9,6 @@ using Xarial.XCad.SolidWorks;
 using System.Diagnostics;
 using System.Windows.Input;
 using AGR_PropManager.Infrastructure.Commands;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Interfaces;
 
 namespace Agrovent.ViewModels.Specification
@@ -34,17 +33,17 @@ namespace Agrovent.ViewModels.Specification
             {
                 if (_component is AGR_PartComponentVM part)
                 {
-                    BaseMaterial = part.BaseMaterial;
-                    BasePaint = part.Paint;
+                    _BaseMaterial = part.BaseMaterial;
+                    _BasePaint = part.Paint;
                     //PaintName = part.Paint?.Name;
                 }
                 if (_component is AGR_AssemblyComponentVM assembly)
                 {
-                    //PaintName = assembly.Paint?.Name;
+                    _BasePaint = assembly.Paint;
                 }
             }
-            AvaArticle = _component.AvaArticle;
-            ComponentAvaType = _component.AvaType;
+            _AvaArticle = _component.AvaArticle;
+            _ComponentAvaType = _component.AvaType;
         }
 
         #region Property - IsSelected
@@ -57,7 +56,7 @@ namespace Agrovent.ViewModels.Specification
         #endregion 
         public string Name => _component.Name;
         public string ConfigName => _component.ConfigName;
-        public string PartNumber => Component.AvaType == AGR_AvaType_e.Purchased ? Component.AvaArticle?.Article.ToString() : _component.PartNumber;
+        public string PartNumber => _component.PartNumber;
         public int Quantity => _quantity;
         public AGR_ComponentType_e ComponentType
         {
@@ -92,10 +91,29 @@ namespace Agrovent.ViewModels.Specification
                 Set(ref _AvaArticle, value);
                 _component.AvaArticle = value;
                 OnPropertyChanged(nameof(Article));
+                OnPropertyChanged(nameof(ArticleName));
                 OnPropertyChanged(nameof(PartnumberOrArticle));
             }
         }
         #endregion
+        public string Article
+        {
+            get
+            {
+                if (_component.ComponentType == AGR_ComponentType_e.Purchased)
+                {
+                    if (AvaArticle != null)
+                    {
+                        return $"Артикул№{AvaArticle.Article}\n{AvaArticle.Name}";
+                    }
+                }
+                return null;
+            }
+        }
+        public string ArticleName
+        {
+            get => AvaArticle != null ? AvaArticle.Name : "";
+        }
 
         // Общие свойства для деталей
 
@@ -114,10 +132,26 @@ namespace Agrovent.ViewModels.Specification
                     part.BaseMaterial = value;
                 }
                 OnPropertyChanged(nameof(MaterialName));
+                OnPropertyChanged(nameof(MaterialArticle));
             }
         }
-        #endregion 
+        #endregion
 
+        public string MaterialArticle
+        {
+            get
+            {
+                if (ComponentAvaType == AGR_AvaType_e.Purchased) return string.Empty;
+                else
+                {
+                    if (BaseMaterial?.AvaModel != null)
+                    {
+                        return $"Артикул№{BaseMaterial.AvaModel.Article}";
+                    }
+                    return string.Empty;
+                }
+            }
+        }
         public string MaterialName
         {
             get
@@ -127,9 +161,9 @@ namespace Agrovent.ViewModels.Specification
                 {
                     if (BaseMaterial?.AvaModel != null)
                     {
-                        return $"Артикул {BaseMaterial.AvaModel.Article}\n{BaseMaterial.Name}";
+                        return BaseMaterial.Name;
                     }
-                    return BaseMaterial?.Name ?? string.Empty;
+                    return string.Empty;
                 }
             }
         }
@@ -166,10 +200,10 @@ namespace Agrovent.ViewModels.Specification
                     assem.Paint = value;
                 }
                 OnPropertyChanged(nameof(PaintName));
+                OnPropertyChanged(nameof(PaintArticle));
             }
         }
         #endregion 
-
         public string PaintName
         {
             get
@@ -177,16 +211,31 @@ namespace Agrovent.ViewModels.Specification
                 if (ComponentAvaType == AGR_AvaType_e.Purchased) return string.Empty;
                 else
                 {
-
                     if (BasePaint?.AvaModel != null)
                     {
-                        return $"Артикул {BasePaint.AvaModel.Article}\n{BasePaint.Name}";
+                        return BasePaint.Name;
                     }
                     if (BasePaint != null) return BasePaint.Name;
                     else return string.Empty;
                 }
             }
         }
+        public string PaintArticle
+        {
+            get
+            {
+                if (ComponentAvaType == AGR_AvaType_e.Purchased) return string.Empty;
+                else
+                {
+                    if (BasePaint?.AvaModel != null)
+                    {
+                        return $"Артикул№{BasePaint.AvaModel.Article}";
+                    }
+                    else return string.Empty;
+                }
+            }
+        }
+
         #endregion
 
         // Свойство для толщины (только для листовых деталей)
@@ -208,21 +257,6 @@ namespace Agrovent.ViewModels.Specification
         }
 
         // Свойство для артикула (только для покупных)
-        public string Article
-        {
-            get
-            {
-                if (_component.ComponentType == AGR_ComponentType_e.Purchased)
-                {
-                    if(AvaArticle != null)
-                    {
-                        return $"Артикул№{AvaArticle.Article}\n{AvaArticle.Name}";
-                    }
-                }
-                return null;
-            }
-        }
-
 
         #region Property - PartnumberOrArticle
         public string PartnumberOrArticle
@@ -231,9 +265,32 @@ namespace Agrovent.ViewModels.Specification
             {
                 if (_component.ComponentType == AGR_ComponentType_e.Purchased)
                 {
-                    return Article;
+                    if (AvaArticle != null)
+                    {
+                        return $"Артикул№{AvaArticle.Article}";
+                    }
                 }
-                return PartNumber;
+                else
+                {
+                    if (AvaArticle != null)
+                    {
+                        if (!string.IsNullOrEmpty(_component.PartNumber))
+                        {
+                            return $"p/n {_component.PartNumber}\nАртикул№{AvaArticle.Article}";
+                        }
+                    }
+                    else
+                    {
+                        if (true)
+                        {
+                            if (!string.IsNullOrEmpty(_component.PartNumber))
+                            {
+                                return $"p/n {_component.PartNumber}";
+                            }
+                        }
+                    }
+                }
+                return string.Empty;
             }
         }
         #endregion 
@@ -241,7 +298,6 @@ namespace Agrovent.ViewModels.Specification
         // Свойства для форматированного отображения
         public string MaterialInfo => MaterialName != null ? $"{MaterialName} ({MaterialCount:F2})" : null;
         public string QuantityString => Quantity.ToString();
-        public int HashSum => Component.CalculateComponentHash();
         public byte[] Preview => Component.Preview;
 
     }

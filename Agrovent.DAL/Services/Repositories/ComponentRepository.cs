@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces.Components;
 using Agrovent.Infrastructure.Interfaces.Specification;
@@ -12,11 +11,14 @@ using Xarial.XCad.Documents;
 using Xarial.XCad.SolidWorks.Documents;
 using Agrovent.ViewModels.Windows;
 using System.Windows.Forms;
-using Agrovent.DAL.Entities.TechProcess;
-using Agrovent.DAL.Entities.Base;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities;
 using AgroventInfrastructure.Interfaces.Entities.TechProcess;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Entities.TechProcess;
+using Agrovent.Infrastructure;
+using System.Data;
 
 namespace Agrovent.DAL.Services.Repositories
 {
@@ -28,15 +30,21 @@ namespace Agrovent.DAL.Services.Repositories
         Task<ComponentVersion?> GetLatestComponentVersion(string partNumber);
 
         // Создание/обновление компонента (без транзакций - Unit of Work управляет транзакциями)
+        Task<Component> CreateNewComponent(IAGR_BaseComponent component);
+        Task<bool> CreateNewComponents(List<IAGR_BaseComponent> components);
+
         Task<ComponentVersion> SaveComponent(IAGR_BaseComponent component, int hashSum);
 
         // Поиск компонента по хешу
         Task<ComponentVersion?> FindComponentByHash(int hashSum);
+        Task<ComponentVersion?> FindComponentByHash(int hashSum, string partnumber);
 
         // Получение структуры сборки
         Task<List<AssemblyStructure>> GetAssemblyStructure(string assemblyPartNumber, int version);
         Task SaveAssemblyStructure(IAGR_BaseComponent assembly, IEnumerable<IAGR_SpecificationItem> components);
         Task<List<AssemblyStructure>> GetAssemblyStructureRecursive(string assemblyPartNumber, int version);
+        Task<AssemblyStructure?> GetExistingAssemblyStructure(ComponentVersion parentComponentVersion, ComponentVersion childComponentVersion, int quantity);
+        Task<List<ComponentVersion>> GetRootAssembliesForChildAsync(ComponentVersion childCV);
 
         // Статистика
         Task<int> GetComponentCount();
@@ -58,7 +66,6 @@ namespace Agrovent.DAL.Services.Repositories
         Task<List<TemplateOperation>> GetAllTemplateOperationsAsync();
         Task<Dictionary<string, AvaArticleModel>> GetAvaArticlesByNameAsync(List<string> names);
         Task<AvaArticleModel?> GetAvaArticleByArticleNumberAsync(int articleNumber);
-
     }
     public class ComponentRepository : IAGR_ComponentRepository
     {
@@ -101,6 +108,10 @@ namespace Agrovent.DAL.Services.Repositories
                         .ThenInclude(p => p.AvaArticle)
                     .Include(c => c.Versions)
                         .ThenInclude(v => v.Material)
+                        .ThenInclude(m => m.MaterialAvaArticle)
+                    .Include(c => c.Versions)
+                        .ThenInclude(v => v.Material)
+                        .ThenInclude(m => m.PaintAvaArticle)
                     .Include(c => c.Versions)
                         .ThenInclude(v => v.Files)
                     .Include(c => c.Versions)
@@ -155,8 +166,10 @@ namespace Agrovent.DAL.Services.Repositories
                 var cv = component.Versions
                     .OrderByDescending(v => v.Version)
                     .FirstOrDefault();
-
-                cv.ParentAssemblies = await GetAssembliesUsedComponent(cv);
+                if (cv != null)
+                {
+                    cv.ParentAssemblies = await GetAssembliesUsedComponent(cv);
+                }
 
                 return cv;
             }
@@ -170,12 +183,86 @@ namespace Agrovent.DAL.Services.Repositories
         #endregion
 
         #region Создание/обновление компонента
+        private async Task<string> GenerateNewPartNumberAsync_Seq()
+        {
+            const int maxNumber = 9999999;
+
+            // Получаем физическое соединение с БД из EF Core контекста
+            var connection = _context.Database.GetDbConnection();
+
+            // Открываем соединение, если оно закрыто (EF Core обычно сам управляет этим, 
+            // но для явных ADO.NET запросов лучше подстраховаться)
+            bool needClose = _context.Database.GetDbConnection().State != ConnectionState.Open ? true : false;
+            if (needClose)
+            {
+                await connection.OpenAsync();
+            }
+
+            try
+            {
+                using var command = connection.CreateCommand();
+                // Запрашиваем следующее значение из нашей последовательности
+                command.CommandText = "SELECT nextval('part_number_seq')";
+
+                var result = await command.ExecuteScalarAsync();
+
+                if (result == null || result == DBNull.Value)
+                {
+                    throw new InvalidOperationException("БД вернула пустое значение для Sequence.");
+                }
+
+                int nextNumber = Convert.ToInt32(result);
+
+                if (nextNumber > maxNumber)
+                {
+                    throw new InvalidOperationException("Достигнут максимальный лимит 9999999.");
+                }
+
+                // Форматируем в 7-значную строку с нулями
+                return nextNumber.ToString("D7");
+            }
+            finally
+            {
+                // Закрываем соединение, если мы открывали его вручную
+                if (needClose)
+                {
+                    await connection.CloseAsync();
+                }
+            }
+        }
+        private static readonly SemaphoreSlim _dbLock = new SemaphoreSlim(1, 1);
+
+        public async Task<Component> CreateNewComponent(IAGR_BaseComponent component)
+        {
+            var _component = new Component
+            {
+                CreatedAt = DateTime.UtcNow,
+                PartNumber = component.PartNumber // PartNumber уже сгенерирован заранее!
+            };
+            _context.Components.Add(_component);
+
+            return _component;
+        }
+        public async Task<bool> CreateNewComponents(List<IAGR_BaseComponent> components)
+        {
+            foreach (var item in components)
+            {
+                var _component = new Component
+                {
+                    CreatedAt = DateTime.UtcNow,
+                    PartNumber = item.PartNumber // PartNumber уже сгенерирован заранее!
+                };
+                _context.Components.Add(_component);
+            }
+            return true;
+        }
 
         public async Task<ComponentVersion> SaveComponent(IAGR_BaseComponent component, int hashSum)
         {
             try
             {
                 var pn = component.PartNumber;
+                Component existingComponent = default;
                 _logger.LogInformation($"Подготовка к сохранению компонента: {component.Name} {component.PartNumber}, HashSum: {hashSum}");
                 _saveProgress.AddLogMessage($"Подготовка к сохранению компонента: {component.Name} {component.PartNumber}, HashSum: {hashSum}");
                 // Генерация PartNumber, если он пуст 
@@ -183,16 +270,20 @@ namespace Agrovent.DAL.Services.Repositories
                 {
                     _logger.LogDebug("PartNumber компонента пуст. Генерация нового...");
                     _saveProgress.AddLogMessage("PartNumber компонента пуст. Генерация нового...");
-                    
-                    component.PartNumber = await GenerateNewPartNumberAsync();
+
+                    //existingComponent = await CreateNewComponent(component);
+
+                    //component.PartNumber = await GenerateNewPartNumberAsync_Seq();
                     _logger.LogInformation($"Сгенерирован PartNumber: {component.PartNumber}");
                     _saveProgress.AddLogMessage($"Сгенерирован PartNumber: {component.PartNumber}");
 
                     //component.SwDocument.Save();
                 }
-
+                else
+                {
+                    existingComponent = await GetComponentByPartNumber(component.PartNumber);
+                }
                 // 1. Проверяем существование компонента по PartNumber
-                var existingComponent = await GetComponentByPartNumber(component.PartNumber);
 
                 if (existingComponent == null)
                 {
@@ -218,14 +309,14 @@ namespace Agrovent.DAL.Services.Repositories
                         };
                         _context.Components.Add(existingComponent);
                         // Сохраняем сразу, чтобы получить Id
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation($"Создан компонент с Id: {existingComponent.Id}");
-                        _saveProgress.AddLogMessage($"Создан компонент с Id: {existingComponent.Id}");
+                        //await _context.SaveChangesAsync();
+                        _logger.LogInformation($"Создан компонент: {existingComponent.PartNumber}");
+                        _saveProgress.AddLogMessage($"Создан компонент: {existingComponent.PartNumber}");
                     }
                 }
 
                 // 2. Проверяем существование версии по хешу
-                var existingVersion = await FindComponentByHash(hashSum);
+                var existingVersion = await FindComponentByHash(hashSum, component.PartNumber);
                 if (existingVersion != null)
                 {
                     _logger.LogInformation($"Версия уже существует: {component.Name} {component.PartNumber} v{existingVersion.Version}");
@@ -233,6 +324,20 @@ namespace Agrovent.DAL.Services.Repositories
                     _saveProgress.AddLogMessage("============================================================");
 
                     return existingVersion;
+                }
+                if (existingVersion == null)
+                {
+                    existingVersion = existingComponent.Versions
+                        .OrderByDescending(x => x.Version)
+                        .FirstOrDefault(x => x.HashSum == hashSum);
+
+                    if (existingVersion != null)
+                    {
+                        _logger.LogInformation($"Версия уже существует: {component.Name} {component.PartNumber} v{existingVersion.Version}");
+                        _saveProgress.AddLogMessage($"Версия уже существует: {component.Name} {component.PartNumber} v{existingVersion.Version}");
+                        _saveProgress.AddLogMessage("============================================================");
+                        return existingVersion;
+                    }
                 }
 
                 // 3. Определяем следующую версию
@@ -247,7 +352,8 @@ namespace Agrovent.DAL.Services.Repositories
                 if (_currentUser == null)
                 {
                 }
-
+                var mAvaArticle = component.AvaArticle as AvaArticleModel;
+                
                 var componentVersion = new ComponentVersion
                 {
                     Component = existingComponent,
@@ -256,12 +362,13 @@ namespace Agrovent.DAL.Services.Repositories
                     PreviewImage = component.Preview,
                     Name = component.Name,
                     ConfigName = component.ConfigName,
-                    AvaArticle = component.AvaArticle as AvaArticleModel,
+                    AvaArticle = mAvaArticle,
+                    AvaArticleArticle = mAvaArticle?.Article,
                     ComponentType = component.ComponentType,
                     AvaType = component.AvaType,
                     CreatedAt = DateTime.UtcNow,
-                    SavedByUser = _currentUser != null 
-                        ? await GetOrCreateUserAsync(_currentUser) 
+                    SavedByUser = _currentUser != null
+                        ? await GetOrCreateUserAsync(_currentUser)
                         : null
                 };
 
@@ -278,7 +385,7 @@ namespace Agrovent.DAL.Services.Repositories
 
                 component.HashSum = hashSum;
 
-                await _context.SaveChangesAsync();
+                //await _context.SaveChangesAsync();
 
                 _logger.LogInformation($"Компонент сохранен: {component.PartNumber} v{nextVersion}");
                 _saveProgress.AddLogMessage($"Компонент сохраненен: {component.PartNumber} v{nextVersion}");
@@ -373,7 +480,7 @@ namespace Agrovent.DAL.Services.Repositories
             }
             // Добавляем ведущие нули, если меньше 7
             return cleaned.PadLeft(7, '0');
-        } 
+        }
         #endregion
 
         #region Поиск компонента по хешу
@@ -389,6 +496,28 @@ namespace Agrovent.DAL.Services.Repositories
                     .Include(v => v.Properties)
                     .Include(v => v.Material)
                     .Include(v => v.Files)
+                    .FirstOrDefaultAsync(v => v.HashSum == hashSum);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при поиске компонента по хешу: {hashSum}");
+                //System.Windows.Forms.MessageBox.Show(ex.Message);
+                throw;
+
+            }
+        }
+        public async Task<ComponentVersion?> FindComponentByHash(int hashSum, string partnumber)
+        {
+            try
+            {
+                _logger.LogDebug($"Поиск компонента по хешу: {hashSum}");
+
+                return await _context.ComponentVersions
+                    .Include(v => v.Component)
+                    .Include(v => v.Properties)
+                    .Include(v => v.Material)
+                    .Include(v => v.Files)
+                    .Where(c => c.Component.PartNumber == partnumber)
                     .FirstOrDefaultAsync(v => v.HashSum == hashSum);
             }
             catch (Exception ex)
@@ -418,7 +547,7 @@ namespace Agrovent.DAL.Services.Repositories
                 }
 
 
-                
+
                 var list = await _context.AssemblyStructures
                     .Include(s => s.ParentComponentVersion)
                         .ThenInclude(pv => pv.Component)
@@ -445,17 +574,37 @@ namespace Agrovent.DAL.Services.Repositories
                 throw;
             }
         }
+
+        public async Task<AssemblyStructure?> GetExistingAssemblyStructure(ComponentVersion parentComponentVersion, ComponentVersion childComponentVersion, int quantity)
+        {
+            var structure = await _context.AssemblyStructures.FirstOrDefaultAsync(
+                c => c.ParentComponentVersionId == parentComponentVersion.Id
+                    && c.ChildComponentVersionId == childComponentVersion.Id
+                    && c.Quantity == quantity);
+
+            return structure;
+
+        }
         public async Task<List<AssemblyStructure>> GetAssemblyStructureRecursive(string assemblyPartNumber, int version)
         {
 
 
             var directChildren = await _context.AssemblyStructures
+                .Include(s => s.ParentComponentVersion)
+                    .ThenInclude(cv => cv.Material)
+                    .ThenInclude(m => m.PaintAvaArticle)
                 .Include(s => s.ChildComponentVersion)
                     .ThenInclude(cv => cv.Component)
                 .Include(s => s.ChildComponentVersion)
                     .ThenInclude(cv => cv.Properties)
                 .Include(s => s.ChildComponentVersion)
+                    .ThenInclude(cv => cv.Files)
+                .Include(s => s.ChildComponentVersion)
                     .ThenInclude(cv => cv.Material)
+                    .ThenInclude(m => m.MaterialAvaArticle)
+                .Include(s => s.ChildComponentVersion)
+                    .ThenInclude(cv => cv.Material)
+                    .ThenInclude(m => m.PaintAvaArticle)
                 .Include(s => s.ChildComponentVersion)
                     .ThenInclude(cv => cv.AvaArticle)
                 .Where(s => s.ParentComponentVersion.Component.PartNumber == assemblyPartNumber
@@ -488,7 +637,7 @@ namespace Agrovent.DAL.Services.Repositories
                 var assemblyHash = assembly.CalculateComponentHash(); //(assembly as IAGR_BaseComponent);
                 var assemblyVersion = await SaveComponent(assembly, assemblyHash);
 
-               // 3. Сохраняем новую структуру рекурсивно
+                // 3. Сохраняем новую структуру рекурсивно
                 await SaveAssemblyStructureRecursive(assemblyVersion, components.ToList(), null, 0);
 
                 _logger.LogInformation($"Структура сборки подготовлена к сохранению: {assemblyVersion.Name} v{assemblyVersion.Version}");
@@ -499,7 +648,7 @@ namespace Agrovent.DAL.Services.Repositories
                 throw;
             }
         }
-     
+
         private async Task SaveAssemblyStructureRecursive(
             ComponentVersion assemblyVersion,
             IList<IAGR_SpecificationItem> components,
@@ -522,22 +671,28 @@ namespace Agrovent.DAL.Services.Repositories
                 //    ParentStructure = parent,
                 //    OrderIndex = orderIndex++
                 //};
-                var structure = new AssemblyStructure
+
+                var existStructure = await GetExistingAssemblyStructure(assemblyVersion, componentVersion, item.Quantity);
+
+                if (existStructure == null)
                 {
-                    ParentComponentVersion = assemblyVersion,
-                    ChildComponentVersion = componentVersion,
-                    Quantity = item.Quantity,
-                    Order = orderIndex++
-                };
+                    existStructure = new AssemblyStructure
+                    {
+                        ParentComponentVersion = assemblyVersion,
+                        ChildComponentVersion = componentVersion,
+                        Quantity = item.Quantity,
+                        Order = orderIndex++
+                    };
+                    _context.AssemblyStructures.Add(existStructure);
+                }
 
 
-                _context.AssemblyStructures.Add(structure);
 
                 // Если компонент - сборка, рекурсивно обрабатываем его структуру
                 if (item.Component is IAGR_Assembly childAssembly)
                 {
                     var childComponents = childAssembly.GetChildComponents().ToList();
-                    await SaveAssemblyStructureRecursive(componentVersion, childComponents, structure, 0);
+                    await SaveAssemblyStructureRecursive(componentVersion, childComponents, existStructure, 0);
                 }
             }
         }
@@ -574,11 +729,64 @@ namespace Agrovent.DAL.Services.Repositories
         }
         public async Task<List<ComponentVersion>> GetAssembliesUsedComponent(ComponentVersion childComponent)
         {
-            return  await _context.AssemblyStructures
+
+            return await _context.AssemblyStructures
+                .Include(c => c.ParentComponentVersion.Component)
+                .Include(c => c.ParentComponentVersion.SavedByUser)
+                .Include(c => c.ParentComponentVersion.Files)
                 .Where(c => c.ChildComponentVersionId == childComponent.Id)
                 .Select(x => x.ParentComponentVersion)
                 .ToListAsync();
         }
+        public async Task<List<ComponentVersion>> GetRootAssembliesForChildAsync(ComponentVersion childCV)
+        {
+            var visitedNodes = new HashSet<ComponentVersion>();
+
+            var rootAssemblyIds = new HashSet<ComponentVersion>();
+
+            await FindRootsRecursiveAsync(childCV, visitedNodes, rootAssemblyIds);
+
+            if (!rootAssemblyIds.Any())
+            {
+                return new List<ComponentVersion>();
+            }
+
+            var roots = rootAssemblyIds.ToList();
+            //await _context.ComponentVersions
+            //.Where(c => rootAssemblyIds.Contains(c))
+            //.ToListAsync();
+
+            return roots;
+        }
+
+        private async Task FindRootsRecursiveAsync(ComponentVersion currentChildCV, HashSet<ComponentVersion> visitedNodes, HashSet<ComponentVersion> rootAssemblyIds)
+        {
+            if (visitedNodes.Contains(currentChildCV))
+            {
+                return;
+            }
+
+            visitedNodes.Add(currentChildCV);
+
+            var parents = await _context.AssemblyStructures
+                .Where(assem => assem.ChildComponentVersion == currentChildCV)
+                .Select(assem => assem.ParentComponentVersion)
+                .ToListAsync();
+
+            // Если родителей нет, значит текущий узел (currentChildId) является корневой сборкой
+            if (!parents.Any())
+            {
+                rootAssemblyIds.Add(currentChildCV);
+                return;
+            }
+
+            // Если родители есть, рекурсивно идем вверх для каждого родителя
+            foreach (var parentId in parents)
+            {
+                await FindRootsRecursiveAsync(parentId, visitedNodes, rootAssemblyIds);
+            }
+        }
+
 
         #endregion
 
@@ -588,11 +796,21 @@ namespace Agrovent.DAL.Services.Repositories
         {
             try
             {
+                Component existingComponent = default;
                 _logger.LogDebug($"Проверка изменений компонента: {component.PartNumber}");
-
-                var hash = component.CalculateComponentHash();
-                var existingVersion = await FindComponentByHash(hash);
-                return existingVersion == null;
+                var partnumber = component.PartNumber;
+                if (!string.IsNullOrEmpty(partnumber))
+                {
+                    existingComponent = await GetComponentByPartNumber(partnumber);
+                    if (existingComponent != null)
+                    {
+                        var hash = component.CalculateComponentHash();
+                        var existingVersion = await FindComponentByHash(hash, partnumber);
+                        return existingVersion != null;
+                    }
+                    else return false;
+                }
+                return false;
             }
             catch (Exception ex)
             {
@@ -600,15 +818,21 @@ namespace Agrovent.DAL.Services.Repositories
                 throw;
             }
         }
-
         public async Task<ComponentVersion?> GetExistingVersion(IAGR_BaseComponent component)
         {
             try
             {
                 _logger.LogDebug($"Поиск существующей версии компонента: {component.PartNumber}");
 
+                var componentVersions = await _context.ComponentVersions
+                    .Include(c => c.Component)
+                    .Where(c => c.Component.PartNumber == component.PartNumber)
+                    .ToListAsync();
+
+                if (componentVersions.Count == 0) return null;
+
                 var hash = component.CalculateComponentHash();
-                return await FindComponentByHash(hash);
+                return componentVersions.FirstOrDefault(c => c.HashSum == hash);
             }
             catch (Exception ex)
             {
@@ -672,8 +896,12 @@ namespace Agrovent.DAL.Services.Repositories
                 ComponentVersion = componentVersion,
                 BaseMaterial = baseMaterial?.Name,
                 BaseMaterialCount = baseMaterialCount,
+                MaterialAvaArticle = baseMaterial?.AvaModel,
+
                 Paint = paint?.Name,
-                PaintCount = paintCount
+                PaintCount = paintCount,
+                PaintAvaArticle = paint?.AvaModel
+
             };
 
             _context.ComponentMaterials.Add(material);
@@ -689,80 +917,99 @@ namespace Agrovent.DAL.Services.Repositories
             var files = new List<ComponentFile>();
 
             // Текущая модель
+            //if (!string.IsNullOrEmpty(fileComponent.CurrentModelFilePath))
+            //{
+            //    files.Add(new ComponentFile
+            //    {
+            //        ComponentVersion = componentVersion,
+            //        FileType = AGR_FileType_e.CurrentModel,
+            //        FilePath = fileComponent.CurrentModelFilePath,
+            //        LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentModelFilePath),
+            //        FileSize = new FileInfo(fileComponent.CurrentModelFilePath).Length
+            //    });
+            //}
+
+            //// Текущий чертеж
+            //if (!string.IsNullOrEmpty(fileComponent.CurrentDrawFilePath))
+            //{
+            //    files.Add(new ComponentFile
+            //    {
+            //        ComponentVersion = componentVersion,
+            //        FileType = AGR_FileType_e.CurrentDrawing,
+            //        FilePath = fileComponent.CurrentDrawFilePath,
+            //        LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentDrawFilePath),
+            //        FileSize = new FileInfo(fileComponent.CurrentDrawFilePath).Length
+            //    });
+            //}
+
+            // Модель в хранилище
+            //if (!string.IsNullOrEmpty(fileComponent.StorageModelFilePath))
+            //{
+            //    files.Add(new ComponentFile
+            //    {
+            //        ComponentVersion = componentVersion,
+            //        FileType = AGR_FileType_e.StorageModel,
+            //        FilePath = fileComponent.StorageModelFilePath,
+            //        LastModified = File.GetLastWriteTimeUtc(fileComponent.StorageModelFilePath),
+            //        FileSize = new FileInfo(fileComponent.StorageModelFilePath).Length
+            //    });
+            //}
+
+            // Модель в хранилище
+            var storageModelName = component.Name + component.Extension;
+            var storageModelPath = Path.Combine(AGR_Options.StorageRootFolderPath, componentVersion.HashSum.ToString("D10"), storageModelName);
             if (!string.IsNullOrEmpty(fileComponent.CurrentModelFilePath))
             {
+
                 files.Add(new ComponentFile
                 {
                     ComponentVersion = componentVersion,
-                    FileType = AGR_FileType_e.CurrentModel,
-                    FilePath = fileComponent.CurrentModelFilePath,
+                    FileType = AGR_FileType_e.StorageModel,
+                    FilePath = storageModelPath,
                     LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentModelFilePath),
                     FileSize = new FileInfo(fileComponent.CurrentModelFilePath).Length
                 });
             }
 
-            // Текущий чертеж
+            // Чертеж в хранилище
             if (!string.IsNullOrEmpty(fileComponent.CurrentDrawFilePath))
             {
-                files.Add(new ComponentFile
-                {
-                    ComponentVersion = componentVersion,
-                    FileType = AGR_FileType_e.CurrentDrawing,
-                    FilePath = fileComponent.CurrentDrawFilePath,
-                    LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentDrawFilePath),
-                    FileSize = new FileInfo(fileComponent.CurrentDrawFilePath).Length
-                });
-            }
-
-            // Модель в хранилище
-            if (!string.IsNullOrEmpty(fileComponent.StorageModelFilePath))
-            {
-                files.Add(new ComponentFile
-                {
-                    ComponentVersion = componentVersion,
-                    FileType = AGR_FileType_e.StorageModel,
-                    FilePath = fileComponent.StorageModelFilePath,
-                    LastModified = File.GetLastWriteTimeUtc(fileComponent.StorageModelFilePath),
-                    FileSize = new FileInfo(fileComponent.StorageModelFilePath).Length
-                });
-            }
-
-            // Чертеж в хранилище
-            if (!string.IsNullOrEmpty(fileComponent.StorageDrawFilePath))
-            {
-                files.Add(new ComponentFile
-                {
-                    ComponentVersion = componentVersion,
-                    FileType = AGR_FileType_e.StorageDrawing,
-                    FilePath = fileComponent.StorageDrawFilePath,
-                    LastModified = File.GetLastWriteTimeUtc(fileComponent.StorageDrawFilePath),
-                    FileSize = new FileInfo(fileComponent.StorageDrawFilePath).Length
-                });
+                    files.Add(new ComponentFile
+                    {
+                        ComponentVersion = componentVersion,
+                        FileType = AGR_FileType_e.StorageDrawing,
+                        FilePath = Path.ChangeExtension(storageModelPath, "SLDDRW"),
+                        LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentDrawFilePath),
+                        FileSize = new FileInfo(fileComponent.CurrentDrawFilePath).Length
+                    });
             }
 
             // Модель в производстве
-            if (!string.IsNullOrEmpty(fileComponent.ProductionModelFilePath))
+
+            var prodModelName = component.Name + component.Extension;
+            var prodModelPath = Path.Combine(AGR_Options.ProductionRootFolderPath, component.PartNumber, prodModelName);
+            if (!string.IsNullOrEmpty(fileComponent.CurrentModelFilePath))
             {
                 files.Add(new ComponentFile
                 {
                     ComponentVersion = componentVersion,
                     FileType = AGR_FileType_e.ProductionModel,
-                    FilePath = fileComponent.ProductionModelFilePath,
-                    LastModified = File.GetLastWriteTimeUtc(fileComponent.ProductionModelFilePath),
-                    FileSize = new FileInfo(fileComponent.ProductionModelFilePath).Length
+                    FilePath = prodModelPath,
+                    LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentModelFilePath),
+                    FileSize = new FileInfo(fileComponent.CurrentModelFilePath).Length
                 });
             }
 
             // Чертеж в производстве
-            if (!string.IsNullOrEmpty(fileComponent.ProductionDrawFilePath))
+            if (!string.IsNullOrEmpty(fileComponent.CurrentDrawFilePath))
             {
                 files.Add(new ComponentFile
                 {
                     ComponentVersion = componentVersion,
                     FileType = AGR_FileType_e.ProductionDrawing,
-                    FilePath = fileComponent.ProductionDrawFilePath,
-                    LastModified = File.GetLastWriteTimeUtc(fileComponent.ProductionDrawFilePath),
-                    FileSize = new FileInfo(fileComponent.ProductionDrawFilePath).Length
+                    FilePath = Path.ChangeExtension(prodModelPath, "SLDDRW"),
+                    LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentDrawFilePath),
+                    FileSize = new FileInfo(fileComponent.CurrentDrawFilePath).Length
                 });
             }
 
@@ -813,7 +1060,7 @@ namespace Agrovent.DAL.Services.Repositories
 
                 var topLevelAssemblies = await _context.ComponentVersions
                     .Include(cv => cv.Component) // Подгружаем связанный компонент
-                    .Where(cv => cv.ComponentType == (int)AGR_ComponentType_e.Assembly 
+                    .Where(cv => cv.ComponentType == (int)AGR_ComponentType_e.Assembly
                                 && !assembliesInProjects.Contains(cv.Id))
                     .ToListAsync();
 
@@ -938,7 +1185,7 @@ namespace Agrovent.DAL.Services.Repositories
                 throw; // Или возвращаем пустой список, в зависимости от требований
             }
         }
-        
+
         public async Task<List<TemplateOperation>> GetAllTemplateOperationsAsync()
         {
             try
@@ -972,8 +1219,8 @@ namespace Agrovent.DAL.Services.Repositories
             // Пытаемся найти пользователя по полному имени
             var fullName = userDto.FullName;
             var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.FirstName == userDto.FirstName 
-                                       && u.LastName == userDto.LastName 
+                .FirstOrDefaultAsync(u => u.FirstName == userDto.FirstName
+                                       && u.LastName == userDto.LastName
                                        && u.Patronymic == userDto.Patronymic);
 
             if (existingUser != null)

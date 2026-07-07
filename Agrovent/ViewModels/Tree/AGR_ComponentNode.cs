@@ -1,7 +1,7 @@
 ﻿// File: ViewModels/Tree/ComponentNode.cs
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Enums;
 using Agrovent.ViewModels.Base;
+using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 
 namespace Agrovent.ViewModels.Tree

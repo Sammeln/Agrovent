@@ -1,5 +1,4 @@
 ﻿// File: ViewModels/Windows/AGR_SelectAvaArticleVM.cs
-using Agrovent.DAL.Entities.Components; // Для DataContext
 using Agrovent.ViewModels.Base;
 using Microsoft.EntityFrameworkCore; // Для AsNoTracking
 using Microsoft.Extensions.Logging;
@@ -13,7 +12,9 @@ using System.Windows.Input;
 using Agrovent.DAL;
 using Agrovent.Infrastructure.Commands;
 using System.Windows;
-using Agrovent.Infrastructure.Interfaces; // Для ICommand
+using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Enums; // Для ICommand
 
 namespace Agrovent.ViewModels.Windows
 {
@@ -199,7 +200,7 @@ namespace Agrovent.ViewModels.Windows
             set => Set(ref _avaArticles, value);
         }
 
-        // Свойство для текста поиска
+        #region Свойство для текста поиска
         private string? _searchText;
         public string? SearchText
         {
@@ -212,7 +213,8 @@ namespace Agrovent.ViewModels.Windows
                     AddArticleFilter();
                 }
             }
-        }
+        } 
+        #endregion
 
         // Метод загрузки данных из БД
         private void LoadData()
@@ -225,7 +227,10 @@ namespace Agrovent.ViewModels.Windows
                 //var articles = await _dataContext.AvaArticles.AsNoTracking().ToListAsync();
 
 
-                var articles = _dataContext.AvaArticles;
+                var articles = _dataContext.AvaArticles
+                    .Where(x => !x.ArchiveType.Contains("50177"))
+                    .OrderBy(x => x.Article)
+                    .ToList();
                 AvaArticles = new ObservableCollection<IAGR_AvaArticleModel>(articles);
                 Articles_CVS.Source = AvaArticles;
 
@@ -258,7 +263,16 @@ namespace Agrovent.ViewModels.Windows
         // Метод, вызываемый командой AcceptSelectionCommand (OK)
         
         #region AvailableAvaTypes
-        private ObservableCollection<string> _availableAvaTypes = new ObservableCollection<string> { "(Не закупать)", "Постоянная часть", "Продукция", "Комплектующие", "Товар", "Все типы" };
+        private ObservableCollection<string> _availableAvaTypes = 
+            new ObservableCollection<string> 
+            { 
+                AGR_AvaTypeNames.DontBuy,
+                AGR_AvaTypeNames.VirtualComponent,
+                AGR_AvaTypeNames.Production,
+                AGR_AvaTypeNames.Component,
+                AGR_AvaTypeNames.Purchased,
+                AGR_AvaTypeNames.AllTypes
+            };
         public ObservableCollection<string> AvailableAvaTypes 
         {
             get => _availableAvaTypes;
@@ -266,7 +280,7 @@ namespace Agrovent.ViewModels.Windows
         #endregion
 
         #region SelectedAvaType
-        private string? _selectedAvaType = "Все типы";
+        private string? _selectedAvaType = AGR_AvaTypeNames.AllTypes;
         public string? SelectedAvaType
         {
             get => _selectedAvaType;

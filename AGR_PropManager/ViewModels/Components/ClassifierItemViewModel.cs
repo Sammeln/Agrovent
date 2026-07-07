@@ -54,13 +54,22 @@ namespace AGR_PropManager.ViewModels.Components
         }
         #endregion
 
-
-        #region Property - 
+        #region Property - ComponentType
         private AGR_ComponentType_e _ComponentType;
         public AGR_ComponentType_e ComponentType
         {
             get => _ComponentType;
             set => Set(ref _ComponentType, value);
+        }
+        #endregion
+
+
+        #region Property - ComponentAvaType
+        private AGR_AvaType_e _ComponentAvaType;
+        public AGR_AvaType_e ComponentAvaType
+        {
+            get => _ComponentAvaType;
+            set => Set(ref _ComponentAvaType, value);
         }
         #endregion 
 

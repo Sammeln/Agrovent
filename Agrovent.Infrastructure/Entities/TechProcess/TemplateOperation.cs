@@ -1,9 +1,9 @@
 ﻿// File: DAL/Entities/TechProcess/TemplateOperation.cs
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Agrovent.DAL.Entities.Base;
+using AgroventInfrastructure.Entities.Base;
 
-namespace Agrovent.DAL.Entities.TechProcess
+namespace AgroventInfrastructure.Entities.TechProcess
 {
     [Table("TemplateOperations")]
     public class TemplateOperation : BaseEntity
@@ -15,9 +15,9 @@ namespace Agrovent.DAL.Entities.TechProcess
         // Внешний ключ на участок
         public int WorkstationId { get; set; }
         [ForeignKey(nameof(WorkstationId))]
-        public virtual Workstation Workstation { get; set; } = null!; 
+        public virtual Workstation Workstation { get; set; } = null!;
 
-        [Column(TypeName = "decimal(10,4)")] 
+        [Column(TypeName = "decimal(10,4)")]
         public decimal CostPerHour { get; set; }
 
     }

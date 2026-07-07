@@ -5,7 +5,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
 using System.Windows;
 using AGR_PropManager.Views;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.DAL;
 using AGR_PropManager.ViewModels.Windows;
 using Agrovent.DAL.Services.Repositories;

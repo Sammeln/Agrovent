@@ -7,9 +7,10 @@
              xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
              xmlns:local="clr-namespace:Agrovent.Views.Pages"
              xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=AgroventInfrastructure"
-             xmlns:system="clr-namespace:System;assembly=mscorlib"
+             xmlns:system="clr-namespace:System;assembly=mscorlib"            
+             xmlns:components="clr-namespace:Agrovent.ViewModels.Components"
              xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
-             xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=AgroventInfrastructure"
+             xmlns:AGR_converter="clr-namespace:AgroventInfrastructure.AGR_Converters;assembly=AgroventInfrastructure"
              d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_PartComponentVM}}"
              mc:Ignorable="d" 
              d:DesignHeight="800" d:DesignWidth="800">
@@ -20,240 +21,316 @@
                 <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
                 <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-                <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
+            <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
                                 ObjectType="{x:Type system:Enum}">
-                    <ObjectDataProvider.MethodParameters>
-                        <x:Type TypeName="enum:AGR_AvaType_e"/>
-                    </ObjectDataProvider.MethodParameters>
-                </ObjectDataProvider>
+                <ObjectDataProvider.MethodParameters>
+                    <x:Type TypeName="enum:AGR_AvaType_e"/>
+                </ObjectDataProvider.MethodParameters>
+            </ObjectDataProvider>
 
-                <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
-                <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+            <converter:AGR_ComponentDBStateConverter x:Key="ComponentDBStateConverter"/>
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBool"/>
 
-                <!-- Converter для видимости секций в зависимости от типа компонента -->
-                <converter:AGR_ComponentTypeToVisibilityConverter x:Key="ComponentTypeToVisibilityConverter"/>
-                <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <!-- Converter для видимости секций в зависимости от типа компонента -->
+            <converter:AGR_ComponentTypeToVisibilityConverter x:Key="ComponentTypeToVisibilityConverter"/>
+            <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         </ResourceDictionary>
     </UserControl.Resources>
+    <TabControl>
+        <TabItem Header="Данные">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="16" Orientation="Vertical">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="16" Orientation="Vertical">
+                    <!-- Секция: Основная информация -->
+                    <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True">
+                        <Expander.Header>
+                            <TextBlock Text="Основная информация" Style="{StaticResource SectionHeaderStyle}"/>
+                        </Expander.Header>
 
-            <!-- Секция: Основная информация -->
-            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True">
-                <Expander.Header>
-                    <TextBlock Text="Основная информация" Style="{StaticResource SectionHeaderStyle}"/>
-                </Expander.Header>
+                        <StackPanel Orientation="Vertical">
 
-                <StackPanel Orientation="Vertical">
+                            <!-- Секция: Статус в базе данных -->
+                            <TextBlock Text="✓ Компонент сохранён в базе данных" 
+                                Style="{StaticResource SectionHeaderStyle}"
+                                Foreground="Green" 
+                                Visibility="{Binding IsInDatabase, Converter={StaticResource ComponentDBStateConverter}, ConverterParameter=SavedInDataBase }"/>    
 
-                    <!-- Секция: Статус в базе данных -->
-                    <TextBlock Text="✓ Компонент сохранён в базе данных" 
-                           Style="{StaticResource SectionHeaderStyle}"
-                           Foreground="Green" 
-                           Visibility="{Binding IsInDatabase, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            <!-- Секция: Статус в базе данных -->
+                            <TextBlock Text="! Компонент не сохранён в базе данных" 
+                                Style="{StaticResource SectionHeaderStyle}"
+                                Foreground="Orange"
+                                Visibility="{Binding IsInDatabase, Converter={StaticResource ComponentDBStateConverter}, ConverterParameter=NotSavedInDB}"/>
 
-                    <!-- Наименование -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Наименование:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
-                    </DockPanel>
+                            <!-- Секция: Статус в базе данных -->
+                            <TextBlock Text="! Компонент используется в нескольких изделиях!" 
+                                Style="{StaticResource SectionHeaderStyle}"
+                                Foreground="IndianRed"
+                                Visibility="{Binding CanUserEdit, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                    <!-- Тип AVA -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Тип:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
+                            <!-- Наименование -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                                <TextBlock Text="Наименование:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <TextBox Text="{Binding Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}"/>
+                            </DockPanel>
+
+                            <!-- Тип AVA -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                                <TextBlock Text="Тип:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
                                   SelectedItem="{Binding AvaType}"
                                   Style="{StaticResource ModernComboBox}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </DockPanel>
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </DockPanel>
 
-                    <!-- Partnumber -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}"
-                               Visibility="{Binding ComponentType,
-                               Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
-                        <TextBlock Text="Partnumber:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding PartNumber, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ModernTextBox}"/>
-                    </DockPanel>
+                            <!-- Partnumber -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}"
+                               Visibility="{Binding ComponentType,Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                                <TextBlock Text="Partnumber:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <TextBox Text="{Binding PartNumber, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ModernTextBox}">
+                                    <TextBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Создать новый" Command="{Binding SetNewPartnumberCommand}"/>
+                                        </ContextMenu>
+                                    </TextBox.ContextMenu>
+                                </TextBox>
+                            </DockPanel>
 
-                    <!-- Артикул -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
-                               Visibility="{Binding ComponentType,Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=True}">
-                        <TextBlock Text="Артикул:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding AvaArticle.Article, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ModernTextBox}"/>
-                    </DockPanel>
+                            <!-- Артикул -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                                <TextBlock Text="Артикул:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <TextBox Text="{Binding AvaArticle.Article, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ReadOnlyTextBox}">
+                                    <i:Interaction.Triggers>
+                                        <i:EventTrigger EventName="MouseDoubleClick">
+                                            <i:InvokeCommandAction Command="{Binding SelectAvaArticleCommand}"/>
+                                        </i:EventTrigger>
+                                    </i:Interaction.Triggers>
+                                </TextBox>
+                            </DockPanel>
 
-                    <!-- Версия -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                            <!-- Версия -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}" 
                                 Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
-                        <TextBlock Text="Версия:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBlock Text="{Binding Version, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBlock Text="Версия:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <TextBlock Text="{Binding Version, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource ReadOnlyValueStyle}"/>
-                    </DockPanel>
+                            </DockPanel>
 
-                    <!-- Хэш -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" Visibility="Collapsed">
-                        <TextBlock Text="Хэш:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding HashSum, Mode=OneWay}" Style="{StaticResource  ReadOnlyTextBox}"/>
-                    </DockPanel>
-                    <!-- Хэш -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" Visibility="Collapsed">
-                        <TextBlock Text="Хэш(метод):" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding CalcHash, Mode=OneWay}" Style="{StaticResource  ReadOnlyTextBox}"/>
-                    </DockPanel>
+                            <!-- Хэш -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}" Visibility="Collapsed">
+                                <TextBlock Text="Хэш:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <TextBox Text="{Binding ComponentHash, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}"
+                                 Style="{StaticResource ReadOnlyTextBox}"/>
+                            </DockPanel>
 
+                        </StackPanel>
+                    </Expander>
 
-                </StackPanel>
-            </Expander>
-
-            <!-- Секция: Материал (только для не-purchased) -->
-            <Expander  Style="{StaticResource CardStyleExpander}" IsExpanded="True" 
-                        Visibility="{Binding ComponentType,
-                        NotifyOnSourceUpdated=True,
+                    <!-- Секция: Материал (только для не-purchased) -->
+                    <Expander  Style="{StaticResource CardStyleExpander}" IsExpanded="True" 
+                        Visibility="{Binding ComponentType,NotifyOnSourceUpdated=True, 
                         NotifyOnTargetUpdated=True, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
-                <Expander.Header>
-                    <TextBlock Text="Материал и покраска" Style="{StaticResource SectionHeaderStyle}"/>
-                </Expander.Header>
-                <StackPanel>
+                        <Expander.Header>
+                            <TextBlock Text="Материал и покраска" Style="{StaticResource SectionHeaderStyle}"/>
+                        </Expander.Header>
+                        <StackPanel>
 
-                    <!-- Название материала -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Материал:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding BaseMaterial.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
-                            <i:Interaction.Triggers>
-                                <i:EventTrigger EventName="MouseDoubleClick">
-                                    <i:InvokeCommandAction Command="{Binding SelectBaseMaterialCommand}"/>
-                                </i:EventTrigger>
-                            </i:Interaction.Triggers>
-                        </TextBox>
-                    </DockPanel>
+                            <!-- Название материала -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                                <TextBlock Text="Материал:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <TextBox Text="{Binding BaseMaterial.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
+                                    <i:Interaction.Triggers>
+                                        <i:EventTrigger EventName="MouseDoubleClick">
+                                            <i:InvokeCommandAction Command="{Binding SelectBaseMaterialCommand}"/>
+                                        </i:EventTrigger>
+                                    </i:Interaction.Triggers>
+                                </TextBox>
+                            </DockPanel>
 
-                    <!-- Количество материала -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Количество:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding BaseMaterialCount, StringFormat={}{0:F3}}"
+                            <!-- Количество материала -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}" Visibility="Collapsed">
+                                <TextBlock Text="Количество:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <TextBox Text="{Binding BaseMaterialCount, StringFormat={}{0:F3}}"
                                    Style="{StaticResource ModernTextBox}"/>
-                    </DockPanel>
+                            </DockPanel>
 
-                    <!-- Название краски -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Краска:" Style="{StaticResource PropertyLabelStyle}"/>
-                        <TextBox Text="{Binding Paint.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
-                            <i:Interaction.Triggers>
-                                <i:EventTrigger EventName="MouseDoubleClick">
-                                    <i:InvokeCommandAction Command="{Binding SelectPaintCommand}"/>
-                                </i:EventTrigger>
-                            </i:Interaction.Triggers>
-                        </TextBox>
-                    </DockPanel>
+                            <!-- Название краски -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                                <TextBlock Text="Краска:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <TextBox Text="{Binding Paint.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
+                                    <i:Interaction.Triggers>
+                                        <i:EventTrigger EventName="MouseDoubleClick">
+                                            <i:InvokeCommandAction Command="{Binding SelectPaintCommand}"/>
+                                        </i:EventTrigger>
+                                    </i:Interaction.Triggers>
+                                    <TextBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Найти краску" Command="{Binding SelectPaintCommand}"/>
+                                            <MenuItem Header="Очистить" Command="{Binding ClearPaintCommand}"/>
+                                        </ContextMenu>
+                                    </TextBox.ContextMenu>
+                                </TextBox>
+                            </DockPanel>
 
 
-                </StackPanel>
-            </Expander>
+                        </StackPanel>
+                    </Expander>
 
-            <!-- Секция: Пользовательские свойства (только для не-purchased) -->
-            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True" 
+                    <!-- Секция: Пользовательские свойства (только для не-purchased) -->
+                    <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True" 
                     Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
-                <Expander.Header>
-                    <TextBlock Text="Свойства" Style="{StaticResource SectionHeaderStyle}"/>
-                </Expander.Header>
-                <StackPanel>
+                        <Expander.Header>
+                            <TextBlock Text="Свойства" Style="{StaticResource SectionHeaderStyle}"/>
+                        </Expander.Header>
+                        <StackPanel>
 
-                    <DataGrid ItemsSource="{Binding PropertiesCollection.Properties}"  Style="{StaticResource PropertiesDataGrid}"
+                            <DataGrid ItemsSource="{Binding PropertiesCollection.Properties}"  Style="{StaticResource PropertiesDataGrid}"
                               >
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
+                                    <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
 
-                </StackPanel>
-            </Expander>
+                        </StackPanel>
+                    </Expander>
 
-            <!-- Секция: Файлы (только для не-purchased) -->
-            <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True" 
+                    <!-- Секция: Файлы (только для не-purchased) -->
+                    <Expander Style="{StaticResource CardStyleExpander}" IsExpanded="True" 
                     Visibility="{Binding ComponentType, Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
-                <Expander.Header>
-                    <TextBlock Text="Файлы" Style="{StaticResource SectionHeaderStyle}"/>
-                </Expander.Header>
-                <StackPanel>
+                        <Expander.Header>
+                            <TextBlock Text="Файлы" Style="{StaticResource SectionHeaderStyle}"/>
+                        </Expander.Header>
+                        <StackPanel>
 
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}">
-                        <TextBlock Text="Модель (текущая):" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
-                        <TextBox Text="{Binding CurrentModelFilePath, Mode=OneWay}" 
+                            <!-- Открытый файл -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}">
+                                <TextBlock Text="Открытый файл:" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
+                                <TextBox Text="{Binding CurrentModelFilePath, Mode=OneWay}" 
                                  Style="{StaticResource ReadOnlyTextBox}"
                                  TextWrapping="NoWrap">
-                            <i:Interaction.Triggers>
-                                <i:EventTrigger EventName="MouseDoubleClick">
-                                    <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
+                                    <i:Interaction.Triggers>
+                                        <i:EventTrigger EventName="MouseDoubleClick">
+                                            <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
                                                            CommandParameter="{Binding CurrentModelFilePath}"/>
-                                </i:EventTrigger>
-                            </i:Interaction.Triggers>
-                        </TextBox>
-                    </DockPanel>
+                                        </i:EventTrigger>
+                                    </i:Interaction.Triggers>
+                                </TextBox>
+                            </DockPanel>
 
 
-                    <!-- Хранилище модели -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                            <!-- Файл в хранилище -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}" 
                                Visibility="{Binding StorageModelFilePath, Converter={StaticResource NullToVisibilityConverter}}">
-                        <TextBlock Text="Модель (хранилище):" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
-                        <TextBox Text="{Binding StorageModelFilePath, Mode=OneWay}" 
+                                <TextBlock Text="Файл в хранилище:" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
+                                <TextBox Text="{Binding StorageModelFilePath, Mode=OneWay}" 
                                                 Style="{StaticResource ReadOnlyTextBox}"
                                                 TextWrapping="NoWrap">
-                            <i:Interaction.Triggers>
-                                <i:EventTrigger EventName="MouseDoubleClick">
-                                    <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
+                                    <i:Interaction.Triggers>
+                                        <i:EventTrigger EventName="MouseDoubleClick">
+                                            <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
                                                            CommandParameter="{Binding StorageModelFilePath}"/>
-                                </i:EventTrigger>
-                            </i:Interaction.Triggers>
-                        </TextBox>
-                    </DockPanel>
+                                        </i:EventTrigger>
+                                    </i:Interaction.Triggers>
+                                </TextBox>
+                            </DockPanel>
 
 
-                    <!-- Хранилище модели -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
+                            <!-- Файл в папке производства -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}" 
                                Visibility="{Binding ProductionModelFilePath, Converter={StaticResource NullToVisibilityConverter}}">
-                        <TextBlock Text="Модель (Производство):" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
-                        <TextBox Text="{Binding ProductionModelFilePath, Mode=OneWay}" 
+                                <TextBlock Text="Файл в папке производства:" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
+                                <TextBox Text="{Binding ProductionModelFilePath, Mode=OneWay}" 
                                                 Style="{StaticResource ReadOnlyTextBox}"
                                                 TextWrapping="NoWrap">
-                            <i:Interaction.Triggers>
-                                <i:EventTrigger EventName="MouseDoubleClick">
-                                    <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
+                                    <i:Interaction.Triggers>
+                                        <i:EventTrigger EventName="MouseDoubleClick">
+                                            <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
                                                            CommandParameter="{Binding ProductionModelFilePath}"/>
-                                </i:EventTrigger>
-                            </i:Interaction.Triggers>
-                        </TextBox>
-                    </DockPanel>
+                                        </i:EventTrigger>
+                                    </i:Interaction.Triggers>
+                                </TextBox>
+                            </DockPanel>
 
-                    <!-- Хранилище модели -->
-                    <DockPanel Style="{StaticResource PropertyGroupStyle}" 
-                        Visibility="{Binding UnfoldPath, Converter={StaticResource NullToVisibilityConverter}}">
-                        <TextBlock Text="Модель (Производство):" Style="{StaticResource PropertyLabelStyle}" TextWrapping="Wrap"/>
-                        <TextBox Text="{Binding UnfoldPath, Mode=OneWay}" 
-                            Style="{StaticResource ReadOnlyTextBox}"
-                            TextWrapping="NoWrap">
-                            <i:Interaction.Triggers>
-                                <i:EventTrigger EventName="MouseDoubleClick">
-                                    <i:InvokeCommandAction Command="{Binding OpenFolderCommand}"
-                                       CommandParameter="{Binding UnfoldPath}"/>
-                                </i:EventTrigger>
-                            </i:Interaction.Triggers>
-                        </TextBox>
-                    </DockPanel>
-
-
+                        </StackPanel>
+                    </Expander>
                 </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+        <TabItem Header="Где используется">
+            <TabItem.Resources>
+                <DataTemplate x:Key="PreviewImageTemplate">
+                    <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform" />
+                </DataTemplate>
 
-            </Expander>
+                <!-- ContextMenu -->
+                <ContextMenu  x:Key="RowMenu" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <MenuItem 
+                    Header="Открыть" CommandParameter="{Binding}"
+                    Command="{Binding DataContext.OpenComponentCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                    <MenuItem 
+                    Header="Вставить в сборку" CommandParameter="{Binding}"
+                    Command="{Binding DataContext.AddToAssemblyCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" Visibility="Collapsed"/>
+                    <MenuItem 
+                    Header="Подробная информация" CommandParameter="{Binding}"
+                    Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" Visibility="Collapsed" />
+                </ContextMenu>
 
-        </StackPanel>
-    </ScrollViewer>
+                <Style x:Key="DefaultRowStyle" TargetType="{x:Type DataGridRow}">
+                    <Setter Property="ContextMenu" Value="{StaticResource RowMenu}" />
+                </Style>
+            </TabItem.Resources>
+                <Grid>
+                    <!-- DataGrid -->
+                    <DataGrid
+                          ItemsSource="{Binding ParentAssemblies}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          HeadersVisibility="Column"
+                          SelectionMode="Single"
+                          IsReadOnly="True"
+                          RowStyle="{StaticResource DefaultRowStyle}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" CanUserResize="False" Width="SizeToCells"/>
+                            <!-- Превью -->
+                            <DataGridTemplateColumn Width="40" CanUserResize="False">
+                                <DataGridTemplateColumn.CellStyle>
+                                    <Style TargetType="DataGridCell">
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <Image Source="{Binding Preview}" Width="800"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+                                        <Setter Property="ToolTipService.Placement" Value="Right"/>
+                                    </Style>
+                                </DataGridTemplateColumn.CellStyle>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate DataType="{x:Type components:AGR_ComponentRegistryItemVM}">
+                                        <!-- Контейнер для основного отображения в ячейке -->
+                                        <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <!-- Наименование -->
+                            <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="SizeToCells" />
+                            <!-- PartNumber -->
+                        <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="SizeToHeader" />
+                            <!-- Кто сохранил -->
+                        <DataGridTextColumn Header="Сохранил" Binding="{Binding SavedByUserInitials}" Width="SizeToCells" />
+                            <!-- Дата создания -->
+                            <DataGridTextColumn Header="Дата сохранения" Binding="{Binding CreatedAt, StringFormat='dd.MM.yyyy'}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+        </TabItem>
+    </TabControl>
 </UserControl>

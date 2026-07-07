@@ -19,6 +19,7 @@ using Agrovent.DAL;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
 using Agrovent.Infrastructure.Extensions;
+using AgroventInfrastructure.Enums;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -26,7 +27,6 @@ namespace Agrovent.ViewModels.Components
     public class AGR_PartComponentVM : AGR_FileComponent, IAGR_HasMaterial, IAGR_HasPaint
     {
         private readonly ILogger<AGR_PartComponentVM> _logger; // Добавляем логгер
-
 
         #region CTOR
         public AGR_PartComponentVM(ISwDocument3D doc3D, ILogger<AGR_PartComponentVM> logger = null) : base(doc3D)
@@ -276,7 +276,6 @@ namespace Agrovent.ViewModels.Components
             OnPropertyChanged(nameof(ConfigName));
             OnPropertyChanged(nameof(PartNumber));
             OnPropertyChanged(nameof(Article));
-            OnPropertyChanged(nameof(FilePath));
             OnPropertyChanged(nameof(Version));
             OnPropertyChanged(nameof(HashSum));
             OnPropertyChanged(nameof(Preview));
@@ -286,16 +285,16 @@ namespace Agrovent.ViewModels.Components
             switch (ComponentType)
             {
                 case AGR_ComponentType_e.Part:
-                    PropertiesCollection = new AGR_PartPropertiesCollection(mDocument);
+                    PropertiesCollection = new AGR_PartPropertiesCollection(SwDocument);
                     break;
                 case AGR_ComponentType_e.SheetMetallPart:
-                    PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
+                    PropertiesCollection = new AGR_SheetPartPropertiesCollection(SwDocument);
                     break;
                 case AGR_ComponentType_e.Purchased:
                     PropertiesCollection?.Properties.Clear();
                     break;
                 case AGR_ComponentType_e.NA:
-                    PropertiesCollection = new AGR_BasePropertiesCollection(mDocument);
+                    PropertiesCollection = new AGR_BasePropertiesCollection(SwDocument);
                     break;
                 default:
                     break;
@@ -351,7 +350,7 @@ namespace Agrovent.ViewModels.Components
 
                 // Создаем ViewModel
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
-                selectVm.SelectedAvaType = "Товар";
+                selectVm.SelectedAvaType = AGR_AvaTypeNames.Purchased;
 
                 // Создаем View и устанавливаем DataContext
                 var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
@@ -405,7 +404,7 @@ namespace Agrovent.ViewModels.Components
                 // Создаем ViewModel
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
                 selectVm.SearchText = "Краска порошковая ";
-                selectVm.SelectedAvaType = "Товар";
+                selectVm.SelectedAvaType = AGR_AvaTypeNames.Purchased;
 
                 // Создаем View и устанавливаем DataContext
                 var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
@@ -435,6 +434,17 @@ namespace Agrovent.ViewModels.Components
             {
                 _logger?.LogError(ex, "Ошибка при открытии окна выбора AvaArticle для компонента {PartNumber}", PartNumber);
             }
+        }
+        #endregion
+
+        #region ClearPaintCommand
+        private ICommand _ClearPaintCommand;
+        public ICommand ClearPaintCommand => _ClearPaintCommand
+            ??= new RelayCommand(OnClearPaintCommandExecuted, CanClearPaintCommandExecute);
+        private bool CanClearPaintCommandExecute(object p) => true;
+        private void OnClearPaintCommandExecuted(object p)
+        {
+            Paint = null;
         }
         #endregion 
 

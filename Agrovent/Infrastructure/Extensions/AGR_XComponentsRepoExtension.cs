@@ -176,16 +176,32 @@ namespace Agrovent.Infrastructure.Extensions
         }
         public static IEnumerable<IAGR_BaseComponent> AGR_BaseComponents(this IEnumerable<IXComponent> repo, bool OnlyActive)
         {
-            foreach (var xComp in repo)
+            if (OnlyActive)
             {
-                if (!xComp.State.HasFlag(ComponentState_e.Suppressed)
-                   && !xComp.State.HasFlag(ComponentState_e.SuppressedIdMismatch)
-                   && !xComp.State.HasFlag(ComponentState_e.ExcludedFromBom)
-                   && !xComp.State.HasFlag(ComponentState_e.Envelope)
-                   )
+                foreach (var xComp in repo)
                 {
-                    var agrComp = xComp.AGR_BaseComponent();
-                    yield return agrComp;
+                    if (!xComp.State.HasFlag(ComponentState_e.Suppressed)
+                       && !xComp.State.HasFlag(ComponentState_e.SuppressedIdMismatch)
+                       && !xComp.State.HasFlag(ComponentState_e.ExcludedFromBom)
+                       && !xComp.State.HasFlag(ComponentState_e.Envelope)
+                       )
+                    {
+                        var agrComp = xComp.AGR_BaseComponent();
+                        yield return agrComp;
+                    }
+                }
+            }
+            else
+            {
+                foreach (var xComp in repo)
+                {
+                    if (!xComp.State.HasFlag(ComponentState_e.Suppressed)
+                       && !xComp.State.HasFlag(ComponentState_e.SuppressedIdMismatch)
+                       )
+                    {
+                        var agrComp = xComp.AGR_BaseComponent();
+                        yield return agrComp;
+                    }
                 }
             }
         }

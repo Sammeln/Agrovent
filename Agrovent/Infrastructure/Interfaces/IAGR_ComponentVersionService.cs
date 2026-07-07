@@ -4,8 +4,8 @@ using System.Text;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using System.Threading.Tasks;
 using Agrovent.ViewModels.Components;
-using Agrovent.DAL.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Entities.Components;
 
 namespace Agrovent.Infrastructure.Interfaces
 {
@@ -15,9 +15,14 @@ namespace Agrovent.Infrastructure.Interfaces
         Task<bool> CheckAndSaveAssemblyAsync(AGR_AssemblyComponentVM assembly);
         Task<ComponentVersion?> GetComponentVersionAsync(string partNumber, int version);
         Task<bool> HasComponentChangedAsync(IAGR_BaseComponent component);
+        Task<bool> CreateNewComponent(IAGR_BaseComponent component);
+        Task<bool> CreateNewComponents(List<IAGR_BaseComponent> components);
 
         // Дополнительные методы (опционально)
         Task<ComponentVersion?> GetLatestComponentVersionAsync(string partNumber);
         Task<List<AssemblyStructure>> GetAssemblyStructureAsync(string assemblyPartNumber, int version);
+        Task CopyFilesToStorageAsync(IAGR_BaseComponent rootComponent, int rootHashSum);
+        Task CopyFilesToProdAsync(IAGR_BaseComponent rootComponent, int rootHashSum);
+        
     }
 }

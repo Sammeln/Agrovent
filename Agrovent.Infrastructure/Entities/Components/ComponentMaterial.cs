@@ -1,10 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
-using Agrovent.DAL.Entities.Base;
 using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Entities.Base;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 
 
-namespace Agrovent.DAL.Entities.Components
+namespace AgroventInfrastructure.Entities.Components
 {
     public class ComponentMaterial : DateStampEntity
     {

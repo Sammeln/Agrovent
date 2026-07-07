@@ -3,7 +3,6 @@ using AGR_PropManager.ViewModels.Base;
 using System.Windows.Media.Imaging;
 using System.Windows.Input; // ICommand
 using AGR_PropManager.Infrastructure.Commands;
-using Agrovent.DAL.Entities.TechProcess;
 using System.Collections.ObjectModel;
 using Agrovent.Infrastructure.Enums;
 using AGR_PropManager.ViewModels.TechProcess;
@@ -12,8 +11,9 @@ using Agrovent.DAL;
 using System.Collections.Specialized;
 using Agrovent.DAL.Services.Repositories;
 using Microsoft.Extensions.Logging;
-using Agrovent.DAL.Entities.Components;
 using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Entities.Components;
+using System.Runtime.CompilerServices;
 
 namespace AGR_PropManager.ViewModels.Components
 {
@@ -21,17 +21,25 @@ namespace AGR_PropManager.ViewModels.Components
     {
         private readonly DataContext _dataContext;
         private readonly UnitOfWork _unitOfWork;
+        private readonly ComponentVersion _componentVersion;
 
         #region CTOR
         public ComponentItemViewModel(DataContext dataContext
-            , UnitOfWork unitOfWork)
+            , UnitOfWork unitOfWork
+            , ComponentVersion version)
         {
             _dataContext = dataContext;
             _unitOfWork = unitOfWork;
-
+            _componentVersion = version;
             ((INotifyCollectionChanged)_operations).CollectionChanged += OnOperationsCollectionChanged;
         }
-
+        public ComponentItemViewModel(DataContext dataContext
+                ,UnitOfWork unitOfWork)
+        {
+            _dataContext = dataContext;
+            _unitOfWork = unitOfWork;
+            ((INotifyCollectionChanged)_operations).CollectionChanged += OnOperationsCollectionChanged;
+        }
         public ComponentItemViewModel()
         {
             // Конструктор для Design-time
@@ -204,6 +212,7 @@ namespace AGR_PropManager.ViewModels.Components
             get => _TechnologicalProcessModel;
             set => Set(ref _TechnologicalProcessModel, value);
         }
+        public ComponentVersion ComponentVersionEntity => _componentVersion;
 
         #region Property - PropertiesCollection
         private ObservableCollection<AGR_PropertyViewModel> _PropertiesCollection = new();
@@ -228,7 +237,7 @@ namespace AGR_PropManager.ViewModels.Components
         public bool IsProduced => ComponentType == AGR_ComponentType_e.Assembly
                                 || ComponentType == AGR_ComponentType_e.Part
                                 || ComponentType == AGR_ComponentType_e.SheetMetallPart;
-
+        public bool IsAssembly => ComponentType == AGR_ComponentType_e.Assembly;
         public bool IsPurchased => ComponentType == AGR_ComponentType_e.Purchased;
 
         public bool IsSheetMetallPart => ComponentType == AGR_ComponentType_e.SheetMetallPart;
@@ -313,6 +322,8 @@ namespace AGR_PropManager.ViewModels.Components
             
         }
         #endregion 
+
+
 
 
 

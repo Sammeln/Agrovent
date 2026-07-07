@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:Agrovent.Views.Windows"
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Specification"
         xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
-        xmlns:AGR_converter="clr-namespace:Agrovent.Infrastructure.AGR_Converters;assembly=AgroventInfrastructure"
+        xmlns:AGR_converter="clr-namespace:AgroventInfrastructure.AGR_Converters;assembly=AgroventInfrastructure"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:b="clr-namespace:Agrovent.Infrastructure.Behaviors;assembly=AgroventInfrastructure"
         xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
@@ -39,6 +39,10 @@
             <!--<converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>-->
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
+            <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+            <AGR_converter:AGR_ComponentTypeToVisibility x:Key="ComponentTypeToVisibility"/>
+            <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+
 
             <DataTemplate DataType="{x:Type ImageSource}">
                 <Image Source="{Binding BaseAssemblyPreview}" MaxHeight="200" MaxWidth="200" Stretch="Uniform" />
@@ -205,6 +209,8 @@
             <DataGrid Grid.Column="0"
                       ItemsSource="{Binding GroupedComponentsView}"
                       Style="{StaticResource SpecificationDataGrid}"
+                      GridLinesVisibility="Vertical"
+                      VerticalGridLinesBrush="LightGray"
                       AutoGenerateColumns="False"
                       CanUserSortColumns="True"
                       VerticalScrollBarVisibility="Auto"
@@ -260,47 +266,69 @@
                     </DataGridTemplateColumn>
 
                     <!-- Наименование -->
-                    <DataGridTextColumn Header="Наименование" 
-                                        Binding="{Binding Name}" 
-                                        Width="3*" 
-                                        CanUserSort="True"
-                                        ElementStyle="{StaticResource DGCell_CenterAlignedAndWrapping}"
-                                        >
-                    </DataGridTextColumn>
+                    <DataGridTemplateColumn Header="Наименование" SortMemberPath="Name" Width="SizeToCells">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding ArticleName}" 
+                                               Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
+                                               VerticalAlignment="Center" Foreground="BlueViolet"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    
+                    
 
                     <!-- PartNumber/Артикул -->
-                    <DataGridTextColumn Header="PartNumber / Артикул" 
-                                        Width="2*"
+                    <DataGridTextColumn Header=" PartNumber / Артикул " 
+                                        Width="SizeToHeader"
                                         CanUserSort="True"
                                         ElementStyle="{StaticResource DGCell_LeftAlignedAndWrapping}"
                                         Binding="{Binding PartnumberOrArticle}">
                     </DataGridTextColumn>
 
                     <!-- Количество -->
-                    <DataGridTextColumn Header="Количество" 
+                    <DataGridTextColumn Header=" Количество " 
                                         Binding="{Binding Quantity}" 
-                                        Width="*"
+                                        Width="SizeToHeader"
                                         CanUserSort="True"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                     <!-- Толщина -->
-                    <DataGridTextColumn Header="Толщина" 
+                    <DataGridTextColumn Header=" Толщина " 
                                         Binding="{Binding SheetMetalThickness}" 
-                                        Width="*"
+                                        Width="SizeToHeader"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                     <!-- Материал -->
-                    <DataGridTextColumn Header="Материал" 
-                                        Binding="{Binding MaterialName}" 
-                                        Width="4*"
-                                        ElementStyle="{StaticResource DGCell_LeftAlignedAndWrapping}"
-                                        />
-
+                    <DataGridTemplateColumn Header="Материал" SortMemberPath="Name" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding MaterialArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding MaterialName}" 
+                                               Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
+                                               VerticalAlignment="Center" Foreground="BlueViolet"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    
                     <!-- Краска -->
-                    <DataGridTextColumn Header="Краска" 
-                                        Binding="{Binding PaintName}" 
-                                        Width="3*"
-                                        ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
+                    <DataGridTemplateColumn Header="Краска" SortMemberPath="Name" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding PaintArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding PaintName}" 
+                                               Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
+                                               VerticalAlignment="Center" Foreground="BlueViolet"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
                 </DataGrid.Columns>
 
@@ -323,11 +351,14 @@
                     Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
-                        <TextBlock Text="Ошибки валидации:" 
+                        <TextBlock Text="Ошибки:" 
                                FontWeight="Bold" 
+                                   TextDecorations="Underline"
                                Style="{StaticResource ErrorTextblockStyle}"/>
                         <TextBlock Text="{Binding Errors}" 
                                Style="{StaticResource ErrorTextblockStyle}"/>
+                        <TextBlock Text="{Binding Warnings}" 
+                                Style="{StaticResource WarningTextblockStyle}"/>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

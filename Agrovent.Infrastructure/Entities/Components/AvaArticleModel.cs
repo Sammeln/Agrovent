@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Agrovent.DAL.Entities.Components
+namespace AgroventInfrastructure.Entities.Components
 {
     public class AvaArticleModel : IAGR_AvaArticleModel
     {
@@ -19,7 +19,6 @@ namespace Agrovent.DAL.Entities.Components
         public string? Brand { get; set; }
         public string? Company { get; set; }
         public string? SecondaryUOM { get; set; }
-
+        public string? ArchiveType { get; set; }
     }
 }
-  

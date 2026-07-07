@@ -16,11 +16,13 @@ using NPOI.SS.UserModel; // Core interfaces
 using NPOI.XSSF.UserModel; // For .xlsx format
 using System.IO;
 using System.Diagnostics;
+using AGR_PropManager.ViewModels.Reports.Interfaces;
+using Agrovent.Infrastructure;
 
 namespace AGR_PropManager.ViewModels.Reports
 {
     // Вспомогательный класс для хранения строки данных отчета
-    public class ReportRowItem
+    public class ReportRowItem : BaseViewModel, IAGR_ReportItem
     {
         public int RowCount { get; set; }
         public string Name { get; set; }
@@ -32,7 +34,7 @@ namespace AGR_PropManager.ViewModels.Reports
         public string Article { get; set; }
     }
 
-    public class ImportClassifierReportViewModel : BaseViewModel
+    public class ImportClassifierReportViewModel : AGR_BaseReport
     {
         #region Fields
 
@@ -56,48 +58,11 @@ namespace AGR_PropManager.ViewModels.Reports
             _mainProductName = sourceComponents.First().Name ?? string.Empty;
 
             // Подготовка данных для DataGrid
-            ReportData = new ObservableCollection<ReportRowItem>();
+            ReportData = new ObservableCollection<IAGR_ReportItem>();
             LoadReportData();
         }
 
         #endregion
-
-        #region PROPS
-
-        public ObservableCollection<ReportRowItem> ReportData { get; }
-        public string StatusMessage
-        {
-            get => _statusMessage;
-            set => Set(ref _statusMessage, value);
-        }
-        public bool IsGenerating
-        {
-            get => _isGenerating;
-            set => Set(ref _isGenerating, value);
-        }
-
-        #region HasErrors
-        private bool _hasErrors = false;
-        public bool HasErrors
-        {
-            get => _hasErrors;
-            set => Set(ref _hasErrors, value);
-        }
-        #endregion
-
-        #region Errors
-
-        private string _errors;
-        public string Errors
-        {
-            get => _errors;
-            set => Set(ref _errors, value);
-        }
-        #endregion
-
-        #endregion
-
-
 
         #region COMMANDS
 
@@ -169,8 +134,10 @@ namespace AGR_PropManager.ViewModels.Reports
                         partNumberStyle.DataFormat = HSSFDataFormat.GetBuiltinFormat("@"); // Format as text
 
                         int rowIndex = 1;
-                        foreach (var item in ReportData) // Iterate over prepared data
+                        foreach (var repotItem in ReportData) // Iterate over prepared data
                         {
+                            var item = repotItem as ReportRowItem;
+
                             IRow row = sheet.CreateRow(rowIndex++);
                             row.CreateCell(0).SetCellValue(item.Name);
 
@@ -210,6 +177,11 @@ namespace AGR_PropManager.ViewModels.Reports
                         }
 
                         StatusMessage = $"Файл успешно сохранен: {filePath}";
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = Path.GetDirectoryName(filePath),
+                            UseShellExecute = true
+                        });
                     }
                 }
                 else
@@ -229,6 +201,7 @@ namespace AGR_PropManager.ViewModels.Reports
         }
 
         #endregion 
+
         #endregion
 
         #region Methods
@@ -254,27 +227,13 @@ namespace AGR_PropManager.ViewModels.Reports
                     Type = 5, // Всегда 5
                     Partnumber = component.PartNumber ?? "", // Partnumber сохраняет ведущие нули как строка
                     MainUnit = 1, // Всегда 1
-                    URL = $@"\\192.168.10.1\kd\Listogib\TestRootFolder\{component.PartNumber}", // Конструируем URL
+                    URL = $@"{AGR_Options.ProductionRootFolderPath}\{component.PartNumber}", // Конструируем URL
                     Article = component.Article ?? "" // Артикул, если не null
                 };
                 ReportData.Add(rowItem);
             }
         }
 
-        private void Validate()
-        {
-
-        }
-
-        private void CloseWindow()
-        {
-            CloseRequested?.Invoke(this, EventArgs.Empty);
-        }
-
-
         #endregion
-
-        public event EventHandler? CloseRequested;
-
     }
 }
