@@ -344,6 +344,7 @@ namespace Agrovent.ViewModels.TaskPane
                     component.Version = latestVersion.Version;
                     component.HashSum = latestVersion.HashSum;
                     component.AvaArticle = latestVersion.AvaArticle;
+                    component.AvaType = latestVersion.AvaType;
 
                     var fileComponent = component as AGR_FileComponent;
                     fileComponent.StorageModelFilePath = latestVersion.Files.FirstOrDefault(f => f.FileType == AGR_FileType_e.StorageModel)?.FilePath ?? "";
@@ -351,6 +352,16 @@ namespace Agrovent.ViewModels.TaskPane
                     fileComponent.ProductionModelFilePath = latestVersion.Files.FirstOrDefault(f => f.FileType == AGR_FileType_e.ProductionModel)?.FilePath ?? "";
                     fileComponent.ProductionDrawFilePath = latestVersion.Files.FirstOrDefault(f => f.FileType == AGR_FileType_e.ProductionDrawing)?.FilePath ?? "";
                     var parentAssemblies = await _unitOfWork.ComponentRepository.GetRootAssembliesForChildAsync(latestVersion);
+
+                    foreach (var prop in latestVersion.Properties)
+                    {
+                        var compProp = component.PropertiesCollection.Properties.FirstOrDefault(p => p.Name == prop.Name);
+                        if (compProp != null)
+                        {
+                            compProp.Value = prop.Value;
+                        }
+                    }
+
 
                     component.ParentAssemblies.Clear();
                     foreach (var item in parentAssemblies)
@@ -375,7 +386,7 @@ namespace Agrovent.ViewModels.TaskPane
         {
             try
             {
-                int hashSum =  component.CalculateComponentHash();
+                int hashSum = component.CalculateComponentHash();
                 var name = component.Name;
 
                 if (component.SwDocument is ISwAssembly assembly)

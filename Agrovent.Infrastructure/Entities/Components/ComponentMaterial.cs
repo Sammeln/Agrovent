@@ -28,7 +28,7 @@ namespace AgroventInfrastructure.Entities.Components
         public AvaArticleModel? PaintAvaArticle { get; set; }
 
         // Флаг, что материал заполнен
-        public bool HasMaterial => !string.IsNullOrEmpty(BaseMaterial) && BaseMaterialCount > 0;
-        public bool HasPaint => !string.IsNullOrEmpty(Paint) && PaintCount.HasValue;
+        public bool HasMaterial => !string.IsNullOrEmpty(BaseMaterial);
+        public bool HasPaint => !string.IsNullOrEmpty(Paint);
     }
 }

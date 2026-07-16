@@ -52,10 +52,13 @@
                         <StackPanel Orientation="Vertical">
 
                             <!-- Секция: Статус в базе данных -->
-                            <TextBlock Text="✓ Компонент сохранён в базе данных" 
+                            <StackPanel Orientation="Horizontal" Visibility="{Binding IsInDatabase, Converter={StaticResource ComponentDBStateConverter}, ConverterParameter=SavedInDataBase }"
+                                        Margin="0 0 0 5">
+                                <TextBlock Text="✓ Компонент сохранён в базе данных" 
                                 Style="{StaticResource SectionHeaderStyle}"
-                                Foreground="Green" 
-                                Visibility="{Binding IsInDatabase, Converter={StaticResource ComponentDBStateConverter}, ConverterParameter=SavedInDataBase }"/>    
+                                Foreground="Green" />
+                                <Button Margin="5 0" Padding="2.5" Content="Информация" Command="{Binding ShowDetailsCommand}" VerticalAlignment="Top"/>
+                            </StackPanel>
 
                             <!-- Секция: Статус в базе данных -->
                             <TextBlock Text="! Компонент не сохранён в базе данных" 

@@ -31,6 +31,10 @@ using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
 using AgroventInfrastructure.Enums;
 using Agrovent.Infrastructure.Helpers;
+using Agrovent.ViewModels.Specification;
+using Agrovent.ViewModels.Windows;
+using Agrovent.Views.Windows;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Agrovent.ViewModels.TaskPane
 {
@@ -38,16 +42,19 @@ namespace Agrovent.ViewModels.TaskPane
     {
         private readonly IAGR_ComponentRepository _componentRepository;
         private readonly ILogger<AGR_ComponentRegistryTaskPaneVM> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
         private static readonly AGR_AvaTypeConverter _avaTypeConverter = new AGR_AvaTypeConverter();
         private static readonly AGR_ComponentTypeConverter _componentTypeConverter = new AGR_ComponentTypeConverter();
 
         #region CTOR
         public AGR_ComponentRegistryTaskPaneVM(
                 IAGR_ComponentRepository componentRepository,
+                IServiceScopeFactory scopeFactory,
                 ILogger<AGR_ComponentRegistryTaskPaneVM> logger)
         {
             _componentRepository = componentRepository ?? throw new ArgumentNullException(nameof(componentRepository));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
 
             // Инициализация CollectionViewSource
             RegistryItemsView = CollectionViewSource.GetDefaultView(RegistryItems);
@@ -258,6 +265,11 @@ namespace Agrovent.ViewModels.TaskPane
                 //Папка текущей сборки
                 var assemblyFolderPath = Path.GetDirectoryName(swAssembly.Path);
 
+                if (string.IsNullOrEmpty(assemblyFolderPath))
+                {
+                    assemblyFolderPath = AGR_Options.LocalWorkFolder;
+                }
+
                 if(assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath) || assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath))
                 {
                     AGR_Helper.ShowMessage($"Попытка добавить компонент в папку хранилища\n{assemblyFolderPath}.\nОперация добавления отменена."
@@ -266,10 +278,6 @@ namespace Agrovent.ViewModels.TaskPane
                     return;
                 }
 
-                if (string.IsNullOrEmpty(assemblyFolderPath))
-                {
-                    assemblyFolderPath = @"D:\Работа";
-                }
                 //Путь к файлу компонента для копирования из хранилища
                 var destFilePath = Path.Combine(assemblyFolderPath, Path.GetFileName(filePath));
                 var destDrawPath = Path.ChangeExtension(destFilePath, ".slddrw");
@@ -345,27 +353,45 @@ namespace Agrovent.ViewModels.TaskPane
         public ICommand ShowDetailsCommand => _ShowDetailsCommand
             ??= new RelayCommand<AGR_ComponentRegistryItemVM>(OnShowDetailsCommandExecuted, CanShowDetailsCommandExecute);
         private bool CanShowDetailsCommandExecute(AGR_ComponentRegistryItemVM p) => p != null; // Всегда доступна, если элемент выбран
-        private void OnShowDetailsCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
+        private async void OnShowDetailsCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
         {
             if (selectedItem == null) return;
 
-            // Создаем и открываем окно с деталями
+            // Отдельный скоуп на время жизни окна — свой DataContext, изолированный
+            // от главного пайплайна сохранения и от других одновременно открытых окон деталей.
+            var scope = _scopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var unitOfWork = AGR_ServiceContainer.GetService<IUnitOfWork>();
-
-            var detailsVM = new AGR_ComponentDetailsVM(selectedItem, unitOfWork); // Предполагаем, что ViewModel будет создана
-            var detailsView = new AGR_ComponentDetailsView { DataContext = detailsVM };
-
-            var window = new Window
+            try
             {
-                Title = $"Детали: {selectedItem.Name} ({selectedItem.PartNumber})",
-                Content = detailsView,
-                Width = 800,
-                Height = 600,
-                ResizeMode = ResizeMode.CanResizeWithGrip
-            };
+                if (selectedItem.ComponentType == AGR_ComponentType_e.Assembly)
+                {
+                    var vm = new AGR_AssemblyEditVM(selectedItem, unitOfWork,
+                        scope.ServiceProvider.GetService<ILogger<AGR_AssemblyEditVM>>());
 
-            window.ShowDialog(); // Открываем модально
+                    var view = new AGR_SpecificationWindow { DataContext = vm, Topmost = true };
+                    view.Closed += (_, _) => scope.Dispose(); // скоуп закрывается вместе с окном
+
+                    await vm.InitializeAsync(selectedItem.PartNumber, selectedItem.Version);
+                    view.Show();
+                }
+                else
+                {
+                    var vm = new AGR_ComponentEditVM(selectedItem, unitOfWork,
+                        scope.ServiceProvider.GetService<ILogger<AGR_ComponentEditVM>>());
+
+                    var view = new SaveConfirmationView { DataContext = vm, Topmost = true };
+                    view.Closed += (_, _) => scope.Dispose();
+
+                    await vm.InitializeAsync(selectedItem.RawPartNumber, selectedItem.Version);
+                    view.Show();
+                }
+            }
+            catch (Exception ex)
+            {
+                scope.Dispose(); // если что-то упало до открытия окна — скоуп некому будет закрыть
+                _logger.LogError(ex, $"Ошибка при открытии окна деталей для {selectedItem.Name} ({selectedItem.RawPartNumber})");
+            }
         }
         #endregion
 

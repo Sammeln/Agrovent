@@ -17,6 +17,8 @@ using Agrovent.ViewModels;
 using Agrovent.DAL.Services.Repositories;
 using Agrovent.Models;
 using System.Runtime.CompilerServices;
+using Agrovent.Infrastructure;
+using Xarial.XCad.SolidWorks;
 
 namespace Agrovent
 {
@@ -32,6 +34,7 @@ namespace Agrovent
                 .Build();
 
             services.AddSingleton<IConfiguration>(configuration);
+            AGR_Options.Initialize(configuration);
 
             // 2. Пользователь
             services.Configure<AGR_User>(configuration.GetSection("User"));
@@ -76,7 +79,8 @@ namespace Agrovent
                    provider.GetRequiredService<IAGR_ComponentVersionService>(),
                    provider, // Передаем IServiceProvider
                    provider.GetRequiredService<IAGR_ViewModelCacheService>(),
-                   provider.GetRequiredService<IAGR_ComponentViewModelFactory>()
+                   provider.GetRequiredService<IAGR_ComponentViewModelFactory>(),
+                   provider.GetRequiredService<ISwApplication>()
                ));
 
             // 7. ViewModels (если нужно)

@@ -8,6 +8,7 @@ using Agrovent.Infrastructure.Handlers;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Models;
+using Agrovent.Properties;
 using Agrovent.Services;
 using Agrovent.TestMacroFeature;
 using Agrovent.ViewModels.Components;
@@ -21,6 +22,7 @@ using Microsoft.Extensions.Logging;
 using NPOI.Util;
 using SolidWorks.Interop.sldworks;
 using Xarial.XCad.Base;
+using Xarial.XCad.Base.Attributes;
 using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.Features;
 using Xarial.XCad.Geometry;
@@ -30,9 +32,57 @@ using Xarial.XCad.SolidWorks.Features.CustomFeature;
 using Xarial.XCad.SolidWorks.Geometry;
 using Xarial.XCad.SolidWorks.UI;
 using Xarial.XCad.UI.Commands;
+using Xarial.XCad.UI.Commands.Attributes;
+using Xarial.XCad.UI.Commands.Enums;
 
 namespace Agrovent
 {
+    [Title("Агровент-М")]
+    public enum AGR_Commands_e
+    {
+        [Title("Информация / сохранить")]
+        [Icon(typeof(Resources), nameof(Resources.Information_96))]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly | WorkspaceTypes_e.Part, true, RibbonTabTextDisplay_e.TextBelow)]
+        SaveComponent,
+
+        [Title("Экспорт в Iges")]
+        [Icon(typeof(Resources), nameof(Resources.Iges_96))]
+        ExportToIges,
+
+        [Title("Обновить свойства")]
+        [Icon(typeof(Resources), nameof(Resources.Update_96))]
+        UpdateProperties,
+
+        [Title("Сборка листовых")]
+        [Icon(typeof(Resources), nameof(Resources.SheetAssembly_24))]
+        GetSheetMetallPartsAssmbly,
+
+        //[Title("Реестр КД")]
+        //ComponentRegistry,
+
+        //[Title("Проводник проектов")]
+        //ProjectsExplorer,
+
+        //1993
+        [Title("Переместить компонент")]
+        [Icon(typeof(Resources), nameof(Resources.Move_96))]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly)]
+        MoveComponentWithTriade,
+
+        [Title("Сохранить файлы в хранилище")]
+        [Icon(typeof(Resources), nameof(Resources.CopyStorage_96))]
+        CopyFilesToStorage,
+
+        [Title("Сохранить файлы в производство")]
+        [Icon(typeof(Resources), nameof(Resources.CopyProd_96))]
+        CopyFilesToProd,
+
+        [Title("Обновить чертежи")]
+        [Icon(typeof(Resources), nameof(Resources.UpdateDraw_24))]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly | WorkspaceTypes_e.Part, true, RibbonTabTextDisplay_e.TextBelow)]
+        UpdateDrawings
+    }
+
     [ComVisible(true)]
     [Guid("8864d08d-f77a-47b9-858f-4af5eea4fd76")]
     public class AgroventAddin : SwAddInEx
@@ -180,7 +230,7 @@ namespace Agrovent
                 services.AddSingleton(Application);
             });
         }
-        private void OnCommandClickExecute(AGR_Commands_e command)
+        private async void OnCommandClickExecute(AGR_Commands_e command)
         {
             try
             {
@@ -205,24 +255,32 @@ namespace Agrovent
                     break;
 
                     case AGR_Commands_e.UpdateProperties:
-                    _commandService.UpdatePropertiesAsync();
+                        await _commandService.UpdatePropertiesAsync();
                     break;
                     //case AGR_Commands_e.ComponentRegistry:
                     //    _commandService.OpenComponentRegistryAsync();
                     //    break;
-                    case AGR_Commands_e.ProjectsExplorer:
-                    _commandService.OpenProjectExplorerWindowAsync();
-                    break;
+                    //case AGR_Commands_e.ProjectsExplorer:
+                    //_commandService.OpenProjectExplorerWindowAsync();
+                    //break;
                     case AGR_Commands_e.MoveComponentWithTriade:
                     Application.Sw.RunCommand(1993, string.Empty);
                     break;
 
                     case AGR_Commands_e.CopyFilesToStorage:
-                        _commandService.CopyFilesToStorageAsync();
+                        await _commandService.CopyFilesToStorageAsync();
                     break;
 
                     case AGR_Commands_e.CopyFilesToProd:
-                    _commandService.CopyFilesToProdAsync();
+                        await _commandService.CopyFilesToProdAsync();
+                    break;
+
+                    case AGR_Commands_e.UpdateDrawings:
+                        await _commandService.UpdateDrawingsAsync();
+                    break;
+
+                    case AGR_Commands_e.GetSheetMetallPartsAssmbly:
+                        _commandService.GetSheetMetallPartsAssmbly();
                     break;
 
                     default:
@@ -282,43 +340,6 @@ namespace Agrovent
 
             return 0;
         }
-        private void ShowSpecificationWindow()
-        {
-            if (Application.Documents.Active is ISwAssembly swAssembly)
-            {
-                var assemblyVM = new AGR_AssemblyComponentVM(swAssembly);
-                var specWindow = new AGR_SpecificationWindow();
-                var unitOfWork = AGR_ServiceContainer.GetService<IUnitOfWork>();
-                specWindow.DataContext = new AGR_SpecificationViewModel(assemblyVM, unitOfWork);
-                specWindow.ShowDialog();
-            }
-            else
-            {
-                Application.ShowMessageBox("Откройте сборку для просмотра спецификации",
-                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info);
-            }
-        }
-        private void ShowAvaArticleInfo()
-        {
-            try
-            {
-                using var scope = AGR_ServiceContainer.CreateScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<DataContext>();
-                var article = dbContext.Set<AvaArticleModel>().FirstOrDefault();
-
-                if (article != null)
-                {
-                    Application.ShowMessageBox($"Имя:{article.Name}\nАртикул:{article.Article}\nТип:{article.Type}\nКод:{article.PartNumber}\nБренд:{article.Brand}",
-                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info,
-                        Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка при получении информации о статье");
-            }
-        }
-
         private async void SaveActiveComponent()
         {
             try

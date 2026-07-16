@@ -31,7 +31,9 @@ namespace Agrovent.ViewModels.Windows
     {
         private readonly ILogger? _logger;
         private IAGR_BaseComponent _component;
-
+        public bool IsEditMode => false;
+        public bool PropertiesReadOnly => true;
+        public bool IsProduced => !IsPurchased;
         public AGR_SaveConfirmationVM(IAGR_BaseComponent component, ILogger? logger = null)
         {
             _component = component ?? throw new ArgumentNullException(nameof(component));

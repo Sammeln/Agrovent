@@ -7,6 +7,8 @@ using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Services;
+using Agrovent.ViewModels.Base;
+using Agrovent.ViewModels.Components;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 using Xarial.XCad;
@@ -48,6 +50,7 @@ namespace Agrovent.Infrastructure.Handlers
             m_Doc = doc;
             app.Documents.DocumentActivated += Documents_DocumentActivated;
             doc.Destroyed += SwDoc3D_Destroyed;
+            //doc.Rebuilt += Doc_Rebuilt;
             if (doc is ISwPart part)
             {
                 var swPart = part.Part as PartDoc;
@@ -62,7 +65,24 @@ namespace Agrovent.Infrastructure.Handlers
             {
                 var swAssembly = assembly.Assembly as AssemblyDoc;
                 swAssembly.FileSaveAsNotify2 += OnFileSaveAsNotify2;
+                //assembly.ComponentInserted += Assembly_ComponentInserted;
+                //assembly.ComponentDeleted += Assembly_ComponentDeleted;
             }
+        }
+
+        private void Doc_Rebuilt(IXDocument doc)
+        {
+
+        }
+
+        private void Assembly_ComponentDeleted(IXAssembly assembly, IXComponent component)
+        {
+
+        }
+
+        private void Assembly_ComponentInserted(IXAssembly assembly, IXComponent component)
+        {
+
         }
 
         private void Documents_DocumentActivated(IXDocument doc)

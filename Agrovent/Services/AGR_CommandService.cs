@@ -2,6 +2,7 @@
 using Agrovent.DAL; // Для IUnitOfWork
 using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions; // Для AGR_TryGetProp и т.д.
+using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Base;
@@ -11,11 +12,16 @@ using Agrovent.ViewModels.TaskPane;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
 using Microsoft.Extensions.Logging;
+using SolidWorks.Interop.sldworks;
+using SolidWorks.Interop.swconst;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Windows;
+using Xarial.XCad.Base;
 using Xarial.XCad.Data;
 using Xarial.XCad.Documents;
+using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
 
@@ -28,23 +34,84 @@ namespace Agrovent.Services
         private readonly IServiceProvider _serviceProvider; // Необходим для получения VM
         private readonly IAGR_ViewModelCacheService _viewModelCache;
         private readonly IAGR_ComponentViewModelFactory _ComponentViewModelFactory;
+        private readonly ISwApplication _swApp;
 
         public AGR_CommandService(
             ILogger<AGR_CommandService> logger,
             IAGR_ComponentVersionService componentVersionService,
             IServiceProvider serviceProvider,
             IAGR_ViewModelCacheService viewModelCache,
-            IAGR_ComponentViewModelFactory viewModelFactory) // Принимаем IServiceProvider
+            IAGR_ComponentViewModelFactory viewModelFactory,
+            ISwApplication swApp) // Принимаем IServiceProvider
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _componentVersionService = componentVersionService ?? throw new ArgumentNullException(nameof(componentVersionService));
             _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             _viewModelCache = viewModelCache ?? throw new ArgumentNullException(nameof(viewModelCache));
             _ComponentViewModelFactory = viewModelFactory ?? throw new ArgumentNullException(nameof(viewModelFactory));
+            _swApp = swApp;
+
         }
 
         public async Task<bool> UpdatePropertiesAsync()
         {
+            if (_swApp == null)
+            {
+                AGR_Helper.ShowMessage("Приложение недоступно",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            var activeDoc = _swApp.Documents.Active;
+            if (activeDoc == null)
+            {
+                AGR_Helper.ShowMessage("Нет активного документа.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            ISwDocument3D swDoc = activeDoc as ISwDocument3D;
+            if (swDoc == null)
+            {
+                AGR_Helper.ShowMessage("Активный документ не является 3D-моделью.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            IAGR_BaseComponent component = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
+
+
+            if (component is AGR_PartComponentVM part)
+            {
+                part.RefreshFromDocument();
+                AGR_Helper.ShowMessage($"Свойства {part.Name} обновлены.",
+                   Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                   Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return true;
+            }
+
+            if (component is AGR_AssemblyComponentVM assembly)
+            {
+                string message;
+                assembly.RefreshFromDocument();
+                message = $"Свойства {assembly.Name} обновлены.\n";
+
+                var componentsList = assembly
+                    .GetFlatComponents(true)
+                    .Select(x => x.Component as AGR_BaseComponent)
+                    .ToList();
+                foreach (var comp in componentsList.Where(x => x.IsPurchased == false))
+                {
+                    comp.RefreshFromDocument();
+                    message += $"Свойства {comp.Name} обновлены.\n";
+                }
+                AGR_Helper.ShowMessage($"{message}",
+                   Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                   Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+            }
             return false;
             //if (iComponent == null)
             //{
@@ -227,7 +294,9 @@ namespace Agrovent.Services
                         Title = specificationVM.WindowTitle,
                         WindowState = WindowState.Maximized,
                         ResizeMode = ResizeMode.CanResizeWithGrip,
-                        ShowInTaskbar = true
+                        ShowInTaskbar = true,
+                        Topmost = true
+
                     };
 
                     specificationWindow.ShowDialog();
@@ -436,6 +505,277 @@ namespace Agrovent.Services
                 return false;
             }
 
+        }
+        public async Task<bool> UpdateDrawingsAsync()
+        {
+            var swApp = AGR_ServiceContainer.GetService<ISwApplication>();
+            var progressVM = AGR_ServiceContainer.GetService<IAGR_SaveProgressVM>() as AGR_SaveProgressVM;
+
+            try
+            {
+                if (swApp == null)
+                {
+                    _logger.LogError("Не удалось получить ISwApplication.");
+                    return false;
+                }
+
+                var activeDoc = swApp.Documents.Active;
+                if (activeDoc == null)
+                {
+                    swApp.ShowMessageBox("Нет активного документа.",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+                    return false;
+                }
+
+                if (!(activeDoc is ISwDocument3D swDoc))
+                {
+                    swApp.ShowMessageBox("Активный документ должен быть деталью или сборкой.",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+                    return false;
+                }
+
+                // Собираем пути ко всем 3D-моделям, которые нужно проверить:
+                // сам активный документ + (для сборки) все входящие детали/подсборки
+                var modelPaths = new List<string> { swDoc.Path };
+
+                if (swDoc is ISwAssembly swAssembly)
+                {
+                    var componentPaths = swAssembly.Configurations.Active.Components
+                        .AGR_TryFlatten()
+                        .Select(c => c.ReferencedDocument?.Path)
+                        .Where(p => !string.IsNullOrEmpty(p));
+
+                    modelPaths.AddRange(componentPaths);
+                }
+
+                var distinctModelPaths = modelPaths
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (progressVM == null)
+                {
+                    _logger.LogError("Не удалось получить SaveProgressVM из DI контейнера.");
+                    return false;
+                }
+
+                // --- Показываем окно прогресса ---
+                progressVM.LogMessages.Clear();
+                progressVM.AddLogMessage($"Начало обновления чертежей. Компонентов для проверки: {distinctModelPaths.Count}");
+
+                var progressDialog = new SaveProgressView
+                {
+                    DataContext = progressVM,
+                    Title = "Обновление чертежей...",
+                    ShowInTaskbar = true,
+                    Topmost = true
+                };
+                progressDialog.Show();
+
+                int updated = 0;
+                int missing = 0;
+                int failed = 0;
+
+                try
+                {
+                    foreach (var modelPath in distinctModelPaths)
+                    {
+                        var componentName = Path.GetFileNameWithoutExtension(modelPath);
+                        var kindLabel = GetComponentKindLabel(modelPath); // "детали" / "сборки"
+                        var drawingPath = Path.ChangeExtension(modelPath, ".slddrw");
+
+                        if (!File.Exists(drawingPath))
+                        {
+                            missing++;
+                            progressVM.AddLogMessage($"Чертеж {kindLabel} {componentName} не найден");
+                            continue;
+                        }
+
+                        try
+                        {
+                            if (UpdateDrawing(swApp, drawingPath))
+                            {
+                                updated++;
+                                progressVM.AddLogMessage($"Обновлен чертеж {kindLabel} {componentName}");
+                            }
+                            else
+                            {
+                                failed++;
+                                progressVM.AddLogMessage($"Не удалось обновить чертеж {kindLabel} {componentName}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            failed++;
+                            var msg = $"Ошибка при обновлении чертежа {kindLabel} {componentName}: {ex.Message}";
+                            progressVM.AddLogMessage(msg);
+                            _logger.LogError(ex, msg);
+                        }
+                    }
+
+                    progressVM.AddLogMessage("──────────────────────");
+                    progressVM.AddLogMessage($"Итого: обновлено — {updated}, без чертежа — {missing}, ошибок — {failed}");
+                }
+                finally
+                {
+                    progressVM.SetFinished();
+                }
+
+                progressDialog.Activate();
+
+                return failed == 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Неожиданная ошибка при вызове UpdateDrawingsAsync");
+                progressVM?.AddLogMessage($"Ошибка: {ex.Message}");
+                progressVM?.SetFinished();
+                swApp?.ShowMessageBox($"Ошибка: {ex.Message}",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
+                return false;
+            }
+        }
+
+        public async Task<bool> GetSheetMetallPartsAssmbly()
+        {
+            if (_swApp == null)
+            {
+                AGR_Helper.ShowMessage("Приложение недоступно",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            var activeDoc = _swApp.Documents.Active;
+            if (activeDoc == null)
+            {
+                AGR_Helper.ShowMessage("Нет активного документа.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            ISwDocument3D swDoc = activeDoc as ISwDocument3D;
+            if (swDoc == null)
+            {
+                AGR_Helper.ShowMessage("Активный документ не является 3D-моделью.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            IAGR_BaseComponent component = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
+
+            if (component is AGR_AssemblyComponentVM assembly)
+            {
+                var sheetMetalComponents = assembly
+                                    .GetFlatComponents(true)
+                                    .Select(x => x.Component as AGR_BaseComponent)
+                                    .Where(c => c != null && c.ComponentType == AGR_ComponentType_e.SheetMetallPart) // Предполагаем, что есть свойство IsSheetMetal
+                                    .ToList();
+                if (sheetMetalComponents.Count == 0)
+                {
+                    AGR_Helper.ShowMessage("В сборке нет листовых деталей.",
+                        Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info,
+                        Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                    return false;
+                }
+
+                //Создание документа сборки
+                var targetAssem = _swApp.Documents.NewAssembly() as ISwAssembly;
+
+                //устанавливаем как активный документ
+                _swApp.Documents.Active = targetAssem;
+
+                foreach (var item in sheetMetalComponents)
+                {
+                    // Создаем шаблон компонента
+                    var xComp = targetAssem.Configurations.Active.Components.PreCreate<IXComponent>();
+                    if (xComp == null)
+                    {
+                        _logger.LogError($"Команда 'Добавить в сборку': Не удалось создать шаблон компонента для {item.Name}");
+                        return false;
+                    }
+
+                    // Устанавливаем ссылку на документ
+                    xComp.ReferencedDocument = item.SwDocument;
+
+                    // Добавляем в сборку
+                    targetAssem.Configurations.Active.Components.Add(xComp);
+                }
+
+                return true;
+            }
+            else
+            {
+                AGR_Helper.ShowMessage("Активный документ не является сборкой.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Определяет "деталь" это или "сборка" по расширению файла — без лишних обращений к COM.
+        /// </summary>
+        private static string GetComponentKindLabel(string modelPath)
+        {
+            var ext = Path.GetExtension(modelPath);
+            return string.Equals(ext, ".sldasm", StringComparison.OrdinalIgnoreCase)
+                ? "сборки"
+                : "детали";
+        }
+
+        /// <summary>
+        /// Открывает чертёж, делает Rebuild, сохраняет и закрывает
+        /// (если он не был открыт пользователем ранее).
+        /// </summary>
+        private bool UpdateDrawing(ISwApplication swApp, string drawingPath)
+        {
+            var alreadyOpenDoc = swApp.Documents
+                .FirstOrDefault(d => string.Equals(d.Path, drawingPath, StringComparison.OrdinalIgnoreCase));
+
+            var wasAlreadyOpen = alreadyOpenDoc != null;
+
+            var drawingDoc = alreadyOpenDoc
+                ?? swApp.Documents.Open(drawingPath, Xarial.XCad.Documents.Enums.DocumentState_e.Silent);
+
+            if (drawingDoc == null)
+            {
+                _logger.LogWarning($"Не удалось открыть чертёж: {drawingPath}");
+                return false;
+            }
+
+            try
+            {
+                var model = (drawingDoc as ISwDocument)?.Model as ModelDoc2;
+                if (model == null)
+                {
+                    _logger.LogWarning($"Не удалось получить нативный документ SolidWorks для {drawingPath}");
+                    return false;
+                }
+
+                model.ForceRebuild3(false);
+
+                int errors = 0;
+                int warnings = 0;
+                model.Save3((int)swSaveAsOptions_e.swSaveAsOptions_Silent, ref errors, ref warnings);
+
+                if (errors != 0)
+                {
+                    _logger.LogWarning($"При сохранении чертежа {drawingPath} возникли ошибки (код {errors}).");
+                    return false;
+                }
+
+                _logger.LogDebug($"Чертёж обновлён: {drawingPath}");
+                return true;
+            }
+            finally
+            {
+                if (!wasAlreadyOpen)
+                {
+                    drawingDoc.Close();
+                }
+            }
         }
 
         private async Task UpdateMassPropertyAsync(ISwConfiguration configuration)

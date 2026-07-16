@@ -189,6 +189,14 @@ namespace Agrovent.ViewModels.Components
         {
             GetChildComponents();
         }
+        new public void RefreshFromDocument()
+        {
+            base.RefreshFromDocument();
+            GetChildComponents();
+
+            OnPropertyChanged(nameof(AGR_TopComponents));
+        }
+
 
         #endregion
 

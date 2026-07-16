@@ -9,6 +9,7 @@ using AGR_PropManager.ViewModels.Components;
 using Agrovent.DAL;
 using Agrovent.Infrastructure.Commands;
 using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components;
@@ -381,8 +382,10 @@ namespace Agrovent.ViewModels.Specification
             }
 
             var assembly = _baseComponent.SwDocument as ISwAssembly;
-            var docsReadOnly = assembly.Configurations.Active.Components.TryFlatten()
-                .Where(x => (File.GetAttributes(x.ReferencedDocument.Path).HasFlag(FileAttributes.ReadOnly)) == true)
+            var docsReadOnly = assembly.Configurations.Active.Components.AGR_TryFlatten()
+                .Where(x => (File.Exists(x.ReferencedDocument.Path)
+                        && File.GetAttributes(x.ReferencedDocument.Path)
+                               .HasFlag(FileAttributes.ReadOnly)) == true)
                 .Select(x => Path.GetFileName(x.ReferencedDocument.Path)).Distinct()
                 .ToList();
 
@@ -518,7 +521,7 @@ namespace Agrovent.ViewModels.Specification
                 // 1. Собрать уникальные имена материалов из нужных компонентов
                 var componentsWithMaterial = Components
                     .Where(c => (c.ComponentType == AGR_ComponentType_e.Part || c.ComponentType == AGR_ComponentType_e.SheetMetallPart) 
-                    && !string.IsNullOrEmpty(c.BaseMaterial.Name))
+                    && !string.IsNullOrEmpty(c.BaseMaterial?.Name))
                     .ToList();
 
                 if (!componentsWithMaterial.Any()) return; // Нечего загружать
@@ -567,7 +570,7 @@ namespace Agrovent.ViewModels.Specification
                 // 1. Собрать уникальные имена материалов из нужных компонентов
                 var componentsWithMaterial = Components
                     .Where(c => (c.ComponentType != AGR_ComponentType_e.Purchased && c.ComponentType != AGR_ComponentType_e.NA) 
-                            && !string.IsNullOrEmpty(c.BasePaint.Name))
+                            && !string.IsNullOrEmpty(c.BasePaint?.Name))
                     .ToList();
 
                 if (!componentsWithMaterial.Any()) return; // Нечего загружать
@@ -748,7 +751,7 @@ namespace Agrovent.ViewModels.Specification
                 selectVm.SelectedAvaType = "Товар";
 
                 // Создаем View и устанавливаем DataContext
-                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm, Topmost = true };
 
                 selectView.ShowActivated = true;
                 // Открываем окно модально
@@ -831,7 +834,7 @@ namespace Agrovent.ViewModels.Specification
                 selectVm.SelectedAvaType = "Товар";
 
                 // Создаем View и устанавливаем DataContext
-                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm, Topmost = true };
 
                 selectView.ShowActivated = true;
                 // Открываем окно модально
@@ -902,7 +905,7 @@ namespace Agrovent.ViewModels.Specification
 
 
                 // Создаем View и устанавливаем DataContext
-                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm, Topmost = true };
                 selectView.ShowActivated = true;
                 // Открываем окно модально
                 selectView.ShowDialog();
@@ -1008,7 +1011,7 @@ namespace Agrovent.ViewModels.Specification
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
                 selectVm.SearchText = _baseComponent.Name;
 
-                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm, Topmost = true };
                 selectView.ShowActivated = true;
                 selectView.ShowDialog();
 
@@ -1046,7 +1049,7 @@ namespace Agrovent.ViewModels.Specification
                 selectVm.SearchText = "Краска порошковая";
                 selectVm.SelectedAvaType = "Товар";
 
-                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
+                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm, Topmost = true };
                 selectView.ShowActivated = true;
                 selectView.ShowDialog();
 

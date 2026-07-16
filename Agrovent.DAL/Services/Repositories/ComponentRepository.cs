@@ -66,6 +66,17 @@ namespace Agrovent.DAL.Services.Repositories
         Task<List<TemplateOperation>> GetAllTemplateOperationsAsync();
         Task<Dictionary<string, AvaArticleModel>> GetAvaArticlesByNameAsync(List<string> names);
         Task<AvaArticleModel?> GetAvaArticleByArticleNumberAsync(int articleNumber);
+
+        Task UpdateComponentVersionEditAsync(AGR_ComponentEditData data);
+        Task UpdateComponentVersionEditsAsync(IEnumerable<AGR_ComponentEditData> data);
+
+        Task<ComponentVersion?> GetComponentVersionForEdit(string partNumber, int version);
+        Task AddComponentFileAsync(ComponentFile file);
+        Task RemoveComponentFileAsync(int componentFileId);
+
+        // Плоский состав сборки: один компонент — одна строка, количество
+        // пересчитано с учётом всех путей и множителей родительских сборок.
+        Task<List<AGR_FlatAssemblyComponent>> GetFlatAssemblyComponents(string assemblyPartNumber, int version);
     }
     public class ComponentRepository : IAGR_ComponentRepository
     {
@@ -353,7 +364,7 @@ namespace Agrovent.DAL.Services.Repositories
                 {
                 }
                 var mAvaArticle = component.AvaArticle as AvaArticleModel;
-                
+
                 var componentVersion = new ComponentVersion
                 {
                     Component = existingComponent,
@@ -676,13 +687,30 @@ namespace Agrovent.DAL.Services.Repositories
 
                 if (existStructure == null)
                 {
-                    existStructure = new AssemblyStructure
+
+                    var localStructure = _context.AssemblyStructures.Local
+                        .FirstOrDefault(c => c.ParentComponentVersion.Name == assemblyVersion.Name
+                                        && c.ChildComponentVersion.Name == componentVersion.Name
+                                        && c.Quantity == item.Quantity);
+
+                    if (localStructure == null)
                     {
-                        ParentComponentVersion = assemblyVersion,
-                        ChildComponentVersion = componentVersion,
-                        Quantity = item.Quantity,
-                        Order = orderIndex++
-                    };
+                        _logger.LogInformation($"Создание новой структуры: {assemblyVersion.Component.PartNumber}");
+                        _saveProgress.AddLogMessage($"Создание новой структуры: {assemblyVersion.Component.PartNumber}");
+                        existStructure = new AssemblyStructure
+                        {
+                            ParentComponentVersion = assemblyVersion,
+                            ChildComponentVersion = componentVersion,
+                            Quantity = item.Quantity,
+                            Order = orderIndex++
+                        };
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Структура найдена в локальном контексте: {assemblyVersion.Component.PartNumber}");
+                        _saveProgress.AddLogMessage($"Структура найдена в локальном контексте: {assemblyVersion.Component.PartNumber}");
+                        existStructure = localStructure;
+                    }
                     _context.AssemblyStructures.Add(existStructure);
                 }
 
@@ -769,6 +797,8 @@ namespace Agrovent.DAL.Services.Repositories
             visitedNodes.Add(currentChildCV);
 
             var parents = await _context.AssemblyStructures
+                .Include(x => x.ParentComponentVersion)
+                    .ThenInclude(x => x.Component)
                 .Where(assem => assem.ChildComponentVersion == currentChildCV)
                 .Select(assem => assem.ParentComponentVersion)
                 .ToListAsync();
@@ -974,14 +1004,14 @@ namespace Agrovent.DAL.Services.Repositories
             // Чертеж в хранилище
             if (!string.IsNullOrEmpty(fileComponent.CurrentDrawFilePath))
             {
-                    files.Add(new ComponentFile
-                    {
-                        ComponentVersion = componentVersion,
-                        FileType = AGR_FileType_e.StorageDrawing,
-                        FilePath = Path.ChangeExtension(storageModelPath, "SLDDRW"),
-                        LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentDrawFilePath),
-                        FileSize = new FileInfo(fileComponent.CurrentDrawFilePath).Length
-                    });
+                files.Add(new ComponentFile
+                {
+                    ComponentVersion = componentVersion,
+                    FileType = AGR_FileType_e.StorageDrawing,
+                    FilePath = Path.ChangeExtension(storageModelPath, "SLDDRW"),
+                    LastModified = File.GetLastWriteTimeUtc(fileComponent.CurrentDrawFilePath),
+                    FileSize = new FileInfo(fileComponent.CurrentDrawFilePath).Length
+                });
             }
 
             // Модель в производстве
@@ -1245,5 +1275,152 @@ namespace Agrovent.DAL.Services.Repositories
         }
 
         #endregion
+
+        public async Task UpdateComponentVersionEditAsync(AGR_ComponentEditData data)
+            => await UpdateComponentVersionEditsAsync(new[] { data });
+        public async Task UpdateComponentVersionEditsAsync(IEnumerable<AGR_ComponentEditData> edits)
+        {
+            foreach (var edit in edits)
+            {
+                var cv = await _context.ComponentVersions
+                    .Include(v => v.Material)
+                    .FirstOrDefaultAsync(v => v.Id == edit.ComponentVersionId);
+                if (cv == null) continue;
+
+                cv.AvaType = edit.AvaType;
+                cv.AvaArticleArticle = edit.AvaArticleArticle;
+
+                if (edit.MaterialAvaArticleId.HasValue || edit.PaintAvaArticleId.HasValue
+                    || !string.IsNullOrEmpty(edit.MaterialName) || !string.IsNullOrEmpty(edit.PaintName))
+                {
+                    cv.Material ??= new ComponentMaterial { ComponentVersionId = cv.Id };
+                    cv.Material.BaseMaterial = edit.MaterialName;
+                    cv.Material.MaterialAvaArticleID = edit.MaterialAvaArticleId;
+                    cv.Material.Paint = edit.PaintName;
+                    cv.Material.PaintAvaArticleID = edit.PaintAvaArticleId;
+                }
+            }
+            // SaveChanges вызывается через _unitOfWork.CompleteAsync() снаружи
+        }
+        public async Task<ComponentVersion?> GetComponentVersionForEdit(string partNumber, int version)
+        {
+            return await _context.ComponentVersions
+                .Include(v => v.Component)
+                .Include(v => v.Properties)
+                .Include(v => v.Files)
+                .Include(v => v.AvaArticle)
+                .Include(v => v.Material).ThenInclude(m => m.MaterialAvaArticle)
+                .Include(v => v.Material).ThenInclude(m => m.PaintAvaArticle)
+                .FirstOrDefaultAsync(v => v.Component.PartNumber == partNumber && v.Version == version);
+        }
+
+        public async Task AddComponentFileAsync(ComponentFile file)
+            => await _context.ComponentFiles.AddAsync(file);
+
+        public async Task RemoveComponentFileAsync(int componentFileId)
+        {
+            var file = await _context.ComponentFiles.FindAsync(componentFileId);
+            if (file != null) _context.ComponentFiles.Remove(file);
+        }
+        public async Task<List<AGR_FlatAssemblyComponent>> GetFlatAssemblyComponents(string assemblyPartNumber, int version)
+        {
+            try
+            {
+                _logger.LogDebug($"Запрос плоского состава сборки: {assemblyPartNumber} v{version}");
+
+                var rootId = await _context.ComponentVersions
+                    .AsNoTracking()
+                    .Where(v => v.Component.PartNumber == assemblyPartNumber && v.Version == version)
+                    .Select(v => v.Id)
+                    .FirstOrDefaultAsync();
+
+                if (rootId == 0)
+                {
+                    _logger.LogWarning($"Версия сборки не найдена: {assemblyPartNumber} v{version}");
+                    return new List<AGR_FlatAssemblyComponent>();
+                }
+
+                // Итоговое количество для каждой уникальной версии компонента во всей сборке.
+                var totals = new Dictionary<int, AGR_FlatAssemblyComponent>();
+
+                // Множитель, с которым конкретная версия компонента встречается "выше по дереву" —
+                // нужен, чтобы правильно посчитать количество её собственных потомков.
+                var multiplierByVersionId = new Dictionary<int, int> { [rootId] = 1 };
+
+                // Обход по уровням вложенности: один запрос на весь уровень сразу для ВСЕХ
+                // родителей этого уровня, а не по одному запросу на каждую под-сборку —
+                // это и есть основной резерв производительности на больших сборках.
+                var currentLevelParentIds = new List<int> { rootId };
+                var visitedAsParent = new HashSet<int> { rootId }; // защита от циклов в структуре
+
+                while (currentLevelParentIds.Count > 0)
+                {
+                    var levelEntries = await _context.AssemblyStructures
+                        .AsNoTracking()
+                        .Include(s => s.ChildComponentVersion)
+                            .ThenInclude(cv => cv.Component)
+                        .Include(s => s.ChildComponentVersion)
+                            .ThenInclude(cv => cv.Properties)
+                        .Include(s => s.ChildComponentVersion)
+                            .ThenInclude(cv => cv.Files)
+                        .Include(s => s.ChildComponentVersion)
+                            .ThenInclude(cv => cv.Material)
+                                .ThenInclude(m => m.MaterialAvaArticle)
+                        .Include(s => s.ChildComponentVersion)
+                            .ThenInclude(cv => cv.Material)
+                                .ThenInclude(m => m.PaintAvaArticle)
+                        .Include(s => s.ChildComponentVersion)
+                            .ThenInclude(cv => cv.AvaArticle)
+                        .Where(s => currentLevelParentIds.Contains(s.ParentComponentVersionId))
+                        .OrderBy(s => s.Order)
+                        .ToListAsync();
+
+                    var nextLevelParentIds = new List<int>();
+
+                    foreach (var entry in levelEntries)
+                    {
+                        var parentMultiplier = multiplierByVersionId[entry.ParentComponentVersionId];
+                        var contribution = parentMultiplier * entry.Quantity;
+                        var childId = entry.ChildComponentVersionId;
+
+                        if (totals.TryGetValue(childId, out var existing))
+                        {
+                            existing.TotalQuantity += contribution;
+                        }
+                        else
+                        {
+                            totals[childId] = new AGR_FlatAssemblyComponent
+                            {
+                                Entity = entry.ChildComponentVersion,
+                                TotalQuantity = contribution
+                            };
+                        }
+
+                        // Накапливаем множитель для дальнейшего спуска по дереву — важно
+                        // накопить его полностью для childId ДО того, как мы будем запрашивать
+                        // его собственных потомков на следующей итерации while.
+                        multiplierByVersionId[childId] = multiplierByVersionId.TryGetValue(childId, out var m)
+                            ? m + contribution
+                            : contribution;
+
+                        if (entry.ChildComponentVersion.ComponentType == AGR_ComponentType_e.Assembly
+                            && visitedAsParent.Add(childId)) // true только при первом посещении — защита от циклов и дублей в запросе
+                        {
+                            nextLevelParentIds.Add(childId);
+                        }
+                    }
+
+                    currentLevelParentIds = nextLevelParentIds;
+                }
+
+                return totals.Values.ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении плоского состава сборки: {assemblyPartNumber}");
+                throw;
+            }
+        }
+
     }
 }

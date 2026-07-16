@@ -33,7 +33,7 @@
                     Command="{Binding DataContext.AddToAssemblyCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
                 <MenuItem 
                     Header="Подробная информация" CommandParameter="{Binding}"
-                    Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" Visibility="Collapsed" />
+                    Command="{Binding DataContext.ShowDetailsCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}"/>
             </ContextMenu>
 
             <Style x:Key="DefaultRowStyle" TargetType="{x:Type DataGridRow}">

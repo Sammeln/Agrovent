@@ -22,6 +22,7 @@ namespace Agrovent.Views.Windows
         public AGR_SelectAvaArticleView()
         {
             InitializeComponent();
+            Topmost = true;
         }
     }
 }

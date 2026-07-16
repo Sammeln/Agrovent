@@ -63,6 +63,26 @@ namespace Agrovent.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Byte[].
         /// </summary>
+        internal static byte[] CopyProd_96 {
+            get {
+                object obj = ResourceManager.GetObject("CopyProd-96", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
+        internal static byte[] CopyStorage_96 {
+            get {
+                object obj = ResourceManager.GetObject("CopyStorage-96", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
         internal static byte[] FolderIcon {
             get {
                 object obj = ResourceManager.GetObject("FolderIcon", resourceCulture);
@@ -83,9 +103,79 @@ namespace Agrovent.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Byte[].
         /// </summary>
+        internal static byte[] Iges_96 {
+            get {
+                object obj = ResourceManager.GetObject("Iges-96", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
+        internal static byte[] Information_96 {
+            get {
+                object obj = ResourceManager.GetObject("Information-96", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
+        internal static byte[] Move_96 {
+            get {
+                object obj = ResourceManager.GetObject("Move-96", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
         internal static byte[] NonePreview {
             get {
                 object obj = ResourceManager.GetObject("NonePreview", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
+        internal static byte[] SheetAssembly_24 {
+            get {
+                object obj = ResourceManager.GetObject("SheetAssembly-24", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
+        internal static byte[] Update_96 {
+            get {
+                object obj = ResourceManager.GetObject("Update-96", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
+        internal static byte[] UpdateDraw_24 {
+            get {
+                object obj = ResourceManager.GetObject("UpdateDraw-24", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
+        internal static byte[] UpdateDraw_96 {
+            get {
+                object obj = ResourceManager.GetObject("UpdateDraw-96", resourceCulture);
                 return ((byte[])(obj));
             }
         }

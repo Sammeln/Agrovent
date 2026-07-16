@@ -15,8 +15,7 @@
         d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_SpecificationViewModel}}"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" 
-        Height="700" 
-        Width="1200"
+        WindowState="Maximized"
         WindowStartupLocation="CenterOwner">
 
     <Window.Resources>
@@ -283,7 +282,7 @@
 
                     <!-- PartNumber/Артикул -->
                     <DataGridTextColumn Header=" PartNumber / Артикул " 
-                                        Width="SizeToHeader"
+                                        Width="1.5*"
                                         CanUserSort="True"
                                         ElementStyle="{StaticResource DGCell_LeftAlignedAndWrapping}"
                                         Binding="{Binding PartnumberOrArticle}">
@@ -292,18 +291,18 @@
                     <!-- Количество -->
                     <DataGridTextColumn Header=" Количество " 
                                         Binding="{Binding Quantity}" 
-                                        Width="SizeToHeader"
+                                        Width="*"
                                         CanUserSort="True"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                     <!-- Толщина -->
                     <DataGridTextColumn Header=" Толщина " 
                                         Binding="{Binding SheetMetalThickness}" 
-                                        Width="SizeToHeader"
+                                        Width="*"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
                     <!-- Материал -->
-                    <DataGridTemplateColumn Header="Материал" SortMemberPath="Name" Width="*">
+                    <DataGridTemplateColumn Header="Материал" SortMemberPath="Name" Width="3*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Vertical" VerticalAlignment="Center">
@@ -317,7 +316,7 @@
                     </DataGridTemplateColumn>
                     
                     <!-- Краска -->
-                    <DataGridTemplateColumn Header="Краска" SortMemberPath="Name" Width="*">
+                    <DataGridTemplateColumn Header="Краска" SortMemberPath="Name" Width="3*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Vertical" VerticalAlignment="Center">
