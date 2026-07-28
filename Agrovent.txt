@@ -1066,6 +1066,7 @@ using Agrovent.ViewModels.Specification; // Для AGR_SpecificationViewModel
 using Agrovent.ViewModels.TaskPane;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
@@ -1342,7 +1343,10 @@ namespace Agrovent.Services
                         return false;
                     }
 
-                    var specificationVM = new AGR_SpecificationViewModel((AGR_AssemblyComponentVM)component, unitOfWork);
+
+                    var scopeFactory = AGR_ServiceContainer.GetService<IServiceScopeFactory>();
+
+                    var specificationVM = new AGR_SpecificationViewModel((AGR_AssemblyComponentVM)component, unitOfWork, scopeFactory);
                     var specificationWindow = new AGR_SpecificationWindow
                     {
                         DataContext = specificationVM,
@@ -1372,7 +1376,9 @@ namespace Agrovent.Services
                     var confirmationDialog = new SaveConfirmationView
                     {
                         DataContext = confirmationVM,
-                        ShowInTaskbar = true
+                        ShowInTaskbar = true,
+                        Title = $"Сохранение {component.Name}"
+                        
                     };
 
 
@@ -1613,6 +1619,10 @@ namespace Agrovent.Services
                     return false;
                 }
 
+                // 1. Создаем источник токена отмены
+                using var cts = new CancellationTokenSource();
+                progressVM.CancelationToken = cts;
+
                 // --- Показываем окно прогресса ---
                 progressVM.LogMessages.Clear();
                 progressVM.AddLogMessage($"Начало обновления чертежей. Компонентов для проверки: {distinctModelPaths.Count}");
@@ -1629,11 +1639,19 @@ namespace Agrovent.Services
                 int updated = 0;
                 int missing = 0;
                 int failed = 0;
+                bool isCanceled = false;
 
                 try
                 {
                     foreach (var modelPath in distinctModelPaths)
                     {
+                        if (cts.Token.IsCancellationRequested)
+                        {
+                            isCanceled = true;
+                            break; // Выходим из цикла
+                        }
+
+
                         var componentName = Path.GetFileNameWithoutExtension(modelPath);
                         var kindLabel = GetComponentKindLabel(modelPath); // "детали" / "сборки"
                         var drawingPath = Path.ChangeExtension(modelPath, ".slddrw");
@@ -1665,10 +1683,22 @@ namespace Agrovent.Services
                             progressVM.AddLogMessage(msg);
                             _logger.LogError(ex, msg);
                         }
+
+                        // 3. ВАЖНО: Возвращаем управление UI-потоку, чтобы окно могло обработать нажатие кнопки "Закрыть"
+                        // и обновить интерфейс. Без этого цикл может "заморозить" окно.
+                        await Task.Delay(1, cts.Token);
                     }
 
+                    // 4. Формируем итоговый отчет
                     progressVM.AddLogMessage("──────────────────────");
-                    progressVM.AddLogMessage($"Итого: обновлено — {updated}, без чертежа — {missing}, ошибок — {failed}");
+                    if (isCanceled)
+                    {
+                        progressVM.AddLogMessage($"Операция прервана пользователем. Частичный результат: обновлено — {updated}, без чертежа — {missing}, ошибок — {failed}");
+                    }
+                    else
+                    {
+                        progressVM.AddLogMessage($"Итого: обновлено — {updated}, без чертежа — {missing}, ошибок — {failed}");
+                    }
                 }
                 finally
                 {
@@ -1677,7 +1707,8 @@ namespace Agrovent.Services
 
                 progressDialog.Activate();
 
-                return failed == 0;
+                // Возвращаем true только если не было отмены и нет ошибок
+                return !isCanceled && failed == 0;
             }
             catch (Exception ex)
             {
@@ -1689,7 +1720,6 @@ namespace Agrovent.Services
                 return false;
             }
         }
-
         public async Task<bool> GetSheetMetallPartsAssmbly()
         {
             if (_swApp == null)
@@ -2520,7 +2550,7 @@ namespace Agrovent.Infrastructure.Services
             {
                 await _unitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, $"Ошибка при сохранении сборки: {assemblyPartnumber}");
-                _saveProgress.AddLogMessage($"Ошибка при сохранении сборки: {assemblyPartnumber}. {ex.Message}");
+                _saveProgress.AddLogMessage($"Ошибка при сохранении сборки: {assemblyPartnumber}. {ex.Message}. {ex.InnerException.InnerException.Message.ToString()}");
                 throw;
             }
         }
@@ -3237,29 +3267,6 @@ namespace Agrovent.TestMacroFeature
         {
             return base.OnRebuild(app, doc, feature);
         }
-    }
-}
-
-
-
-
---- Файл: ViewModelLocator.cs ---
-==============================================================
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.Design;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Agrovent.Services;
-using Agrovent.ViewModels.TaskPane;
-
-namespace Agrovent.ViewModels
-{
-    public class ViewModelLocator
-    {
-        public AGR_TaskPaneViewModel TaskPaneVM => AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
-
     }
 }
 
@@ -9869,10 +9876,12 @@ namespace AGR_PropManager.Views
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel>
-                                    <TextBox Text="{Binding PartNumber, Mode=OneWay}" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                                    <TextBox Text="{Binding PartNumber, Mode=OneWay}" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                             Background="{Binding Background, RelativeSource={RelativeSource AncestorType=DataGridRow, Mode=FindAncestor}}"/>
                                     <TextBox Text="{Binding AvaArticle.Article, StringFormat=Артикул№0 , Mode=OneWay}" BorderThickness="0"
+                                             Background="{Binding Background, RelativeSource={RelativeSource AncestorType=DataGridRow, Mode=FindAncestor}}"
                                              Visibility="{Binding AvaArticle, Converter={StaticResource NullToVisibilityConverter}}"
-                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
                                              Foreground="BlueViolet"/>
                                 </StackPanel>
                             </DataTemplate>
@@ -13253,22 +13262,22 @@ namespace Agrovent.ViewModels.Base
 
             try
             {
-                //if (ComponentType == AGR_ComponentType_e.Assembly)
-                //{
-                //    var vm = new AGR_AssemblyEditVM(PartNumber, Version, Name, unitOfWork,
-                //        AGR_ServiceContainer.GetService<ILogger<AGR_AssemblyEditVM>>());
-                //    await vm.InitializeAsync(PartNumber, Version);
-                //    var view = new AGR_SpecificationWindow { DataContext = vm, Topmost = true };
-                //    view.Show();
-                //    OnPropertyChanged(nameof(vm.Components));
-                //}
-                //else
-                //{
+                if (ComponentType == AGR_ComponentType_e.Assembly)
+                {
+                    var vm = new AGR_AssemblyEditVM(PartNumber, Version, Name, unitOfWork,
+                        AGR_ServiceContainer.GetService<ILogger<AGR_AssemblyEditVM>>());
+                    //await vm.InitializeAsync(PartNumber, Version);
+                    var view = new AGR_SpecificationWindow { DataContext = vm, Topmost = true, Title = $"Подробная информация" };
+                    view.Show();
+                    OnPropertyChanged(nameof(vm.Components));
+                }
+                else
+                {
                     var vm = new AGR_ComponentEditVM(PartNumber, Version, unitOfWork,
                         AGR_ServiceContainer.GetService<ILogger<AGR_ComponentEditVM>>());
-                    var view = new SaveConfirmationView { DataContext = vm, Topmost = true };
+                    var view = new SaveConfirmationView { DataContext = vm, Topmost = true, Title = $"Подробная информация" };
                     view.Show();
-                //}
+                }
             }
             catch (Exception ex)
             {
@@ -13471,6 +13480,22 @@ namespace Agrovent.ViewModels.Base
     public class BaseViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
+
+        #region IsLoading / LoadingStatus (общий индикатор загрузки для окон вида TechProcessEditorWindow)
+        private bool _isLoading;
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set => Set(ref _isLoading, value);
+        }
+
+        private string _loadingStatus = string.Empty;
+        public string LoadingStatus
+        {
+            get => _loadingStatus;
+            set => Set(ref _loadingStatus, value);
+        }
+        #endregion
 
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
@@ -15269,7 +15294,6 @@ namespace Agrovent.ViewModels.Specification
                 Set(ref _avaArticle, value);
                 if (value is AvaArticleModel model)
                 {
-                    _entity.AvaArticle = model;
                     _entity.AvaArticleArticle = model.Article;
                 }
                 OnPropertyChanged(nameof(ArticleName));
@@ -15387,6 +15411,11 @@ namespace Agrovent.ViewModels.Specification
         private readonly ILogger? _logger;
         private ComponentVersion _assemblyVersion;
 
+        // Параметры отложенной загрузки: конструктор больше не запускает InitializeAsync сам —
+        // это делает View по событию Loaded, чтобы окно успело отобразиться с оверлеем прогресса.
+        private string _pendingPartNumber;
+        private int _pendingVersion;
+
         public AGR_WindowMode_e Mode => AGR_WindowMode_e.EditExisting;
         public AGR_AssemblyEditVM(string partNumber, int version, string displayName, IUnitOfWork unitOfWork, ILogger? logger = null)
         {
@@ -15398,7 +15427,8 @@ namespace Agrovent.ViewModels.Specification
             UpdateGroupedView();
 
             WindowTitle = $"Редактирование сборки: {displayName} ({partNumber})";
-            //_ = InitializeAsync(partNumber, version);
+            _pendingPartNumber = partNumber;
+            _pendingVersion = version;
         }
         public AGR_AssemblyEditVM(AGR_ComponentRegistryItemVM registryItem, IUnitOfWork unitOfWork, ILogger? logger = null)
         {
@@ -15411,14 +15441,25 @@ namespace Agrovent.ViewModels.Specification
 
             WindowTitle = $"Редактирование сборки: {registryItem.Name} ({registryItem.PartNumber})";
 
-            //_ = InitializeAsync(registryItem.PartNumber, registryItem.Version);
+            _pendingPartNumber = registryItem.PartNumber;
+            _pendingVersion = registryItem.Version;
         }
 
         #region Инициализация
+        // Вызывается из Window_Loaded окна AGR_SpecificationWindow — окно уже видно, показан оверлей прогресса.
+        public Task InitializeAsync()
+        {
+            var result = InitializeAsync(_pendingPartNumber, _pendingVersion);
+            return result;
+        }
+
         public async Task InitializeAsync(string partNumber, int version)
         {
             try
             {
+                IsLoading = true;
+                LoadingStatus = "Загрузка сборки...";
+
                 _assemblyVersion = await _unitOfWork.ComponentRepository.GetComponentVersionForEdit(partNumber, version);
                 if (_assemblyVersion == null)
                 {
@@ -15452,6 +15493,7 @@ namespace Agrovent.ViewModels.Specification
                 OnPropertyChanged(nameof(BaseAssemblyPaintName));
                 OnPropertyChanged(nameof(NoPaint));
 
+                LoadingStatus = "Загрузка состава сборки...";
                 await LoadCompositionAsync(partNumber, version);
                 ValidateSpecification();
             }
@@ -15460,6 +15502,11 @@ namespace Agrovent.ViewModels.Specification
                 _logger?.LogError(ex, $"Ошибка при загрузке сборки {partNumber} v{version} для редактирования.");
                 Errors = "Ошибка при загрузке данных сборки: " + ex.Message;
                 HasErrors = true;
+            }
+            finally
+            {
+                IsLoading = false;
+                LoadingStatus = string.Empty;
             }
         }
 
@@ -16030,6 +16077,405 @@ namespace Agrovent.ViewModels.Specification
 
 
 
+--- Файл: AGR_MatchArticlesVM.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Data;
+using System.Windows.Input;
+using Agrovent.DAL;
+using Agrovent.Infrastructure.Commands;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces;
+using Agrovent.ViewModels.Base;
+using AgroventInfrastructure.Entities.Components;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+namespace Agrovent.ViewModels.Specification
+{
+    /// <summary>
+    /// Один найденный вариант AvaArticle для конкретного компонента спецификации.
+    /// Отображается как RadioButton в правой части строки DataGrid.
+    /// </summary>
+    public class AGR_ArticleCandidateVM : BaseViewModel
+    {
+        public IAGR_AvaArticleModel AvaArticle { get; }
+
+        private readonly AGR_ArticleMatchItemVM _owner;
+
+        public AGR_ArticleCandidateVM(IAGR_AvaArticleModel avaArticle, AGR_ArticleMatchItemVM owner, bool isPartNumberMatch, bool isNameMatch)
+        {
+            AvaArticle = avaArticle ?? throw new ArgumentNullException(nameof(avaArticle));
+            _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            IsPartNumberMatch = isPartNumberMatch;
+            IsNameMatch = isNameMatch;
+        }
+
+        private bool _isSelected;
+        /// <summary>
+        /// Т.к. вариантов на строку несколько, а подходит только один - при выборе
+        /// одного кандидата сбрасываем выбор у остальных кандидатов этой же строки.
+        /// Это заменяет собой поведение RadioButton.GroupName, которое ненадёжно
+        /// работает в виртуализированном DataGrid с динамическим набором строк.
+        /// </summary>
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (!Set(ref _isSelected, value)) return;
+                if (value)
+                {
+                    _owner.NotifyCandidateSelected(this);
+                }
+            }
+        }
+
+        public string DisplayArticle => $"№{AvaArticle.Article}";
+        public string DisplayName => AvaArticle.Name ?? string.Empty;
+        public string DisplayPartNumber => AvaArticle.PartNumber ?? string.Empty;
+
+        /// <summary>Совпадение по партномеру - используется в UI для подсветки лучшего варианта.</summary>
+        public bool IsPartNumberMatch { get; }
+        /// <summary>Совпадение по наименованию - используется в UI для подсветки варианта.</summary>
+        public bool IsNameMatch { get; }
+    }
+
+    /// <summary>
+    /// Строка окна подбора: компонент спецификации + список найденных для него кандидатов.
+    /// </summary>
+    public class AGR_ArticleMatchItemVM : BaseViewModel
+    {
+        /// <summary>Ссылка на исходный элемент спецификации (тот же объект, что в Components
+        /// основного окна). Присвоение AvaArticle здесь напрямую обновит основную таблицу.</summary>
+        public AGR_SpecificationItemVM SpecificationItem { get; }
+
+        public ObservableCollection<AGR_ArticleCandidateVM> Candidates { get; } = new ObservableCollection<AGR_ArticleCandidateVM>();
+
+        public AGR_ArticleMatchItemVM(AGR_SpecificationItemVM specItem)
+        {
+            SpecificationItem = specItem ?? throw new ArgumentNullException(nameof(specItem));
+        }
+
+        public string Name => SpecificationItem.Name;
+        public string PartNumber => SpecificationItem.PartNumber;
+        public AGR_ComponentType_e ComponentType => SpecificationItem.ComponentType;
+        public int Quantity => SpecificationItem.Quantity;
+
+        public bool HasCandidates => Candidates.Count > 0;
+        public bool NoCandidatesFound => !HasCandidates;
+
+        private AGR_ArticleCandidateVM _selectedCandidate;
+        public AGR_ArticleCandidateVM SelectedCandidate
+        {
+            get => _selectedCandidate;
+            private set
+            {
+                Set(ref _selectedCandidate, value);
+                OnPropertyChanged(nameof(IsResolved));
+            }
+        }
+
+        public bool IsResolved => SelectedCandidate != null;
+
+        /// <summary>Выбирает кандидата по умолчанию: уже назначенный артикул, если он есть
+        /// среди найденных вариантов, иначе - единственный найденный вариант.</summary>
+        public void PreselectDefault()
+        {
+            var existingArticle = SpecificationItem.AvaArticle;
+
+            AGR_ArticleCandidateVM preselect = existingArticle != null
+                ? Candidates.FirstOrDefault(c => c.AvaArticle.Article == existingArticle.Article)
+                : null;
+
+            if (preselect == null && Candidates.Count == 1)
+            {
+                preselect = Candidates[0];
+            }
+
+            if (preselect != null)
+            {
+                preselect.IsSelected = true; // вызовет NotifyCandidateSelected -> SelectedCandidate
+            }
+        }
+
+        public void NotifyCandidateSelected(AGR_ArticleCandidateVM candidate)
+        {
+            foreach (var c in Candidates)
+            {
+                if (!ReferenceEquals(c, candidate) && c.IsSelected)
+                {
+                    c.IsSelected = false;
+                }
+            }
+            SelectedCandidate = candidate;
+        }
+
+        /// <summary>Снять выбор для этой строки (кнопка "Без артикула" на строке).</summary>
+        public void ClearSelection()
+        {
+            foreach (var c in Candidates) c.IsSelected = false;
+            SelectedCandidate = null;
+        }
+    }
+
+    /// <summary>
+    /// ViewModel окна "Подобрать артикулы": по каждому компоненту спецификации без
+    /// назначенного AvaArticle ищет в справочнике подходящие варианты (по PartNumber и/или
+    /// Name) и позволяет пользователю быстро выбрать нужный вариант для каждого компонента.
+    /// Изменения применяются к исходным AGR_SpecificationItemVM только по нажатию "Сохранить".
+    /// </summary>
+    public class AGR_MatchArticlesVM : BaseViewModel
+    {
+        private readonly IEnumerable<AGR_SpecificationItemVM> _sourceComponents;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<AGR_MatchArticlesVM> _logger;
+
+        #region CTOR
+        public AGR_MatchArticlesVM(
+            IEnumerable<AGR_SpecificationItemVM> components,
+            IServiceScopeFactory scopeFactory,
+            ILogger<AGR_MatchArticlesVM> logger)
+        {
+            _sourceComponents = components ?? throw new ArgumentNullException(nameof(components));
+            _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
+            _logger = logger;
+
+            Items = new ObservableCollection<AGR_ArticleMatchItemVM>();
+            GroupedItemsView = CollectionViewSource.GetDefaultView(Items);
+            UpdateGroupedView();
+
+            // Загрузка справочника и подбор кандидатов выполняются асинхронно;
+            // окно сразу показывается с оверлеем IsLoading (см. BaseViewModel).
+            _ = LoadAsync();
+        }
+        #endregion
+
+        #region PROPS
+        private ObservableCollection<AGR_ArticleMatchItemVM> _items;
+        public ObservableCollection<AGR_ArticleMatchItemVM> Items
+        {
+            get => _items;
+            private set => Set(ref _items, value);
+        }
+
+        public ICollectionView GroupedItemsView { get; private set; }
+
+        private int _unresolvedCount;
+        public int UnresolvedCount
+        {
+            get => _unresolvedCount;
+            private set
+            {
+                if (Set(ref _unresolvedCount, value))
+                {
+                    OnPropertyChanged(nameof(HasUnresolved));
+                }
+            }
+        }
+
+        /// <summary>Есть ли строки без выбранного варианта - для показа предупреждения в UI.</summary>
+        public bool HasUnresolved => UnresolvedCount > 0;
+
+        private bool _dialogSaved;
+        public bool DialogSaved
+        {
+            get => _dialogSaved;
+            private set => Set(ref _dialogSaved, value);
+        }
+        #endregion
+
+        #region Загрузка справочника и подбор кандидатов
+        private async Task LoadAsync()
+        {
+            IsLoading = true;
+            LoadingStatus = "Загрузка справочника артикулов...";
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                // Загружаем весь справочник AvaArticle один раз (аналогично AGR_SelectAvaArticleVM)
+                // и дальше подбираем совпадения в памяти: один запрос к БД вместо запроса
+                // на каждый компонент - и, соответственно, быстрее.
+                var allArticles = await dataContext.AvaArticles
+                    .Where(x => x.ArchiveType != null 
+                            && !x.ArchiveType.Contains("50177") 
+                            && !string.IsNullOrEmpty(x.Type)
+                            && !string.IsNullOrWhiteSpace(x.Type)
+                            && x.Type != null)
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                LoadingStatus = "Подбор артикулов по компонентам...";
+
+                // Подбираем варианты только для компонентов, у которых артикул ещё не назначен -
+                // остальные уже обработаны через "Установить артикул" и повторный подбор не нужен.
+                var targets = _sourceComponents
+                    .Where(c => c.AvaArticle == null)
+                    .ToList();
+
+                var items = targets
+                    .Select(comp => BuildMatchItem(comp, allArticles))
+                    .OrderBy(i => i.ComponentType)
+                    .ThenBy(i => i.Name)
+                    .ToList();
+
+                foreach (var item in items)
+                {
+                    item.PropertyChanged += Item_PropertyChanged;
+                }
+
+                Items = new ObservableCollection<AGR_ArticleMatchItemVM>(items);
+                GroupedItemsView = CollectionViewSource.GetDefaultView(Items);
+                UpdateGroupedView();
+                OnPropertyChanged(nameof(GroupedItemsView));
+
+                RecalculateUnresolvedCount();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Ошибка при подборе артикулов для компонентов спецификации.");
+                MessageBox.Show(
+                    "Не удалось выполнить подбор артикулов. Подробности см. в логе.",
+                    "Ошибка",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        private void Item_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(AGR_ArticleMatchItemVM.IsResolved))
+            {
+                RecalculateUnresolvedCount();
+            }
+        }
+
+        private void RecalculateUnresolvedCount()
+        {
+            UnresolvedCount = Items.Count(i => !i.IsResolved);
+        }
+
+        /// <summary>Строит строку окна подбора для одного компонента: ищет кандидатов
+        /// в справочнике и предвыбирает вариант по умолчанию.</summary>
+        private static AGR_ArticleMatchItemVM BuildMatchItem(AGR_SpecificationItemVM comp, List<AvaArticleModel> allArticles)
+        {
+            var item = new AGR_ArticleMatchItemVM(comp);
+
+            var name = comp.Name?.Trim();
+            var partNumber = comp.PartNumber?.Trim();
+
+            bool IsPartNumberMatch(AvaArticleModel a) =>
+                !string.IsNullOrEmpty(partNumber)
+                && !string.IsNullOrEmpty(a.PartNumber)
+                && string.Equals(a.PartNumber.Trim(), partNumber, StringComparison.OrdinalIgnoreCase);
+
+            bool IsNameMatch(AvaArticleModel a) =>
+                !string.IsNullOrEmpty(name)
+                && a.Name?.Count() > 1
+                && !string.IsNullOrEmpty(a.Name)
+                && (a.Name.Contains(name, StringComparison.OrdinalIgnoreCase)
+                    || name.Contains(a.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (!string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(partNumber))
+            {
+                var ranked = allArticles
+                    .Where(a => IsPartNumberMatch(a) || IsNameMatch(a))
+                    .OrderByDescending(IsPartNumberMatch) // точные совпадения по партномеру - в начале списка
+                    .ThenBy(a => a.Name)
+                    .Take(25); // не показываем неограниченный список - обычно первых кандидатов достаточно
+
+                foreach (var a in ranked)
+                {
+                    item.Candidates.Add(new AGR_ArticleCandidateVM(a, item, IsPartNumberMatch(a), IsNameMatch(a)));
+                }
+            }
+
+            item.PreselectDefault();
+            return item;
+        }
+        #endregion
+
+        private void UpdateGroupedView()
+        {
+            if (GroupedItemsView == null) return;
+
+            GroupedItemsView.GroupDescriptions.Clear();
+            GroupedItemsView.GroupDescriptions.Add(
+                new PropertyGroupDescription(nameof(AGR_ArticleMatchItemVM.ComponentType)));
+
+            GroupedItemsView.SortDescriptions.Clear();
+            GroupedItemsView.SortDescriptions.Add(
+                new SortDescription(nameof(AGR_ArticleMatchItemVM.ComponentType), ListSortDirection.Ascending));
+            GroupedItemsView.SortDescriptions.Add(
+                new SortDescription(nameof(AGR_ArticleMatchItemVM.Name), ListSortDirection.Ascending));
+        }
+
+        #region SaveCommand
+        private ICommand _saveCommand;
+        public ICommand SaveCommand => _saveCommand ??= new RelayCommand(OnSaveExecuted);
+        private void OnSaveExecuted(object p)
+        {
+            // Применяем выбранные варианты к исходным элементам спецификации.
+            // AGR_SpecificationItemVM.AvaArticle сам обновит _component.AvaArticle
+            // и вызовет OnPropertyChanged для Article/ArticleName/PartnumberOrArticle,
+            // поэтому основная таблица спецификации обновится автоматически - без
+            // необходимости пересоздавать коллекцию Components.
+            foreach (var item in Items)
+            {
+                if (item.SelectedCandidate != null)
+                {
+                    item.SpecificationItem.AvaArticle = item.SelectedCandidate.AvaArticle;
+                }
+            }
+
+            DialogSaved = true;
+
+            var view = p as Window;
+            view?.Close();
+        }
+        #endregion
+
+        #region CancelCommand
+        private ICommand _cancelCommand;
+        public ICommand CancelCommand => _cancelCommand ??= new RelayCommand(OnCancelExecuted);
+        private void OnCancelExecuted(object p)
+        {
+            // Ничего не применяем - весь выбор в этом окне отбрасывается.
+            DialogSaved = false;
+
+            var view = p as Window;
+            view?.Close();
+        }
+        #endregion
+
+        #region ClearSelectionCommand (кнопка "Без артикула" в строке)
+        private ICommand _clearSelectionCommand;
+        public ICommand ClearSelectionCommand => _clearSelectionCommand
+            ??= new RelayCommand<AGR_ArticleMatchItemVM>(OnClearSelectionExecuted);
+        private void OnClearSelectionExecuted(AGR_ArticleMatchItemVM item)
+        {
+            item?.ClearSelection();
+        }
+        #endregion
+    }
+}
+
+
+
+
 --- Файл: AGR_SimpleSpecificationComponent.cs ---
 ==============================================================
 using System;
@@ -16438,6 +16884,7 @@ using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
 using AgroventInfrastructure.Enums;
 using ICSharpCode.SharpZipLib.Zip;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.Base.Enums;
 using Xarial.XCad.Documents;
@@ -16450,13 +16897,16 @@ namespace Agrovent.ViewModels.Specification
         private readonly AGR_AssemblyComponentVM _baseComponent;
         private readonly ILogger _logger;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IServiceScopeFactory _scopeFactory; // NEW
+
 
         #region CTOR
-        public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent, IUnitOfWork unitOfWork)
+        public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent, IUnitOfWork unitOfWork, IServiceScopeFactory scopeFactory)
         {
             //_logger = AGR_ServiceContainer.GetService<ILogger>();
             _baseComponent = baseComponent;
             _unitOfWork = unitOfWork;
+            _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
             WindowTitle = $"Спецификация: {baseComponent.Name} ({baseComponent.PartNumber})";
             Initialize();
         }
@@ -17160,7 +17610,8 @@ namespace Agrovent.ViewModels.Specification
             try
             {
                 // Получаем нужные сервисы для VM
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 // Создаем ViewModel
@@ -17242,7 +17693,8 @@ namespace Agrovent.ViewModels.Specification
             try
             {
                 // Получаем нужные сервисы для VM
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 // Создаем ViewModel
@@ -17303,7 +17755,8 @@ namespace Agrovent.ViewModels.Specification
             try
             {
                 // Получаем нужные сервисы для VM
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 // Создаем ViewModel
@@ -17344,6 +17797,38 @@ namespace Agrovent.ViewModels.Specification
             }
 
             DeselectAllComponents();
+        }
+        #endregion
+
+        #region MatchArticlesCommand
+        private ICommand _MatchArticlesCommand;
+        public ICommand MatchArticlesCommand => _MatchArticlesCommand
+            ??= new RelayCommand(OnMatchArticlesCommandExecuted);
+        private void OnMatchArticlesCommandExecuted(object p)
+        {
+            try
+            {
+                var logger = AGR_ServiceContainer.GetService<ILogger<AGR_MatchArticlesVM>>();
+                var matchVm = new AGR_MatchArticlesVM(Components, _scopeFactory, logger);
+
+                var matchView = new AGR_MatchArticlesWindow
+                {
+                    DataContext = matchVm,
+                    Owner = p as Window,
+                    Topmost = true
+                };
+                matchView.ShowDialog();
+
+                // Присвоение AvaArticle выбранным вариантам произошло напрямую на тех же
+                // AGR_SpecificationItemVM, что лежат в Components (по ссылке), поэтому
+                // основная таблица уже обновилась через INotifyPropertyChanged.
+                // Здесь достаточно перевалидировать спецификацию.
+                ValidateSpecification();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Ошибка при открытии окна подбора артикулов.");
+            }
         }
         #endregion
 
@@ -17422,7 +17907,8 @@ namespace Agrovent.ViewModels.Specification
         {
             try
             {
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
@@ -17459,7 +17945,8 @@ namespace Agrovent.ViewModels.Specification
         {
             try
             {
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
@@ -17581,7 +18068,7 @@ namespace Agrovent.ViewModels.TaskPane
 
         public AGR_ComponentRegistryTaskPaneVM()
         {
-                
+
         }
         #endregion
 
@@ -17694,7 +18181,7 @@ namespace Agrovent.ViewModels.TaskPane
                 {
                     // Документ уже открыт, делаем его активным
                     swApp.Documents.Active = openDoc as ISwDocument;
-                    
+
                     _logger.LogDebug($"Команда 'Открыть': Документ уже открыт, активирован: {filePath}");
                 }
                 else
@@ -17765,10 +18252,10 @@ namespace Agrovent.ViewModels.TaskPane
                     assemblyFolderPath = AGR_Options.LocalWorkFolder;
                 }
 
-                if(assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath) || assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath))
+                if (assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath) || assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath))
                 {
                     AGR_Helper.ShowMessage($"Попытка добавить компонент в папку хранилища\n{assemblyFolderPath}.\nОперация добавления отменена."
-                        ,Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
+                        , Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
                         Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
                     return;
                 }
@@ -17848,7 +18335,7 @@ namespace Agrovent.ViewModels.TaskPane
         public ICommand ShowDetailsCommand => _ShowDetailsCommand
             ??= new RelayCommand<AGR_ComponentRegistryItemVM>(OnShowDetailsCommandExecuted, CanShowDetailsCommandExecute);
         private bool CanShowDetailsCommandExecute(AGR_ComponentRegistryItemVM p) => p != null; // Всегда доступна, если элемент выбран
-        private async void OnShowDetailsCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
+        private void OnShowDetailsCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
         {
             if (selectedItem == null) return;
 
@@ -17864,10 +18351,11 @@ namespace Agrovent.ViewModels.TaskPane
                     var vm = new AGR_AssemblyEditVM(selectedItem, unitOfWork,
                         scope.ServiceProvider.GetService<ILogger<AGR_AssemblyEditVM>>());
 
-                    var view = new AGR_SpecificationWindow { DataContext = vm, Topmost = true };
+                    var view = new AGR_SpecificationWindow { DataContext = vm, Topmost = true, Title = $"Подробная информация" };
                     view.Closed += (_, _) => scope.Dispose(); // скоуп закрывается вместе с окном
 
-                    await vm.InitializeAsync(selectedItem.PartNumber, selectedItem.Version);
+                    // Окно показывается сразу с оверлеем прогресса (IsLoading/LoadingStatus),
+                    // а фактическая загрузка из БД запускается его Window_Loaded.
                     view.Show();
                 }
                 else
@@ -17875,10 +18363,9 @@ namespace Agrovent.ViewModels.TaskPane
                     var vm = new AGR_ComponentEditVM(selectedItem, unitOfWork,
                         scope.ServiceProvider.GetService<ILogger<AGR_ComponentEditVM>>());
 
-                    var view = new SaveConfirmationView { DataContext = vm, Topmost = true };
+                    var view = new SaveConfirmationView { DataContext = vm, Topmost = true, Title = $"Подробная информация" };
                     view.Closed += (_, _) => scope.Dispose();
 
-                    await vm.InitializeAsync(selectedItem.RawPartNumber, selectedItem.Version);
                     view.Show();
                 }
             }
@@ -17913,7 +18400,7 @@ namespace Agrovent.ViewModels.TaskPane
         }
 
         #region SelectedComponentType
-        private string? _selectedComponentType =  AGR_ComponentTypeNames.AllTypes;
+        private string? _selectedComponentType = AGR_ComponentTypeNames.AllTypes;
         public string? SelectedComponentType
         {
             get => _selectedComponentType;
@@ -19257,6 +19744,7 @@ using Microsoft.Extensions.Logging;
 using Xarial.XCad.SolidWorks.Documents;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.Documents.Extensions;
+using Agrovent.ViewModels.Windows;
 
 namespace Agrovent.ViewModels.Windows
 {
@@ -19273,6 +19761,11 @@ namespace Agrovent.ViewModels.Windows
         private readonly List<ComponentFile> _newFiles = new();
         private readonly List<ComponentFile> _removedFiles = new();
 
+        // Параметры отложенной загрузки: конструктор больше не запускает InitializeAsync сам —
+        // это делает View по событию Loaded, чтобы окно успело отобразиться с оверлеем прогресса.
+        private string _pendingPartNumber;
+        private int _pendingVersion;
+
         public bool? DialogResult { get; set; }
         public bool IsEditMode => true;
         public bool PropertiesReadOnly => false;
@@ -19283,7 +19776,9 @@ namespace Agrovent.ViewModels.Windows
 
             BlankProperties = new ObservableCollection<AGR_ComponentPropertyEditVM>();
             Files = new ObservableCollection<AGR_ComponentFileEditVM>();
-            _ = InitializeAsync(partNumber, version);
+
+            _pendingPartNumber = partNumber;
+            _pendingVersion = version;
         }
         public AGR_ComponentEditVM(AGR_ComponentRegistryItemVM registryItem, IUnitOfWork unitOfWork, ILogger? logger = null)
         {
@@ -19293,14 +19788,21 @@ namespace Agrovent.ViewModels.Windows
             BlankProperties = new ObservableCollection<AGR_ComponentPropertyEditVM>();
             Files = new ObservableCollection<AGR_ComponentFileEditVM>();
 
-            //_ = InitializeAsync(registryItem.RawPartNumber, registryItem.Version);
+            _pendingPartNumber = registryItem.RawPartNumber;
+            _pendingVersion = registryItem.Version;
         }
 
         #region Инициализация
+        // Вызывается из Window_Loaded окна SaveConfirmationView — окно уже видно, показан оверлей прогресса.
+        public Task InitializeAsync() => InitializeAsync(_pendingPartNumber, _pendingVersion);
+
         public async Task InitializeAsync(string partNumber, int version)
         {
             try
             {
+                IsLoading = true;
+                LoadingStatus = "Загрузка компонента...";
+
                 _entity = await _unitOfWork.ComponentRepository.GetComponentVersionForEdit(partNumber, version);
                 if (_entity == null)
                 {
@@ -19358,6 +19860,11 @@ namespace Agrovent.ViewModels.Windows
                 _logger?.LogError(ex, $"Ошибка при загрузке компонента {partNumber} v{version} для редактирования.");
                 ErrorMessages = "Ошибка загрузки: " + ex.Message;
                 HasErrors = true;
+            }
+            finally
+            {
+                IsLoading = false;
+                LoadingStatus = string.Empty;
             }
         }
         #endregion
@@ -19442,12 +19949,10 @@ namespace Agrovent.ViewModels.Windows
                 Set(ref _avaArticle, value);
                 if (value is AvaArticleModel model)
                 {
-                    _entity.AvaArticle = model;
                     _entity.AvaArticleArticle = model.Article;
                 }
                 else
                 {
-                    _entity.AvaArticle = null;
                     _entity.AvaArticleArticle = null;
                 }
                 OnPropertyChanged(nameof(Article));
@@ -19831,6 +20336,7 @@ namespace Agrovent.ViewModels.Windows
         #endregion
     }
 }
+
 
 
 
@@ -21409,6 +21915,22 @@ namespace Agrovent.ViewModels.Windows
         }
         #endregion
 
+
+
+        #region CancelationToken
+
+        /// <summary>
+        /// Свойство на отмену прогресса по не обходимости
+        /// </summary>
+        private CancellationTokenSource _CancelationToken;
+        public CancellationTokenSource CancelationToken
+        {
+            get => _CancelationToken;
+            set => Set(ref _CancelationToken, value);
+        }
+        #endregion
+
+
         #endregion
 
         #region Commands
@@ -21420,6 +21942,17 @@ namespace Agrovent.ViewModels.Windows
         private bool CanCloseCommandExecute(object p) => true; // Всегда можно закрыть
         private void OnCloseCommandExecuted(object p)
         {
+            // Если процесс еще идет, нажатие на "Закрыть" срабатывает как "Отмена"
+            if (CancelationToken != null && !IsFinished && !CancelationToken.IsCancellationRequested)
+            {
+                CancelationToken.Cancel();
+                AddLogMessage("⚠️ Отмена операции пользователем...");
+
+                // Мы НЕ закрываем окно сразу. 
+                // Это позволит пользователю увидеть сообщение об отмене и сохранить лог (кнопка SaveLog станет активной).
+                // Окно закроется, когда пользователь нажмет кнопку повторно после завершения (IsFinished = true).
+                return;
+            }
             var view = p as Window;
             if (view != null)
             {
@@ -21527,7 +22060,7 @@ namespace Agrovent.ViewModels.Windows
 
         public AGR_SelectAvaArticleVM()
         {
-                
+
         }
 
         #endregion
@@ -21594,7 +22127,7 @@ namespace Agrovent.ViewModels.Windows
 
             e.Accepted = false;
         }
-       
+
         private bool _canRemoveArticleFilter;
         public bool CanRemoveArticleFilter
         {
@@ -21624,7 +22157,7 @@ namespace Agrovent.ViewModels.Windows
         }
         #endregion
 
-        
+
         // Команда для подтверждения выбора (OK)
         #region AcceptSelectionCommand
         private ICommand _AcceptSelectionCommand;
@@ -21701,7 +22234,7 @@ namespace Agrovent.ViewModels.Windows
                     AddArticleFilter();
                 }
             }
-        } 
+        }
         #endregion
 
         // Метод загрузки данных из БД
@@ -21749,11 +22282,11 @@ namespace Agrovent.ViewModels.Windows
         public bool IsDialogResultAccepted { get; private set; }
 
         // Метод, вызываемый командой AcceptSelectionCommand (OK)
-        
+
         #region AvailableAvaTypes
-        private ObservableCollection<string> _availableAvaTypes = 
-            new ObservableCollection<string> 
-            { 
+        private ObservableCollection<string> _availableAvaTypes =
+            new ObservableCollection<string>
+            {
                 AGR_AvaTypeNames.DontBuy,
                 AGR_AvaTypeNames.VirtualComponent,
                 AGR_AvaTypeNames.Production,
@@ -21761,7 +22294,7 @@ namespace Agrovent.ViewModels.Windows
                 AGR_AvaTypeNames.Purchased,
                 AGR_AvaTypeNames.AllTypes
             };
-        public ObservableCollection<string> AvailableAvaTypes 
+        public ObservableCollection<string> AvailableAvaTypes
         {
             get => _availableAvaTypes;
         }
@@ -23145,7 +23678,7 @@ namespace Agrovent.Views.Pages
         <Setter Property="RowBackground" Value="White"/>
         <!--<Setter Property="AlternatingRowBackground" Value="#F5F5F5"/>-->
         <Setter Property="HeadersVisibility" Value="Column"/>
-        <Setter Property="RowHeight" Value="40"/>
+        <Setter Property="MinRowHeight" Value="40"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
         <Setter Property="ColumnHeaderStyle" Value="{StaticResource PropertiesDataGridHeader}"/>
@@ -23592,6 +24125,208 @@ namespace Agrovent.Views.Windows
 
 
 
+--- Файл: AGR_MatchArticlesWindow.xaml ---
+==============================================================
+<Window x:Class="Agrovent.Views.Windows.AGR_MatchArticlesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Agrovent.Views.Windows"
+        xmlns:vm="clr-namespace:Agrovent.ViewModels.Specification"
+        xmlns:AGR_converter="clr-namespace:AgroventInfrastructure.AGR_Converters;assembly=AgroventInfrastructure"
+        d:DataContext="{d:DesignInstance Type={x:Type vm:AGR_MatchArticlesVM}}"
+        mc:Ignorable="d"
+        Title="Подбор артикулов"
+        WindowState="Maximized"
+        WindowStartupLocation="CenterOwner"
+        Topmost="True">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+                <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок / пояснение -->
+        <Border Grid.Row="0" Background="White" Padding="16,12" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Для каждого компонента выберите подходящий артикул из найденных вариантов (отмечен один - радиокнопкой). Компоненты, для которых варианты не найдены или уже назначен артикул, в списке не отображаются."
+                           TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <TextBlock Margin="24,0,0,0" VerticalAlignment="Center" FontWeight="Bold"
+                           Foreground="DarkOrange"
+                           Visibility="{Binding HasUnresolved, Converter={StaticResource BoolToVisibilityConverter}}"
+                           Text="{Binding UnresolvedCount, StringFormat='Не выбрано вариантов: {0}'}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Основная таблица -->
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding GroupedItemsView}"
+                  Style="{StaticResource SpecificationDataGrid}"
+                  GridLinesVisibility="Horizontal"
+                  HorizontalGridLinesBrush="LightGray"
+                  AutoGenerateColumns="False"
+                  CanUserSortColumns="True"
+                  CanUserAddRows="False"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Auto">
+
+            <DataGrid.GroupStyle>
+                <GroupStyle>
+                    <GroupStyle.ContainerStyle>
+                        <Style TargetType="{x:Type GroupItem}" BasedOn="{StaticResource GroupHeaderStyle}"/>
+                    </GroupStyle.ContainerStyle>
+                </GroupStyle>
+            </DataGrid.GroupStyle>
+
+            <DataGrid.Columns>
+
+                <!-- Компонент из спецификации -->
+                <DataGridTemplateColumn Header="Компонент" Width="280">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Vertical" Margin="4">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding PartNumber}" Foreground="Gray" TextWrapping="Wrap"/>
+                                <TextBlock Foreground="Gray">
+                                    <Run Text="Кол-во: "/>
+                                    <Run Text="{Binding Quantity, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- Найденные варианты AvaArticle -->
+                <DataGridTemplateColumn Header="Найденные варианты (выберите один)" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Vertical" Margin="4">
+
+                                <!-- Список кандидатов -->
+                                <ItemsControl ItemsSource="{Binding Candidates}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <RadioButton IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                         Margin="0,2"
+                                                         VerticalContentAlignment="Center">
+                                                <RadioButton.ToolTip>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DisplayName}"/>
+                                                        <TextBlock Text="{Binding DisplayPartNumber}"/>
+                                                    </StackPanel>
+                                                </RadioButton.ToolTip>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding DisplayArticle}" FontWeight="SemiBold" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="{Binding DisplayName}" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding DisplayPartNumber}"
+                                                               Foreground="Gray" Margin="6,0,0,0"/>
+                                                    <TextBlock Text=" (совпадение по Partnumber)"
+                                                               Foreground="ForestGreen" FontStyle="Italic"
+                                                               Visibility="{Binding IsPartNumberMatch, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                </StackPanel>
+                                            </RadioButton>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Нет вариантов -->
+                                <TextBlock Text="Подходящие варианты не найдены"
+                                           Foreground="Gray" FontStyle="Italic"
+                                           Visibility="{Binding NoCandidatesFound, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                                <!-- Сброс выбора -->
+                                <Button Content="Без артикула" HorizontalAlignment="Left"
+                                        Margin="0,4,0,0" Padding="6,2"
+                                        Visibility="{Binding HasCandidates, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Command="{Binding DataContext.ClearSelectionCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+            </DataGrid.Columns>
+
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsResolved}" Value="False">
+                            <Setter Property="Background" Value="#FFF6E5"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
+
+        </DataGrid>
+
+        <!-- Панель действий -->
+        <Border Grid.Row="2" Background="White" Padding="16,12" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Сохранить"
+                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                        Style="{StaticResource AcceptButtonStyle}"
+                        Command="{Binding SaveCommand}"/>
+                <Button Content="Отмена"
+                        Command="{Binding CancelCommand}"
+                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                        Style="{StaticResource CancelButtonStyle}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Оверлей загрузки -->
+        <Border Grid.RowSpan="3" Background="#80000000"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="20"/>
+                <TextBlock Text="{Binding LoadingStatus}"
+                           Foreground="White"
+                           FontSize="16"
+                           Margin="0,10,0,0"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
+
+
+
+
+--- Файл: AGR_MatchArticlesWindow.xaml.cs ---
+==============================================================
+using System.Windows;
+
+namespace Agrovent.Views.Windows
+{
+    /// <summary>
+    /// Окно "Подобрать артикулы". Вся логика в AGR_MatchArticlesVM,
+    /// это окно - чистое представление без собственного состояния.
+    /// </summary>
+    public partial class AGR_MatchArticlesWindow : Window
+    {
+        public AGR_MatchArticlesWindow()
+        {
+            InitializeComponent();
+        }
+    }
+}
+
+
+
+
 --- Файл: AGR_ProjectExplorerView.xaml ---
 ==============================================================
 <Window x:Class="Agrovent.Views.Windows.AGR_ProjectExplorerView"
@@ -23860,7 +24595,8 @@ namespace Agrovent.Views.Windows
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" 
         WindowState="Maximized"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        Loaded="Window_Loaded">
 
     <Window.Resources>
         <ResourceDictionary>
@@ -23883,6 +24619,7 @@ namespace Agrovent.Views.Windows
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
             <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+            <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBoolToVisibilityConverter"/>
             <AGR_converter:AGR_ComponentTypeToVisibility x:Key="ComponentTypeToVisibility"/>
             <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
 
@@ -23938,120 +24675,122 @@ namespace Agrovent.Views.Windows
     </Window.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <Grid Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <!-- Заголовок окна -->
-        <Border Grid.Row="0" Style="{StaticResource WindowHeaderStyle}">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="{Binding WindowTitle}" 
+            <!-- Заголовок окна -->
+            <Border Grid.Row="0" Style="{StaticResource WindowHeaderStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding WindowTitle}" 
                            Foreground="White" 
                            FontSize="16" 
                            FontWeight="Bold"/>
-            </StackPanel>
-        </Border>
+                </StackPanel>
+            </Border>
 
-        <!-- Панель с превью главной сборки и настройками -->
-        <Border Grid.Row="1" Background="#F5F5F5" Padding="16" Margin="16,8,16,8" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="160"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- Панель с превью главной сборки и настройками -->
+            <Border Grid.Row="1" Background="#F5F5F5" Padding="16" Margin="16,8,16,8" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- Превью главной сборки -->
-                <Border Grid.Column="0" Width="150" Height="150" Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Margin="0,0,16,0">
-                    <Image Source="{Binding BaseAssemblyPreview}" Stretch="Uniform" />
-                </Border>
+                    <!-- Превью главной сборки -->
+                    <Border Grid.Column="0" Width="150" Height="150" Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Margin="0,0,16,0">
+                        <Image Source="{Binding BaseAssemblyPreview}" Stretch="Uniform" />
+                    </Border>
 
-                <!-- Информация о главной сборке и настройки -->
-                <StackPanel Grid.Column="1" Orientation="Vertical">
+                    <!-- Информация о главной сборке и настройки -->
+                    <StackPanel Grid.Column="1" Orientation="Vertical">
 
-                    <!-- Наименование -->
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
-                        <TextBlock Grid.Column="1" Text="{Binding BaseAssemblyName}" Margin="0,0,0,8"/>
-                        <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0,0,0,8"/>
-                    </StackPanel>
+                        <!-- Наименование -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <TextBlock Grid.Column="1" Text="{Binding BaseAssemblyName}" Margin="0,0,0,8"/>
+                            <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0,0,0,8"/>
+                        </StackPanel>
 
-                    <!-- Partnumber -->
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BaseAssemblyPartNumber}" Margin="0,0,8,8"/>
-                    </StackPanel>
+                        <!-- Partnumber -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BaseAssemblyPartNumber}" Margin="0,0,8,8"/>
+                        </StackPanel>
 
-                    <!-- Тип AVA -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <!-- Тип AVA -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
 
-                        <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
+                            <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
                                   SelectedItem="{Binding BaseAssemblyAvaTypeEnum}"
                                   Width="150"
                                   Style="{StaticResource ModernComboBox}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <!-- Артикул -->
-                    <StackPanel Orientation="Vertical">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Артикул:" FontWeight="Bold" Margin="0,0,8,8"/>
-                            <Button Content="Выбрать" Command="{Binding SelectArticleCommand}" Padding="8,4" Margin="0,0,0,8"/>
-                            <TextBlock Text="{Binding ArticleString}" Margin="10,0,8,8"/>
-                            <!-- Чекбокс "Без артикула" -->
-                            <CheckBox Grid.Row="3" Grid.Column="0" Content="Без артикула" IsChecked="{Binding NoArticle}" Margin="0,0,0,8"/>
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </StackPanel>
-                    </StackPanel>
 
-                    <StackPanel Orientation="Vertical">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Покрытие:" FontWeight="Bold" Margin="0,0,8,8"/>
-                            <Button Content="Выбрать" Command="{Binding SelectPaintCommand}" Padding="8,4" Margin="8,0,0,8" HorizontalAlignment="Left"/>
-                            <TextBlock Text="{Binding BaseAssemblyPaintName}" Margin="8,0,8,8"/>
-                            <!-- Чекбокс "Без покрытия" -->
-                            <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint}" Margin="0,0,0,8"/>
+                        <!-- Артикул -->
+                        <StackPanel Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Артикул:" FontWeight="Bold" Margin="0,0,8,8"/>
+                                <Button Content="Выбрать" Command="{Binding SelectArticleCommand}" Padding="8,4" Margin="0,0,0,8"/>
+                                <TextBlock Text="{Binding ArticleString}" Margin="10,0,8,8"/>
+                                <!-- Чекбокс "Без артикула" -->
+                                <CheckBox Grid.Row="3" Grid.Column="0" Content="Без артикула" IsChecked="{Binding NoArticle}" Margin="0,0,0,8"/>
+                            </StackPanel>
                         </StackPanel>
+
+                        <StackPanel Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Покрытие:" FontWeight="Bold" Margin="0,0,8,8"/>
+                                <Button Content="Выбрать" Command="{Binding SelectPaintCommand}" Padding="8,4" Margin="8,0,0,8" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding BaseAssemblyPaintName}" Margin="8,0,8,8"/>
+                                <!-- Чекбокс "Без покрытия" -->
+                                <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint}" Margin="0,0,0,8"/>
+                            </StackPanel>
+                        </StackPanel>
+
                     </StackPanel>
+                </Grid>
+            </Border>
 
-                </StackPanel>
-            </Grid>
-        </Border>
+            <!-- Основной контент - DataGrid с группировкой и панель ошибок -->
+            <Grid Grid.Row="2" Margin="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition  Width="auto"/>
+                </Grid.ColumnDefinitions>
 
-        <!-- Основной контент - DataGrid с группировкой и панель ошибок -->
-        <Grid Grid.Row="2" Margin="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition/>
-                <ColumnDefinition  Width="auto"/>
-            </Grid.ColumnDefinitions>
-
-            <Grid.Resources>
-                <!-- CollectionViewSource для группировки компонентов -->
-                <CollectionViewSource x:Key="1GroupedComponents" 
+                <Grid.Resources>
+                    <!-- CollectionViewSource для группировки компонентов -->
+                    <CollectionViewSource x:Key="1GroupedComponents" 
                                       Source="{Binding Components, NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}">
-                    <CollectionViewSource.GroupDescriptions>
-                        <PropertyGroupDescription PropertyName="ComponentType"/>
-                    </CollectionViewSource.GroupDescriptions>
-                    <CollectionViewSource.SortDescriptions>
-                        <scm:SortDescription PropertyName="ComponentType" Direction="Ascending"/>
-                        <scm:SortDescription PropertyName="Name" Direction="Ascending"/>
-                    </CollectionViewSource.SortDescriptions>
-                </CollectionViewSource>
-            </Grid.Resources>
+                        <CollectionViewSource.GroupDescriptions>
+                            <PropertyGroupDescription PropertyName="ComponentType"/>
+                        </CollectionViewSource.GroupDescriptions>
+                        <CollectionViewSource.SortDescriptions>
+                            <scm:SortDescription PropertyName="ComponentType" Direction="Ascending"/>
+                            <scm:SortDescription PropertyName="Name" Direction="Ascending"/>
+                        </CollectionViewSource.SortDescriptions>
+                    </CollectionViewSource>
+                </Grid.Resources>
 
-            <!-- DataGrid с группировкой -->
-            <!--ItemsSource="{Binding  Source={StaticResource GroupedComponents}}"-->
-            <DataGrid Grid.Column="0"
+                <!-- DataGrid с группировкой -->
+                <!--ItemsSource="{Binding  Source={StaticResource GroupedComponents}}"-->
+                <DataGrid Grid.Column="0"
                       ItemsSource="{Binding GroupedComponentsView}"
                       Style="{StaticResource SpecificationDataGrid}"
+                          Name="ComponentsDataGrid"
                       GridLinesVisibility="Vertical"
                       VerticalGridLinesBrush="LightGray"
                       AutoGenerateColumns="False"
@@ -24061,163 +24800,170 @@ namespace Agrovent.Views.Windows
                       b:AGR_DataGridSelectedItemsBehavior.SelectedItems="{Binding SelectedComponents, Mode=TwoWay}"
                       >
 
-                <DataGrid.InputBindings>
-                    <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
-                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectComponentCommand}"/>
-                </DataGrid.InputBindings>
+                    <DataGrid.InputBindings>
+                        <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
+                        <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectComponentCommand}"/>
+                    </DataGrid.InputBindings>
 
 
-                <!-- Настройка группировки -->
-                <DataGrid.GroupStyle>
-                    <GroupStyle>
-                        <GroupStyle.ContainerStyle>
-                            <Style TargetType="{x:Type GroupItem}" BasedOn="{StaticResource GroupHeaderStyle}"/>
-                        </GroupStyle.ContainerStyle>
-                    </GroupStyle>
-                </DataGrid.GroupStyle>
+                    <!-- Настройка группировки -->
+                    <DataGrid.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.ContainerStyle>
+                                <Style TargetType="{x:Type GroupItem}" BasedOn="{StaticResource GroupHeaderStyle}"/>
+                            </GroupStyle.ContainerStyle>
+                        </GroupStyle>
+                    </DataGrid.GroupStyle>
 
-                <!-- Колонки DataGrid -->
-                <DataGrid.Columns>
+                    <!-- Колонки DataGrid -->
+                    <DataGrid.Columns>
 
-                    <DataGridTemplateColumn Width="25">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Width="25">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                    <!-- Preview Column -->
-                    <DataGridTemplateColumn Width="50" MinWidth="50">
-                        <DataGridTemplateColumn.CellStyle>
-                            <Style TargetType="DataGridCell">
-                                <Setter Property="ToolTip">
-                                    <Setter.Value>
-                                        <Image Source="{Binding Preview}" Width="450"/>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
-                                <Setter Property="ToolTipService.Placement" Value="Right"/>
-                            </Style>
-                        </DataGridTemplateColumn.CellStyle>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
-                                <!-- Контейнер для основного отображения в ячейке -->
-                                <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                        <!-- Preview Column -->
+                        <DataGridTemplateColumn Width="50" MinWidth="50">
+                            <DataGridTemplateColumn.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="ToolTip">
+                                        <Setter.Value>
+                                            <Image Source="{Binding Preview}" Width="450"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+                                    <Setter Property="ToolTipService.Placement" Value="Right"/>
+                                </Style>
+                            </DataGridTemplateColumn.CellStyle>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
+                                    <!-- Контейнер для основного отображения в ячейке -->
+                                    <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                    <!-- Наименование -->
-                    <DataGridTemplateColumn Header="Наименование" SortMemberPath="Name" Width="SizeToCells">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding ArticleName}" 
+                        <!-- Наименование -->
+                        <DataGridTemplateColumn Header="Наименование" SortMemberPath="Name" Width="SizeToCells">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding ArticleName}" 
                                                Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
                                                VerticalAlignment="Center" Foreground="BlueViolet"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    
-                    
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                    <!-- PartNumber/Артикул -->
-                    <DataGridTextColumn Header=" PartNumber / Артикул " 
-                                        Width="1.5*"
+
+
+                        <!-- PartNumber/Артикул -->
+                        <DataGridTextColumn Header=" PartNumber / Артикул " 
+                                        Width="SizeToCells"
                                         CanUserSort="True"
                                         ElementStyle="{StaticResource DGCell_LeftAlignedAndWrapping}"
                                         Binding="{Binding PartnumberOrArticle}">
-                    </DataGridTextColumn>
+                        </DataGridTextColumn>
 
-                    <!-- Количество -->
-                    <DataGridTextColumn Header=" Количество " 
+                        <!-- Количество -->
+                        <DataGridTextColumn Header=" Количество " 
                                         Binding="{Binding Quantity}" 
                                         Width="*"
                                         CanUserSort="True"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
-                    <!-- Толщина -->
-                    <DataGridTextColumn Header=" Толщина " 
+                        <!-- Толщина -->
+                        <DataGridTextColumn Header=" Толщина " 
                                         Binding="{Binding SheetMetalThickness}" 
-                                        Width="*"
+                                        Width="SizeToHeader"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
-                    <!-- Материал -->
-                    <DataGridTemplateColumn Header="Материал" SortMemberPath="Name" Width="3*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding MaterialArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding MaterialName}" 
+                        <!-- Материал -->
+                        <DataGridTemplateColumn Header="Материал" SortMemberPath="Name" Width="3*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding MaterialArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding MaterialName}" 
                                                Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
                                                VerticalAlignment="Center" Foreground="BlueViolet"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    
-                    <!-- Краска -->
-                    <DataGridTemplateColumn Header="Краска" SortMemberPath="Name" Width="3*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding PaintArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding PaintName}" 
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Краска -->
+                        <DataGridTemplateColumn Header="Краска" SortMemberPath="Name" Width="3*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding PaintArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding PaintName}" 
                                                Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
                                                VerticalAlignment="Center" Foreground="BlueViolet"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                </DataGrid.Columns>
+                    </DataGrid.Columns>
 
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                <Setter Property="Background" Value="LightBlue"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                        <Setter Property="ContextMenu" Value="{StaticResource RowMenu}"/>
-                    </Style>
-                </DataGrid.RowStyle>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                    <Setter Property="Background" Value="LightBlue"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                            <Setter Property="ContextMenu" Value="{StaticResource RowMenu}"/>
+                        </Style>
+                    </DataGrid.RowStyle>
 
-            </DataGrid>
+                </DataGrid>
 
-            <!-- Панель ошибок справа -->
-            <Border Grid.Column="1"
+                <!-- Панель ошибок справа -->
+                <Border Grid.Column="1"
                     Style="{StaticResource ErrorBorderStyle}"
                     Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel>
-                        <TextBlock Text="Ошибки:" 
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <TextBlock Text="Ошибки:" 
                                FontWeight="Bold" 
                                    TextDecorations="Underline"
                                Style="{StaticResource ErrorTextblockStyle}"/>
-                        <TextBlock Text="{Binding Errors}" 
+                            <TextBlock Text="{Binding Errors}" 
                                Style="{StaticResource ErrorTextblockStyle}"/>
-                        <TextBlock Text="{Binding Warnings}" 
+                            <TextBlock Text="{Binding Warnings}" 
                                 Style="{StaticResource WarningTextblockStyle}"/>
-                    </StackPanel>
-                </ScrollViewer>
-            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
 
-            <!-- Сообщение при отсутствии компонентов -->
-            <!--<TextBlock Text="Нет компонентов для отображения" 
+                <!-- Сообщение при отсутствии компонентов -->
+                <!--<TextBlock Text="Нет компонентов для отображения" 
                        Style="{StaticResource EmptySpecificationStyle}"
                        Visibility="{Binding HasComponents, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=true}"/>-->
-        </Grid>
+            </Grid>
 
-        <!-- Панель действий -->
-        <Border Grid.Row="3" 
+            <!-- Панель действий -->
+            <Border Grid.Row="3" 
                 Background="White" 
                 Padding="16,12" 
                 BorderBrush="#E0E0E0" 
                 BorderThickness="0,1,0,0">
+                <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Button Content="Подобрать артикулы..."
+                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                        Command="{Binding MatchArticlesCommand}"
+                        Padding="8,4"/>
+                </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <CheckBox IsChecked="{Binding IgnoreErrors}" Content="Игнорировать ошибки"/>
                     <Button Content="Сохранить" 
@@ -24231,10 +24977,27 @@ namespace Agrovent.Views.Windows
                         Style="{StaticResource CancelButtonStyle}"
                         />
                 </StackPanel>
-        </Border>
+                </Grid>
+            </Border>
 
+        </Grid>
+        <Border Background="#80000000"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="20"/>
+                <TextBlock Text="{Binding LoadingStatus}"
+                           Foreground="White"
+                           FontSize="16"
+                           Margin="0,10,0,0"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
+
+
+
+
 
 
 
@@ -24253,6 +25016,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
+using Agrovent.ViewModels.Specification;
 
 namespace Agrovent.Views.Windows
 {
@@ -24264,6 +25029,28 @@ namespace Agrovent.Views.Windows
         public AGR_SpecificationWindow()
         {
             InitializeComponent();
+        }
+        // Окно уже показано (со своим прогресс-оверлеем в XAML, см. IsLoading/LoadingStatus) —
+        // здесь запускаем фактическую асинхронную загрузку из БД для режима редактирования сборки.
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is AGR_AssemblyEditVM vm)
+            {
+                await vm.InitializeAsync();
+            }
+            ResetColumnWidth();
+        }
+        private void ResetColumnWidth()
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                foreach (var column in ComponentsDataGrid.Columns)
+                {
+                    var width = column.Width;
+                    column.Width = 0;
+                    column.Width = width;
+                }
+            }), DispatcherPriority.Loaded);
         }
     }
 }
@@ -24282,7 +25069,6 @@ namespace Agrovent.Views.Windows
              xmlns:StateEnum="clr-namespace:Xarial.XCad.Documents.Enums;assembly=Xarial.XCad"
              xmlns:System="clr-namespace:System;assembly=mscorlib"
              xmlns:VM="clr-namespace:Agrovent.ViewModels.Components"
-             xmlns:locator="clr-namespace:Agrovent.ViewModels"
              xmlns:page="clr-namespace:Agrovent.Views.Pages"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
@@ -24294,7 +25080,6 @@ namespace Agrovent.Views.Windows
                     <x:Type TypeName="StateEnum:ComponentState_e"/>
                 </ObjectDataProvider.MethodParameters>
             </ObjectDataProvider>
-            <locator:ViewModelLocator x:Key="VMLocator"/>
 
             <DataTemplate DataType="{x:Type VM:AGR_PartComponentVM}">
                 <page:AGR_PartPageView/>
@@ -24311,9 +25096,9 @@ namespace Agrovent.Views.Windows
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <UserControl.DataContext>
+    <!--<UserControl.DataContext>
         <Binding Path="TaskPaneVM" Source="{StaticResource VMLocator}"/>
-    </UserControl.DataContext>
+    </UserControl.DataContext>-->
 
     <Grid>
         <Border Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -24422,11 +25207,11 @@ namespace Agrovent.Views.Windows
         xmlns:system="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:AGR_SaveConfirmationVM, IsDesignTimeCreatable=False}"
-        Title="Подтверждение сохранения" 
         Height="700" Width="900"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        Loaded="Window_Loaded">
 
     <Window.Resources>
 
@@ -24438,9 +25223,10 @@ namespace Agrovent.Views.Windows
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
             <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVis"/>
             <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBool"/>
+            <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBoolToVisibilityConverter"/>
             <AGR_converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
             <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
-            
+
             <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
                                 ObjectType="{x:Type system:Enum}">
                 <ObjectDataProvider.MethodParameters>
@@ -24460,189 +25246,206 @@ namespace Agrovent.Views.Windows
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="15">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <Grid Margin="15" Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <!-- Header Section -->
-        <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="150"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- Header Section -->
+            <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- Preview Image -->
-                <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Background="White" 
+                    <!-- Preview Image -->
+                    <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Background="White" 
                         Height="150" Width="150" HorizontalAlignment="Left">
 
-                    <Image Source="{Binding Preview}" Stretch="Uniform" Style="{StaticResource PreviewImage}"/>
-                </Border>
+                        <Image Source="{Binding Preview}" Stretch="Uniform" Style="{StaticResource PreviewImage}"/>
+                    </Border>
 
-                <!-- Component Info -->
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
+                    <!-- Component Info -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
 
-                    <!-- Наименование -->
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ComponentName}" Margin="0,0,0,8"/>
-                        <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0 0 0 8"/>
-                    </StackPanel>
+                        <!-- Наименование -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ComponentName}" Margin="0,0,0,8"/>
+                            <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0 0 0 8"/>
+                        </StackPanel>
 
-                    <!-- Partnumber -->
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PartNumber}" Margin="0,0,8,8"/>
-                    </StackPanel>
+                        <!-- Partnumber -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PartNumber}" Margin="0,0,8,8"/>
+                        </StackPanel>
 
-                    <!-- Тип AVA -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <!-- Тип AVA -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
 
-                        <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
+                            <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
                                   SelectedItem="{Binding BaseAvaTypeEnum}"
                                   Width="150"
                                   Style="{StaticResource ModernComboBox}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
 
-                    <!-- Material and Color for Parts -->
-                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                        <!-- Material and Color for Parts -->
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                 Visibility="{Binding IsPart, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Материал:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <Button Content="Выбрать" Command="{Binding SelectMaterialCommand}" 
+                            <TextBlock Text="Материал:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <Button Content="Выбрать" Command="{Binding SelectMaterialCommand}" 
                                 Padding="5,2" Margin="0,0,10,0"
                                 Visibility="{Binding IsProduced, Converter={StaticResource BoolToVis}}"/>
-                        <TextBlock Text="{Binding MaterialName}" FontSize="12" VerticalAlignment="Center" 
+                            <TextBlock Text="{Binding MaterialName}" FontSize="12" VerticalAlignment="Center" 
                                    Foreground="{Binding MaterialName, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
-                    </StackPanel>
+                        </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                 Visibility="{Binding IsProduced, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Цвет/Покрытие:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <Button Content="Выбрать" Command="{Binding SelectColorCommand}"
+                            <TextBlock Text="Цвет/Покрытие:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <Button Content="Выбрать" Command="{Binding SelectColorCommand}"
                                 Padding="5,2" Margin="0,0,10,0"
                                 IsEnabled="{Binding NoPaint, Converter={StaticResource InverseBool}}"/>
-                        <TextBlock Text="{Binding ColorName}" FontSize="12" VerticalAlignment="Center"
+                            <TextBlock Text="{Binding ColorName}" FontSize="12" VerticalAlignment="Center"
                                    Foreground="{Binding ColorName, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
-                        <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint, UpdateSourceTrigger=PropertyChanged}"
+                            <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint, UpdateSourceTrigger=PropertyChanged}"
                                   Margin="15,0,0,0" VerticalAlignment="Center"/>
-                    </StackPanel>
+                        </StackPanel>
 
-                    <!-- Article for Purchased -->
+                        <!-- Article for Purchased -->
 
-                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                        <TextBlock Text="Артикул:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <Button Content="Выбрать" Command="{Binding SelectArticleCommand}"
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                            <TextBlock Text="Артикул:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <Button Content="Выбрать" Command="{Binding SelectArticleCommand}"
                                  Padding="5,2" Margin="0,0,10,0"
                                  IsEnabled="{Binding NoArticle, Converter={StaticResource InverseBool}}"/>
-                        <TextBlock Text="{Binding Article}" FontSize="12" VerticalAlignment="Center"
+                            <TextBlock Text="{Binding Article}" FontSize="12" VerticalAlignment="Center"
                                    Foreground="{Binding Article, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
-                        <CheckBox Content="Нет артикула" IsChecked="{Binding NoArticle, UpdateSourceTrigger=PropertyChanged}"
+                            <CheckBox Content="Нет артикула" IsChecked="{Binding NoArticle, UpdateSourceTrigger=PropertyChanged}"
                                   Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+
                     </StackPanel>
+                </Grid>
+            </Border>
 
+            <!-- Main Content Section -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- Main Content Section -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- Blank Properties Tab (for Parts) -->
-            <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" CornerRadius="3" 
+                <!-- Blank Properties Tab (for Parts) -->
+                <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" CornerRadius="3" 
                     Padding="10" MinWidth="250" Visibility="{Binding PropertiesIsVisible}" >
-                <StackPanel Orientation="Vertical">
-                    <TextBlock Text="Свойства заготовки"  Margin="0,0,0,5" FontWeight="Bold"/>
-                    <DataGrid  ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="Свойства заготовки"  Margin="0,0,0,5" FontWeight="Bold"/>
+                        <DataGrid  ItemsSource="{Binding BlankProperties, UpdateSourceTrigger=PropertyChanged}" AutoGenerateColumns="False" 
                               CanUserAddRows="False" IsReadOnly="{Binding PropertiesReadOnly}" HeadersVisibility="Column" SelectionMode="Single"
                                Style="{StaticResource PropertiesDataGrid}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
-                            <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80" Visibility="Collapsed"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <Button Content="Обновить с 3D-модели"
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
+                                <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
+                                <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80" Visibility="Collapsed"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Button Content="Обновить с 3D-модели"
                             Command="{Binding UpdateFromModelCommand}"
                             Width="200" HorizontalAlignment="Left" Margin="0,5,0,0" Padding="6,3"
                             ToolTip="Перечитать свойства заготовки из последней версии модели в хранилище"/>
-                    <TextBlock Text="Файлы" Margin="0,10,0,5" FontWeight="Bold"
+                        <TextBlock Text="Файлы" Margin="0,10,0,5" FontWeight="Bold"
                                Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}"/>
-                    <DataGrid ItemsSource="{Binding Files}" AutoGenerateColumns="False"
+                        <DataGrid ItemsSource="{Binding Files}" AutoGenerateColumns="False"
                               CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column" SelectionMode="Single"
                               Style="{StaticResource PropertiesDataGrid}"
                               Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Файл" Binding="{Binding FileName}" Width="*"/>
-                            <DataGridTextColumn Header="Расположение" Binding="{Binding FullName}" Width="*"/>
-                            <DataGridTemplateColumn Header="" Width="*" Visibility="Collapsed">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button Content="Открыть" Padding="4,2" Margin="2,0"
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Файл" Binding="{Binding FileName}" Width="*"/>
+                                <DataGridTextColumn Header="Расположение" Binding="{Binding FullName}" Width="*"/>
+                                <DataGridTemplateColumn Header="" Width="*" Visibility="Collapsed">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="Открыть" Padding="4,2" Margin="2,0"
                                                     Command="{Binding DataContext.OpenFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"/>      
-                                            <Button Content="Заменить" Padding="4,2" Margin="2,0"
+                                                    CommandParameter="{Binding}"/>
+                                                <Button Content="Заменить" Padding="4,2" Margin="2,0"
                                                     Command="{Binding DataContext.ReplaceFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"/>
-                                            <Button Content="Удалить" Padding="4,2" Margin="2,0"
+                                                <Button Content="Удалить" Padding="4,2" Margin="2,0"
                                                     Command="{Binding DataContext.RemoveFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <!--<Button Content="Добавить файл" HorizontalAlignment="Left" Margin="0,5,0,0" Padding="6,3"
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <!--<Button Content="Добавить файл" HorizontalAlignment="Left" Margin="0,5,0,0" Padding="6,3"
                             Command="{Binding AddFileCommand}"
-                            Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}"/>-->       
-                </StackPanel>
-            </Border>
+                            Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}"/>-->
+                    </StackPanel>
+                </Border>
 
-            <!-- Right Side: Error Messages -->
-            <Border Grid.Column="1" 
+                <!-- Right Side: Error Messages -->
+                <Border Grid.Column="1" 
                     Style="{StaticResource ErrorBorderStyle}"
                     Visibility="{Binding HasErrors, Converter={StaticResource BoolToVis}}">
-                <StackPanel>
-                    <TextBlock Text="Ошибки валидации" Style="{StaticResource ErrorTextblockStyle}"/>
-                    <TextBlock Text="{Binding ErrorMessages}" Style="{StaticResource ErrorTextblockStyle}"/>
+                    <StackPanel>
+                        <TextBlock Text="Ошибки валидации" Style="{StaticResource ErrorTextblockStyle}"/>
+                        <TextBlock Text="{Binding ErrorMessages}" Style="{StaticResource ErrorTextblockStyle}"/>
                     </StackPanel>
-            </Border>
-        </Grid>
+                </Border>
+            </Grid>
 
-        <!-- Footer Buttons -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-            <Button Content="Сохранить" 
+            <!-- Footer Buttons -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                <Button Content="Сохранить" 
                     CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Command="{Binding SaveCommand}" 
                     Style="{StaticResource AcceptButtonStyle}"
                     IsEnabled="{Binding HasErrors, Converter={StaticResource InverseBool}}"/>
-            <Button Content="Отмена" 
+                <Button Content="Отмена" 
                     CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Command="{Binding CancelCommand}" 
                     Style="{StaticResource CancelButtonStyle}"/>
-        </StackPanel>
+            </StackPanel>
+        </Grid>
+        <Border Background="#80000000"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="20"/>
+                <TextBlock Text="{Binding LoadingStatus}"
+                           Foreground="White"
+                           FontSize="16"
+                           Margin="0,10,0,0"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
+
+
+
+
 
 
 
@@ -24662,6 +25465,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using Agrovent.ViewModels.Windows;
 
 namespace Agrovent.Views.Windows
 {
@@ -24673,6 +25477,16 @@ namespace Agrovent.Views.Windows
         public SaveConfirmationView()
         {
             InitializeComponent();
+        }
+
+        // Окно уже показано (со своим прогресс-оверлеем в XAML, см. IsLoading/LoadingStatus) —
+        // здесь запускаем фактическую асинхронную загрузку из БД для режима редактирования.
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is AGR_ComponentEditVM vm)
+            {
+                await vm.InitializeAsync();
+            }
         }
     }
 }
@@ -25293,7 +26107,6 @@ namespace Agrovent.DAL.Services.Repositories
                     PreviewImage = component.Preview,
                     Name = component.Name,
                     ConfigName = component.ConfigName,
-                    AvaArticle = mAvaArticle,
                     AvaArticleArticle = mAvaArticle?.Article,
                     ComponentType = component.ComponentType,
                     AvaType = component.AvaType,
@@ -33398,7 +34211,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b5938649ea9be3fbeaaeae8c1c35eeb16592455f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
 [assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -36347,6 +37160,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_25esqwi1_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_25esqwi1_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_2ajwxqf2_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -37411,6 +38267,49 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_2wntfitf_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_2ziqkclt_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_2ziqkclt_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -41593,6 +42492,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_5vo1vroc_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_5vo1vroc_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_5xbt000f_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -43528,6 +44470,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_bbzmxwot_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_bbzmxwot_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_bcpqmj0h_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -44345,6 +45330,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_bkh3tse4_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_bkh3tse4_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_blbv05rj_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -44506,6 +45534,49 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_bmcvx0zm_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_bmu0wkxg_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_bmu0wkxg_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -50021,6 +51092,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_ff2uh2ma_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_ff2uh2ma_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_fiv4qryi_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -50193,6 +51307,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_flgs2hqr_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_flgs2hqr_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_fndfrwbh_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -50354,6 +51511,49 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_frjt2mbg_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_frsq45ls_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_frsq45ls_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -50698,6 +51898,49 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_fymzivq0_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_fzq5rpbd_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_fzq5rpbd_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -51343,6 +52586,49 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_ggm5s3cp_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_ggqfosyb_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_ggqfosyb_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -53020,6 +54306,92 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_hmuxsvls_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_hntsb3oa_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_hntsb3oa_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_hpleudth_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_hpleudth_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -56815,6 +58187,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_k4qqsm5s_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_k4qqsm5s_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_k4qudno0_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -59868,6 +61283,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_mjacll5a_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_mjacll5a_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_mjb0ap2j_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -60717,6 +62175,49 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_mzevipo3_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_n00q1bof_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_n00q1bof_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -64340,6 +65841,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_pkge1qyj_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_pkge1qyj_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_pm3aapf4_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -64544,6 +66088,92 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_ppmbdxvb_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_pqniwngi_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_pqniwngi_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_prv0vbuw_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_prv0vbuw_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -65544,6 +67174,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_qkeclol3_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_qkeclol3_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_qkrimi2x_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -65748,6 +67421,49 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_qq2au4pz_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_qsyzugwr_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_qsyzugwr_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -70317,6 +72033,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_u3gcsp52_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_u3gcsp52_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_ua0adakb_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -71209,6 +72968,49 @@ using System.Reflection;
 
 
 --- Файл: Agrovent_uygtroai_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: Agrovent_uyl3wxjt_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_uyl3wxjt_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -75606,6 +77408,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: Agrovent_y0i1qqri_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: Agrovent_y0i1qqri_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: Agrovent_y0ub1d3v_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -79129,7 +80974,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent.DAL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b5938649ea9be3fbeaaeae8c1c35eeb16592455f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
 [assembly: System.Reflection.AssemblyProductAttribute("Agrovent.DAL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Agrovent.DAL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -79527,7 +81372,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AgroventInfrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b5938649ea9be3fbeaaeae8c1c35eeb16592455f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
 [assembly: System.Reflection.AssemblyProductAttribute("AgroventInfrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AgroventInfrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -79671,7 +81516,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AGR_PropManager")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b5938649ea9be3fbeaaeae8c1c35eeb16592455f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
 [assembly: System.Reflection.AssemblyProductAttribute("AGR_PropManager")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AGR_PropManager")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -87135,6 +88980,49 @@ global using global::System.Threading.Tasks;
 
 
 
+--- Файл: AGR_PropManager_gwlwxijv_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("AGR_PropManager")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("AGR_PropManager")]
+[assembly: System.Reflection.AssemblyTitleAttribute("AGR_PropManager")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: AGR_PropManager_gwlwxijv_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
 --- Файл: AGR_PropManager_gx3clysp_wpftmp.AssemblyInfo.cs ---
 ==============================================================
 //------------------------------------------------------------------------------
@@ -89962,6 +91850,49 @@ using System.Reflection;
 
 
 --- Файл: AGR_PropManager_leyit1lj_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: AGR_PropManager_lfv532jd_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("AGR_PropManager")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("AGR_PropManager")]
+[assembly: System.Reflection.AssemblyTitleAttribute("AGR_PropManager")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: AGR_PropManager_lfv532jd_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -93531,6 +95462,49 @@ using System.Reflection;
 
 
 --- Файл: AGR_PropManager_rri2ud1z_wpftmp.GlobalUsings.g.cs ---
+==============================================================
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.Linq;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+
+
+
+
+--- Файл: AGR_PropManager_rsd2mzbx_wpftmp.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("AGR_PropManager")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("AGR_PropManager")]
+[assembly: System.Reflection.AssemblyTitleAttribute("AGR_PropManager")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: AGR_PropManager_rsd2mzbx_wpftmp.GlobalUsings.g.cs ---
 ==============================================================
 // <auto-generated/>
 global using global::System;
@@ -98486,7 +100460,67 @@ namespace AGR_PropManager {
 
 --- Файл: GeneratedInternalTypeHelper.g.cs ---
 ==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
 
+namespace XamlGeneratedNamespace {
+    
+    
+    /// <summary>
+    /// GeneratedInternalTypeHelper
+    /// </summary>
+    [System.Diagnostics.DebuggerNonUserCodeAttribute()]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "9.0.0.0")]
+    [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Never)]
+    public sealed class GeneratedInternalTypeHelper : System.Windows.Markup.InternalTypeHelper {
+        
+        /// <summary>
+        /// CreateInstance
+        /// </summary>
+        protected override object CreateInstance(System.Type type, System.Globalization.CultureInfo culture) {
+            return System.Activator.CreateInstance(type, ((System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic) 
+                            | (System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.CreateInstance)), null, null, culture);
+        }
+        
+        /// <summary>
+        /// GetPropertyValue
+        /// </summary>
+        protected override object GetPropertyValue(System.Reflection.PropertyInfo propertyInfo, object target, System.Globalization.CultureInfo culture) {
+            return propertyInfo.GetValue(target, System.Reflection.BindingFlags.Default, null, null, culture);
+        }
+        
+        /// <summary>
+        /// SetPropertyValue
+        /// </summary>
+        protected override void SetPropertyValue(System.Reflection.PropertyInfo propertyInfo, object target, object value, System.Globalization.CultureInfo culture) {
+            propertyInfo.SetValue(target, value, System.Reflection.BindingFlags.Default, null, null, culture);
+        }
+        
+        /// <summary>
+        /// CreateDelegate
+        /// </summary>
+        protected override System.Delegate CreateDelegate(System.Type delegateType, object target, string handler) {
+            return ((System.Delegate)(target.GetType().InvokeMember("_CreateDelegate", (System.Reflection.BindingFlags.InvokeMethod 
+                            | (System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)), null, target, new object[] {
+                        delegateType,
+                        handler}, null)));
+        }
+        
+        /// <summary>
+        /// AddEventHandler
+        /// </summary>
+        protected override void AddEventHandler(System.Reflection.EventInfo eventInfo, object target, System.Delegate handler) {
+            eventInfo.AddEventHandler(target, handler);
+        }
+    }
+}
 
 
 
@@ -99856,7 +101890,7 @@ namespace AGR_PropManager.Views {
 
 --- Файл: TechProcessEditorWindow.g.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\Views\TechProcessEditorWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "905954B8AFEE32152E160FA7DA93E3F9863CC4C2"
+#pragma checksum "..\..\..\..\Views\TechProcessEditorWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "50A91E9C4D8232AFB41EC20C97573C814C21B295"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -99971,7 +102005,7 @@ namespace AGR_PropManager.Views {
 
 --- Файл: TechProcessEditorWindow.g.i.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\Views\TechProcessEditorWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "905954B8AFEE32152E160FA7DA93E3F9863CC4C2"
+#pragma checksum "..\..\..\..\Views\TechProcessEditorWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "50A91E9C4D8232AFB41EC20C97573C814C21B295"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -101441,6 +103475,122 @@ namespace Agrovent.Views.UserControls {
 
 
 
+--- Файл: --AGR_SpecificationWindow.g.i.cs ---
+==============================================================
+#pragma checksum "..\..\..\..\..\Views\Windows\--AGR_SpecificationWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "A0BAEF8D27867465F21809C9817E3D56060ECE2B"
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using Agrovent.Infrastructure.Behaviors;
+using Agrovent.Infrastructure.Converters;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.ViewModels.Specification;
+using Agrovent.Views.Windows;
+using AgroventInfrastructure.AGR_Converters;
+using Microsoft.Xaml.Behaviors;
+using Microsoft.Xaml.Behaviors.Core;
+using Microsoft.Xaml.Behaviors.Input;
+using Microsoft.Xaml.Behaviors.Layout;
+using Microsoft.Xaml.Behaviors.Media;
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Controls.Ribbon;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Forms.Integration;
+using System.Windows.Ink;
+using System.Windows.Input;
+using System.Windows.Markup;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
+using System.Windows.Media.TextFormatting;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using System.Windows.Shell;
+
+
+namespace Agrovent.Views.Windows {
+    
+    
+    /// <summary>
+    /// AGR_SpecificationWindow
+    /// </summary>
+    public partial class AGR_SpecificationWindow : System.Windows.Window, System.Windows.Markup.IComponentConnector {
+        
+        
+        #line 214 "..\..\..\..\..\Views\Windows\--AGR_SpecificationWindow.xaml"
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
+        internal System.Windows.Controls.DataGrid ComponentsDataGrid;
+        
+        #line default
+        #line hidden
+        
+        private bool _contentLoaded;
+        
+        /// <summary>
+        /// InitializeComponent
+        /// </summary>
+        [System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "9.0.0.0")]
+        public void InitializeComponent() {
+            if (_contentLoaded) {
+                return;
+            }
+            _contentLoaded = true;
+            System.Uri resourceLocater = new System.Uri("/Agrovent;component/views/windows/--agr_specificationwindow.xaml", System.UriKind.Relative);
+            
+            #line 1 "..\..\..\..\..\Views\Windows\--AGR_SpecificationWindow.xaml"
+            System.Windows.Application.LoadComponent(this, resourceLocater);
+            
+            #line default
+            #line hidden
+        }
+        
+        [System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "9.0.0.0")]
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Never)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
+        void System.Windows.Markup.IComponentConnector.Connect(int connectionId, object target) {
+            switch (connectionId)
+            {
+            case 1:
+            
+            #line 20 "..\..\..\..\..\Views\Windows\--AGR_SpecificationWindow.xaml"
+            ((Agrovent.Views.Windows.AGR_SpecificationWindow)(target)).Loaded += new System.Windows.RoutedEventHandler(this.Window_Loaded);
+            
+            #line default
+            #line hidden
+            return;
+            case 2:
+            this.ComponentsDataGrid = ((System.Windows.Controls.DataGrid)(target));
+            return;
+            }
+            this._contentLoaded = true;
+        }
+    }
+}
+
+
+
+
+
 --- Файл: AGR_ComponentRegistryView.g.cs ---
 ==============================================================
 #pragma checksum "..\..\..\..\..\Views\Windows\AGR_ComponentRegistryView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "E2F7B00B44241458CB86C9DAB5188FBED8032D08"
@@ -101757,6 +103907,176 @@ namespace Agrovent.Views.Windows {
             ((System.Windows.Style)(target)).Setters.Add(eventSetter);
             break;
             }
+        }
+    }
+}
+
+
+
+
+
+--- Файл: AGR_MatchArticlesWindow.g.cs ---
+==============================================================
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_MatchArticlesWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "D41E87257EFC6786D017477F680E5DDF80FA63C6"
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using Agrovent.ViewModels.Specification;
+using Agrovent.Views.Windows;
+using AgroventInfrastructure.AGR_Converters;
+using System;
+using System.Diagnostics;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Controls.Ribbon;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Forms.Integration;
+using System.Windows.Ink;
+using System.Windows.Input;
+using System.Windows.Markup;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
+using System.Windows.Media.TextFormatting;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using System.Windows.Shell;
+
+
+namespace Agrovent.Views.Windows {
+    
+    
+    /// <summary>
+    /// AGR_MatchArticlesWindow
+    /// </summary>
+    public partial class AGR_MatchArticlesWindow : System.Windows.Window, System.Windows.Markup.IComponentConnector {
+        
+        private bool _contentLoaded;
+        
+        /// <summary>
+        /// InitializeComponent
+        /// </summary>
+        [System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "9.0.0.0")]
+        public void InitializeComponent() {
+            if (_contentLoaded) {
+                return;
+            }
+            _contentLoaded = true;
+            System.Uri resourceLocater = new System.Uri("/Agrovent;component/views/windows/agr_matcharticleswindow.xaml", System.UriKind.Relative);
+            
+            #line 1 "..\..\..\..\..\Views\Windows\AGR_MatchArticlesWindow.xaml"
+            System.Windows.Application.LoadComponent(this, resourceLocater);
+            
+            #line default
+            #line hidden
+        }
+        
+        [System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "9.0.0.0")]
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Never)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
+        void System.Windows.Markup.IComponentConnector.Connect(int connectionId, object target) {
+            this._contentLoaded = true;
+        }
+    }
+}
+
+
+
+
+
+--- Файл: AGR_MatchArticlesWindow.g.i.cs ---
+==============================================================
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_MatchArticlesWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "D41E87257EFC6786D017477F680E5DDF80FA63C6"
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using Agrovent.ViewModels.Specification;
+using Agrovent.Views.Windows;
+using AgroventInfrastructure.AGR_Converters;
+using System;
+using System.Diagnostics;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Controls.Ribbon;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Forms.Integration;
+using System.Windows.Ink;
+using System.Windows.Input;
+using System.Windows.Markup;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
+using System.Windows.Media.TextFormatting;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using System.Windows.Shell;
+
+
+namespace Agrovent.Views.Windows {
+    
+    
+    /// <summary>
+    /// AGR_MatchArticlesWindow
+    /// </summary>
+    public partial class AGR_MatchArticlesWindow : System.Windows.Window, System.Windows.Markup.IComponentConnector {
+        
+        private bool _contentLoaded;
+        
+        /// <summary>
+        /// InitializeComponent
+        /// </summary>
+        [System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "9.0.0.0")]
+        public void InitializeComponent() {
+            if (_contentLoaded) {
+                return;
+            }
+            _contentLoaded = true;
+            System.Uri resourceLocater = new System.Uri("/Agrovent;V1.0.0.0;component/views/windows/agr_matcharticleswindow.xaml", System.UriKind.Relative);
+            
+            #line 1 "..\..\..\..\..\Views\Windows\AGR_MatchArticlesWindow.xaml"
+            System.Windows.Application.LoadComponent(this, resourceLocater);
+            
+            #line default
+            #line hidden
+        }
+        
+        [System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [System.CodeDom.Compiler.GeneratedCodeAttribute("PresentationBuildTasks", "9.0.0.0")]
+        [System.ComponentModel.EditorBrowsableAttribute(System.ComponentModel.EditorBrowsableState.Never)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
+        void System.Windows.Markup.IComponentConnector.Connect(int connectionId, object target) {
+            this._contentLoaded = true;
         }
     }
 }
@@ -102320,7 +104640,7 @@ namespace Agrovent.Views.Windows {
 
 --- Файл: AGR_SpecificationWindow.g.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "374C2673C4F8B2E5C19942667FFA54B11A3B0837"
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "81DB4E504AEC7FA8DA44E1266718921F20127096"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -102374,6 +104694,14 @@ namespace Agrovent.Views.Windows {
     /// AGR_SpecificationWindow
     /// </summary>
     public partial class AGR_SpecificationWindow : System.Windows.Window, System.Windows.Markup.IComponentConnector {
+        
+        
+        #line 214 "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml"
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
+        internal System.Windows.Controls.DataGrid ComponentsDataGrid;
+        
+        #line default
+        #line hidden
         
         private bool _contentLoaded;
         
@@ -102403,6 +104731,20 @@ namespace Agrovent.Views.Windows {
         [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
         void System.Windows.Markup.IComponentConnector.Connect(int connectionId, object target) {
+            switch (connectionId)
+            {
+            case 1:
+            
+            #line 20 "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml"
+            ((Agrovent.Views.Windows.AGR_SpecificationWindow)(target)).Loaded += new System.Windows.RoutedEventHandler(this.Window_Loaded);
+            
+            #line default
+            #line hidden
+            return;
+            case 2:
+            this.ComponentsDataGrid = ((System.Windows.Controls.DataGrid)(target));
+            return;
+            }
             this._contentLoaded = true;
         }
     }
@@ -102414,7 +104756,7 @@ namespace Agrovent.Views.Windows {
 
 --- Файл: AGR_SpecificationWindow.g.i.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "374C2673C4F8B2E5C19942667FFA54B11A3B0837"
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "81DB4E504AEC7FA8DA44E1266718921F20127096"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -102469,6 +104811,14 @@ namespace Agrovent.Views.Windows {
     /// </summary>
     public partial class AGR_SpecificationWindow : System.Windows.Window, System.Windows.Markup.IComponentConnector {
         
+        
+        #line 214 "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml"
+        [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
+        internal System.Windows.Controls.DataGrid ComponentsDataGrid;
+        
+        #line default
+        #line hidden
+        
         private bool _contentLoaded;
         
         /// <summary>
@@ -102497,6 +104847,20 @@ namespace Agrovent.Views.Windows {
         [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
         void System.Windows.Markup.IComponentConnector.Connect(int connectionId, object target) {
+            switch (connectionId)
+            {
+            case 1:
+            
+            #line 20 "..\..\..\..\..\Views\Windows\AGR_SpecificationWindow.xaml"
+            ((Agrovent.Views.Windows.AGR_SpecificationWindow)(target)).Loaded += new System.Windows.RoutedEventHandler(this.Window_Loaded);
+            
+            #line default
+            #line hidden
+            return;
+            case 2:
+            this.ComponentsDataGrid = ((System.Windows.Controls.DataGrid)(target));
+            return;
+            }
             this._contentLoaded = true;
         }
     }
@@ -102508,7 +104872,7 @@ namespace Agrovent.Views.Windows {
 
 --- Файл: AGR_TaskPaneView.g.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\AGR_TaskPaneView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "7A61A5DC3D275016343B2162319FC94642030039"
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_TaskPaneView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "FA2492C7D952DC4796D526B2F2805BEEE5E83B7F"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -102519,7 +104883,6 @@ namespace Agrovent.Views.Windows {
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-using Agrovent.ViewModels;
 using Agrovent.ViewModels.Components;
 using Agrovent.Views.Pages;
 using Agrovent.Views.Windows;
@@ -102595,7 +104958,7 @@ namespace Agrovent.Views.Windows {
 
 --- Файл: AGR_TaskPaneView.g.i.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\AGR_TaskPaneView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "7A61A5DC3D275016343B2162319FC94642030039"
+#pragma checksum "..\..\..\..\..\Views\Windows\AGR_TaskPaneView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "FA2492C7D952DC4796D526B2F2805BEEE5E83B7F"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -102606,7 +104969,6 @@ namespace Agrovent.Views.Windows {
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-using Agrovent.ViewModels;
 using Agrovent.ViewModels.Components;
 using Agrovent.Views.Pages;
 using Agrovent.Views.Windows;
@@ -102682,7 +105044,7 @@ namespace Agrovent.Views.Windows {
 
 --- Файл: SaveConfirmationView.g.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\SaveConfirmationView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "6EDCB1D7D32C043B8A38E1813A1F5DDA3D551299"
+#pragma checksum "..\..\..\..\..\Views\Windows\SaveConfirmationView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "53B97E2B276C49A612538A8BFF153B99D685CAC8"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -102757,6 +105119,17 @@ namespace Agrovent.Views.Windows {
         [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
         void System.Windows.Markup.IComponentConnector.Connect(int connectionId, object target) {
+            switch (connectionId)
+            {
+            case 1:
+            
+            #line 18 "..\..\..\..\..\Views\Windows\SaveConfirmationView.xaml"
+            ((Agrovent.Views.Windows.SaveConfirmationView)(target)).Loaded += new System.Windows.RoutedEventHandler(this.Window_Loaded);
+            
+            #line default
+            #line hidden
+            return;
+            }
             this._contentLoaded = true;
         }
     }
@@ -102768,7 +105141,7 @@ namespace Agrovent.Views.Windows {
 
 --- Файл: SaveConfirmationView.g.i.cs ---
 ==============================================================
-#pragma checksum "..\..\..\..\..\Views\Windows\SaveConfirmationView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "6EDCB1D7D32C043B8A38E1813A1F5DDA3D551299"
+#pragma checksum "..\..\..\..\..\Views\Windows\SaveConfirmationView.xaml" "{ff1816ec-aa5e-4d10-87f7-6f4963833460}" "53B97E2B276C49A612538A8BFF153B99D685CAC8"
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Этот код создан программой.
@@ -102843,6 +105216,17 @@ namespace Agrovent.Views.Windows {
         [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
         void System.Windows.Markup.IComponentConnector.Connect(int connectionId, object target) {
+            switch (connectionId)
+            {
+            case 1:
+            
+            #line 18 "..\..\..\..\..\Views\Windows\SaveConfirmationView.xaml"
+            ((Agrovent.Views.Windows.SaveConfirmationView)(target)).Loaded += new System.Windows.RoutedEventHandler(this.Window_Loaded);
+            
+            #line default
+            #line hidden
+            return;
+            }
             this._contentLoaded = true;
         }
     }

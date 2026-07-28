@@ -80,7 +80,12 @@ namespace Agrovent
         [Title("Обновить чертежи")]
         [Icon(typeof(Resources), nameof(Resources.UpdateDraw_24))]
         [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly | WorkspaceTypes_e.Part, true, RibbonTabTextDisplay_e.TextBelow)]
-        UpdateDrawings
+        UpdateDrawings,
+
+        [Title("Pack'n'Go")]
+        //[Icon(typeof(Resources), nameof(Resources.PackNGo_96))] 
+        [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly | WorkspaceTypes_e.Part, true, RibbonTabTextDisplay_e.TextBelow)]
+        PackNGo
     }
 
     [ComVisible(true)]
@@ -281,6 +286,10 @@ namespace Agrovent
 
                     case AGR_Commands_e.GetSheetMetallPartsAssmbly:
                         _commandService.GetSheetMetallPartsAssmbly();
+                    break;
+
+                    case AGR_Commands_e.PackNGo:
+                        await _commandService.PackNGoAsync();
                     break;
 
                     default:

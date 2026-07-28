@@ -84,7 +84,6 @@ namespace Agrovent.ViewModels.Specification
                 Set(ref _avaArticle, value);
                 if (value is AvaArticleModel model)
                 {
-                    _entity.AvaArticle = model;
                     _entity.AvaArticleArticle = model.Article;
                 }
                 OnPropertyChanged(nameof(ArticleName));

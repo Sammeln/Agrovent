@@ -20,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using Xarial.XCad.SolidWorks.Documents;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.Documents.Extensions;
+using Agrovent.ViewModels.Windows;
 
 namespace Agrovent.ViewModels.Windows
 {
@@ -36,6 +37,11 @@ namespace Agrovent.ViewModels.Windows
         private readonly List<ComponentFile> _newFiles = new();
         private readonly List<ComponentFile> _removedFiles = new();
 
+        // Параметры отложенной загрузки: конструктор больше не запускает InitializeAsync сам —
+        // это делает View по событию Loaded, чтобы окно успело отобразиться с оверлеем прогресса.
+        private string _pendingPartNumber;
+        private int _pendingVersion;
+
         public bool? DialogResult { get; set; }
         public bool IsEditMode => true;
         public bool PropertiesReadOnly => false;
@@ -46,7 +52,9 @@ namespace Agrovent.ViewModels.Windows
 
             BlankProperties = new ObservableCollection<AGR_ComponentPropertyEditVM>();
             Files = new ObservableCollection<AGR_ComponentFileEditVM>();
-            _ = InitializeAsync(partNumber, version);
+
+            _pendingPartNumber = partNumber;
+            _pendingVersion = version;
         }
         public AGR_ComponentEditVM(AGR_ComponentRegistryItemVM registryItem, IUnitOfWork unitOfWork, ILogger? logger = null)
         {
@@ -56,14 +64,21 @@ namespace Agrovent.ViewModels.Windows
             BlankProperties = new ObservableCollection<AGR_ComponentPropertyEditVM>();
             Files = new ObservableCollection<AGR_ComponentFileEditVM>();
 
-            //_ = InitializeAsync(registryItem.RawPartNumber, registryItem.Version);
+            _pendingPartNumber = registryItem.RawPartNumber;
+            _pendingVersion = registryItem.Version;
         }
 
         #region Инициализация
+        // Вызывается из Window_Loaded окна SaveConfirmationView — окно уже видно, показан оверлей прогресса.
+        public Task InitializeAsync() => InitializeAsync(_pendingPartNumber, _pendingVersion);
+
         public async Task InitializeAsync(string partNumber, int version)
         {
             try
             {
+                IsLoading = true;
+                LoadingStatus = "Загрузка компонента...";
+
                 _entity = await _unitOfWork.ComponentRepository.GetComponentVersionForEdit(partNumber, version);
                 if (_entity == null)
                 {
@@ -121,6 +136,11 @@ namespace Agrovent.ViewModels.Windows
                 _logger?.LogError(ex, $"Ошибка при загрузке компонента {partNumber} v{version} для редактирования.");
                 ErrorMessages = "Ошибка загрузки: " + ex.Message;
                 HasErrors = true;
+            }
+            finally
+            {
+                IsLoading = false;
+                LoadingStatus = string.Empty;
             }
         }
         #endregion
@@ -205,12 +225,10 @@ namespace Agrovent.ViewModels.Windows
                 Set(ref _avaArticle, value);
                 if (value is AvaArticleModel model)
                 {
-                    _entity.AvaArticle = model;
                     _entity.AvaArticleArticle = model.Article;
                 }
                 else
                 {
-                    _entity.AvaArticle = null;
                     _entity.AvaArticleArticle = null;
                 }
                 OnPropertyChanged(nameof(Article));

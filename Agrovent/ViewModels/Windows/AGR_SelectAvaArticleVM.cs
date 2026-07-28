@@ -39,7 +39,7 @@ namespace Agrovent.ViewModels.Windows
 
         public AGR_SelectAvaArticleVM()
         {
-                
+
         }
 
         #endregion
@@ -106,7 +106,7 @@ namespace Agrovent.ViewModels.Windows
 
             e.Accepted = false;
         }
-       
+
         private bool _canRemoveArticleFilter;
         public bool CanRemoveArticleFilter
         {
@@ -136,7 +136,7 @@ namespace Agrovent.ViewModels.Windows
         }
         #endregion
 
-        
+
         // Команда для подтверждения выбора (OK)
         #region AcceptSelectionCommand
         private ICommand _AcceptSelectionCommand;
@@ -213,7 +213,7 @@ namespace Agrovent.ViewModels.Windows
                     AddArticleFilter();
                 }
             }
-        } 
+        }
         #endregion
 
         // Метод загрузки данных из БД
@@ -261,11 +261,11 @@ namespace Agrovent.ViewModels.Windows
         public bool IsDialogResultAccepted { get; private set; }
 
         // Метод, вызываемый командой AcceptSelectionCommand (OK)
-        
+
         #region AvailableAvaTypes
-        private ObservableCollection<string> _availableAvaTypes = 
-            new ObservableCollection<string> 
-            { 
+        private ObservableCollection<string> _availableAvaTypes =
+            new ObservableCollection<string>
+            {
                 AGR_AvaTypeNames.DontBuy,
                 AGR_AvaTypeNames.VirtualComponent,
                 AGR_AvaTypeNames.Production,
@@ -273,7 +273,7 @@ namespace Agrovent.ViewModels.Windows
                 AGR_AvaTypeNames.Purchased,
                 AGR_AvaTypeNames.AllTypes
             };
-        public ObservableCollection<string> AvailableAvaTypes 
+        public ObservableCollection<string> AvailableAvaTypes
         {
             get => _availableAvaTypes;
         }

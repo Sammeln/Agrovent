@@ -60,6 +60,22 @@ namespace Agrovent.ViewModels.Windows
         }
         #endregion
 
+
+
+        #region CancelationToken
+
+        /// <summary>
+        /// Свойство на отмену прогресса по не обходимости
+        /// </summary>
+        private CancellationTokenSource _CancelationToken;
+        public CancellationTokenSource CancelationToken
+        {
+            get => _CancelationToken;
+            set => Set(ref _CancelationToken, value);
+        }
+        #endregion
+
+
         #endregion
 
         #region Commands
@@ -71,6 +87,17 @@ namespace Agrovent.ViewModels.Windows
         private bool CanCloseCommandExecute(object p) => true; // Всегда можно закрыть
         private void OnCloseCommandExecuted(object p)
         {
+            // Если процесс еще идет, нажатие на "Закрыть" срабатывает как "Отмена"
+            if (CancelationToken != null && !IsFinished && !CancelationToken.IsCancellationRequested)
+            {
+                CancelationToken.Cancel();
+                AddLogMessage("⚠️ Отмена операции пользователем...");
+
+                // Мы НЕ закрываем окно сразу. 
+                // Это позволит пользователю увидеть сообщение об отмене и сохранить лог (кнопка SaveLog станет активной).
+                // Окно закроется, когда пользователь нажмет кнопку повторно после завершения (IsFinished = true).
+                return;
+            }
             var view = p as Window;
             if (view != null)
             {

@@ -86,7 +86,7 @@ namespace Agrovent.ViewModels.TaskPane
 
         public AGR_ComponentRegistryTaskPaneVM()
         {
-                
+
         }
         #endregion
 
@@ -199,7 +199,7 @@ namespace Agrovent.ViewModels.TaskPane
                 {
                     // Документ уже открыт, делаем его активным
                     swApp.Documents.Active = openDoc as ISwDocument;
-                    
+
                     _logger.LogDebug($"Команда 'Открыть': Документ уже открыт, активирован: {filePath}");
                 }
                 else
@@ -270,10 +270,10 @@ namespace Agrovent.ViewModels.TaskPane
                     assemblyFolderPath = AGR_Options.LocalWorkFolder;
                 }
 
-                if(assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath) || assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath))
+                if (assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath) || assemblyFolderPath.Contains(AGR_Options.OldStorageRootFolderPath))
                 {
                     AGR_Helper.ShowMessage($"Попытка добавить компонент в папку хранилища\n{assemblyFolderPath}.\nОперация добавления отменена."
-                        ,Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
+                        , Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
                         Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
                     return;
                 }
@@ -353,7 +353,7 @@ namespace Agrovent.ViewModels.TaskPane
         public ICommand ShowDetailsCommand => _ShowDetailsCommand
             ??= new RelayCommand<AGR_ComponentRegistryItemVM>(OnShowDetailsCommandExecuted, CanShowDetailsCommandExecute);
         private bool CanShowDetailsCommandExecute(AGR_ComponentRegistryItemVM p) => p != null; // Всегда доступна, если элемент выбран
-        private async void OnShowDetailsCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
+        private void OnShowDetailsCommandExecuted(AGR_ComponentRegistryItemVM selectedItem)
         {
             if (selectedItem == null) return;
 
@@ -369,10 +369,11 @@ namespace Agrovent.ViewModels.TaskPane
                     var vm = new AGR_AssemblyEditVM(selectedItem, unitOfWork,
                         scope.ServiceProvider.GetService<ILogger<AGR_AssemblyEditVM>>());
 
-                    var view = new AGR_SpecificationWindow { DataContext = vm, Topmost = true };
+                    var view = new AGR_SpecificationWindow { DataContext = vm, Topmost = true, Title = $"Подробная информация" };
                     view.Closed += (_, _) => scope.Dispose(); // скоуп закрывается вместе с окном
 
-                    await vm.InitializeAsync(selectedItem.PartNumber, selectedItem.Version);
+                    // Окно показывается сразу с оверлеем прогресса (IsLoading/LoadingStatus),
+                    // а фактическая загрузка из БД запускается его Window_Loaded.
                     view.Show();
                 }
                 else
@@ -380,10 +381,9 @@ namespace Agrovent.ViewModels.TaskPane
                     var vm = new AGR_ComponentEditVM(selectedItem, unitOfWork,
                         scope.ServiceProvider.GetService<ILogger<AGR_ComponentEditVM>>());
 
-                    var view = new SaveConfirmationView { DataContext = vm, Topmost = true };
+                    var view = new SaveConfirmationView { DataContext = vm, Topmost = true, Title = $"Подробная информация" };
                     view.Closed += (_, _) => scope.Dispose();
 
-                    await vm.InitializeAsync(selectedItem.RawPartNumber, selectedItem.Version);
                     view.Show();
                 }
             }
@@ -418,7 +418,7 @@ namespace Agrovent.ViewModels.TaskPane
         }
 
         #region SelectedComponentType
-        private string? _selectedComponentType =  AGR_ComponentTypeNames.AllTypes;
+        private string? _selectedComponentType = AGR_ComponentTypeNames.AllTypes;
         public string? SelectedComponentType
         {
             get => _selectedComponentType;

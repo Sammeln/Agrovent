@@ -11,11 +11,11 @@
         xmlns:system="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:AGR_SaveConfirmationVM, IsDesignTimeCreatable=False}"
-        Title="Подтверждение сохранения" 
         Height="700" Width="900"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        Loaded="Window_Loaded">
 
     <Window.Resources>
 
@@ -27,9 +27,10 @@
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
             <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVis"/>
             <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBool"/>
+            <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBoolToVisibilityConverter"/>
             <AGR_converter:AGR_ComponentTypeConverter x:Key="ComponentTypeConverter"/>
             <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
-            
+
             <ObjectDataProvider x:Key="AvaTypeEnum" MethodName="GetValues"
                                 ObjectType="{x:Type system:Enum}">
                 <ObjectDataProvider.MethodParameters>
@@ -49,186 +50,203 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="15">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <Grid Margin="15" Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <!-- Header Section -->
-        <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="150"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- Header Section -->
+            <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- Preview Image -->
-                <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Background="White" 
+                    <!-- Preview Image -->
+                    <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Background="White" 
                         Height="150" Width="150" HorizontalAlignment="Left">
 
-                    <Image Source="{Binding Preview}" Stretch="Uniform" Style="{StaticResource PreviewImage}"/>
-                </Border>
+                        <Image Source="{Binding Preview}" Stretch="Uniform" Style="{StaticResource PreviewImage}"/>
+                    </Border>
 
-                <!-- Component Info -->
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
+                    <!-- Component Info -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
 
-                    <!-- Наименование -->
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ComponentName}" Margin="0,0,0,8"/>
-                        <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0 0 0 8"/>
-                    </StackPanel>
+                        <!-- Наименование -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ComponentName}" Margin="0,0,0,8"/>
+                            <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0 0 0 8"/>
+                        </StackPanel>
 
-                    <!-- Partnumber -->
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PartNumber}" Margin="0,0,8,8"/>
-                    </StackPanel>
+                        <!-- Partnumber -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PartNumber}" Margin="0,0,8,8"/>
+                        </StackPanel>
 
-                    <!-- Тип AVA -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <!-- Тип AVA -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
 
-                        <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
+                            <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
                                   SelectedItem="{Binding BaseAvaTypeEnum}"
                                   Width="150"
                                   Style="{StaticResource ModernComboBox}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
 
-                    <!-- Material and Color for Parts -->
-                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                        <!-- Material and Color for Parts -->
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                 Visibility="{Binding IsPart, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Материал:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <Button Content="Выбрать" Command="{Binding SelectMaterialCommand}" 
+                            <TextBlock Text="Материал:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <Button Content="Выбрать" Command="{Binding SelectMaterialCommand}" 
                                 Padding="5,2" Margin="0,0,10,0"
                                 Visibility="{Binding IsProduced, Converter={StaticResource BoolToVis}}"/>
-                        <TextBlock Text="{Binding MaterialName}" FontSize="12" VerticalAlignment="Center" 
+                            <TextBlock Text="{Binding MaterialName}" FontSize="12" VerticalAlignment="Center" 
                                    Foreground="{Binding MaterialName, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
-                    </StackPanel>
+                        </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                 Visibility="{Binding IsProduced, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Цвет/Покрытие:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <Button Content="Выбрать" Command="{Binding SelectColorCommand}"
+                            <TextBlock Text="Цвет/Покрытие:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <Button Content="Выбрать" Command="{Binding SelectColorCommand}"
                                 Padding="5,2" Margin="0,0,10,0"
                                 IsEnabled="{Binding NoPaint, Converter={StaticResource InverseBool}}"/>
-                        <TextBlock Text="{Binding ColorName}" FontSize="12" VerticalAlignment="Center"
+                            <TextBlock Text="{Binding ColorName}" FontSize="12" VerticalAlignment="Center"
                                    Foreground="{Binding ColorName, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
-                        <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint, UpdateSourceTrigger=PropertyChanged}"
+                            <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint, UpdateSourceTrigger=PropertyChanged}"
                                   Margin="15,0,0,0" VerticalAlignment="Center"/>
-                    </StackPanel>
+                        </StackPanel>
 
-                    <!-- Article for Purchased -->
+                        <!-- Article for Purchased -->
 
-                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                        <TextBlock Text="Артикул:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <Button Content="Выбрать" Command="{Binding SelectArticleCommand}"
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                            <TextBlock Text="Артикул:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <Button Content="Выбрать" Command="{Binding SelectArticleCommand}"
                                  Padding="5,2" Margin="0,0,10,0"
                                  IsEnabled="{Binding NoArticle, Converter={StaticResource InverseBool}}"/>
-                        <TextBlock Text="{Binding Article}" FontSize="12" VerticalAlignment="Center"
+                            <TextBlock Text="{Binding Article}" FontSize="12" VerticalAlignment="Center"
                                    Foreground="{Binding Article, Converter={StaticResource NullToVis}, ConverterParameter=Red}"
                                    MinWidth="150"/>
-                        <CheckBox Content="Нет артикула" IsChecked="{Binding NoArticle, UpdateSourceTrigger=PropertyChanged}"
+                            <CheckBox Content="Нет артикула" IsChecked="{Binding NoArticle, UpdateSourceTrigger=PropertyChanged}"
                                   Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+
                     </StackPanel>
+                </Grid>
+            </Border>
 
+            <!-- Main Content Section -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- Main Content Section -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- Blank Properties Tab (for Parts) -->
-            <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" CornerRadius="3" 
+                <!-- Blank Properties Tab (for Parts) -->
+                <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" CornerRadius="3" 
                     Padding="10" MinWidth="250" Visibility="{Binding PropertiesIsVisible}" >
-                <StackPanel Orientation="Vertical">
-                    <TextBlock Text="Свойства заготовки"  Margin="0,0,0,5" FontWeight="Bold"/>
-                    <DataGrid  ItemsSource="{Binding BlankProperties}" AutoGenerateColumns="False" 
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="Свойства заготовки"  Margin="0,0,0,5" FontWeight="Bold"/>
+                        <DataGrid  ItemsSource="{Binding BlankProperties, UpdateSourceTrigger=PropertyChanged}" AutoGenerateColumns="False" 
                               CanUserAddRows="False" IsReadOnly="{Binding PropertiesReadOnly}" HeadersVisibility="Column" SelectionMode="Single"
                                Style="{StaticResource PropertiesDataGrid}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
-                            <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80" Visibility="Collapsed"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <Button Content="Обновить с 3D-модели"
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Свойство" Binding="{Binding Name}" Width="*"/>
+                                <DataGridTextColumn Header="Значение" Binding="{Binding Value}" Width="*"/>
+                                <DataGridTextColumn Header="Ед. изм." Binding="{Binding Unit}" Width="80" Visibility="Collapsed"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Button Content="Обновить с 3D-модели"
                             Command="{Binding UpdateFromModelCommand}"
                             Width="200" HorizontalAlignment="Left" Margin="0,5,0,0" Padding="6,3"
                             ToolTip="Перечитать свойства заготовки из последней версии модели в хранилище"/>
-                    <TextBlock Text="Файлы" Margin="0,10,0,5" FontWeight="Bold"
+                        <TextBlock Text="Файлы" Margin="0,10,0,5" FontWeight="Bold"
                                Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}"/>
-                    <DataGrid ItemsSource="{Binding Files}" AutoGenerateColumns="False"
+                        <DataGrid ItemsSource="{Binding Files}" AutoGenerateColumns="False"
                               CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column" SelectionMode="Single"
                               Style="{StaticResource PropertiesDataGrid}"
                               Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Файл" Binding="{Binding FileName}" Width="*"/>
-                            <DataGridTextColumn Header="Расположение" Binding="{Binding FullName}" Width="*"/>
-                            <DataGridTemplateColumn Header="" Width="*" Visibility="Collapsed">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button Content="Открыть" Padding="4,2" Margin="2,0"
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Файл" Binding="{Binding FileName}" Width="*"/>
+                                <DataGridTextColumn Header="Расположение" Binding="{Binding FullName}" Width="*"/>
+                                <DataGridTemplateColumn Header="" Width="*" Visibility="Collapsed">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="Открыть" Padding="4,2" Margin="2,0"
                                                     Command="{Binding DataContext.OpenFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"/>      
-                                            <Button Content="Заменить" Padding="4,2" Margin="2,0"
+                                                    CommandParameter="{Binding}"/>
+                                                <Button Content="Заменить" Padding="4,2" Margin="2,0"
                                                     Command="{Binding DataContext.ReplaceFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"/>
-                                            <Button Content="Удалить" Padding="4,2" Margin="2,0"
+                                                <Button Content="Удалить" Padding="4,2" Margin="2,0"
                                                     Command="{Binding DataContext.RemoveFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <!--<Button Content="Добавить файл" HorizontalAlignment="Left" Margin="0,5,0,0" Padding="6,3"
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <!--<Button Content="Добавить файл" HorizontalAlignment="Left" Margin="0,5,0,0" Padding="6,3"
                             Command="{Binding AddFileCommand}"
-                            Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}"/>-->       
-                </StackPanel>
-            </Border>
+                            Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}"/>-->
+                    </StackPanel>
+                </Border>
 
-            <!-- Right Side: Error Messages -->
-            <Border Grid.Column="1" 
+                <!-- Right Side: Error Messages -->
+                <Border Grid.Column="1" 
                     Style="{StaticResource ErrorBorderStyle}"
                     Visibility="{Binding HasErrors, Converter={StaticResource BoolToVis}}">
-                <StackPanel>
-                    <TextBlock Text="Ошибки валидации" Style="{StaticResource ErrorTextblockStyle}"/>
-                    <TextBlock Text="{Binding ErrorMessages}" Style="{StaticResource ErrorTextblockStyle}"/>
+                    <StackPanel>
+                        <TextBlock Text="Ошибки валидации" Style="{StaticResource ErrorTextblockStyle}"/>
+                        <TextBlock Text="{Binding ErrorMessages}" Style="{StaticResource ErrorTextblockStyle}"/>
                     </StackPanel>
-            </Border>
-        </Grid>
+                </Border>
+            </Grid>
 
-        <!-- Footer Buttons -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-            <Button Content="Сохранить" 
+            <!-- Footer Buttons -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                <Button Content="Сохранить" 
                     CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Command="{Binding SaveCommand}" 
                     Style="{StaticResource AcceptButtonStyle}"
                     IsEnabled="{Binding HasErrors, Converter={StaticResource InverseBool}}"/>
-            <Button Content="Отмена" 
+                <Button Content="Отмена" 
                     CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                     Command="{Binding CancelCommand}" 
                     Style="{StaticResource CancelButtonStyle}"/>
-        </StackPanel>
+            </StackPanel>
+        </Grid>
+        <Border Background="#80000000"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="20"/>
+                <TextBlock Text="{Binding LoadingStatus}"
+                           Foreground="White"
+                           FontSize="16"
+                           Margin="0,10,0,0"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
+
+
+
+

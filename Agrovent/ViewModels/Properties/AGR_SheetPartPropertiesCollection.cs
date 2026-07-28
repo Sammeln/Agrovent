@@ -202,6 +202,7 @@ namespace Agrovent.ViewModels.Properties
         public AGR_SheetPartPropertiesCollection(ISwDocument3D document3D) : base(document3D)
         {
             InitProperties();
+            UpdateProperties();
             if (!string.IsNullOrEmpty(SheetMetall_Length.Value.ToString())) Properties.Add(SheetMetall_Length);
             if (!string.IsNullOrEmpty(SheetMetall_Width.Value.ToString())) Properties.Add(SheetMetall_Width);
             if (!string.IsNullOrEmpty(SheetMetall_Thickness.Value.ToString())) Properties.Add(SheetMetall_Thickness);

@@ -7,10 +7,12 @@ using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.PackNGo;
 using Agrovent.ViewModels.Specification; // Для AGR_SpecificationViewModel
 using Agrovent.ViewModels.TaskPane;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
@@ -287,7 +289,10 @@ namespace Agrovent.Services
                         return false;
                     }
 
-                    var specificationVM = new AGR_SpecificationViewModel((AGR_AssemblyComponentVM)component, unitOfWork);
+
+                    var scopeFactory = AGR_ServiceContainer.GetService<IServiceScopeFactory>();
+
+                    var specificationVM = new AGR_SpecificationViewModel((AGR_AssemblyComponentVM)component, unitOfWork, scopeFactory);
                     var specificationWindow = new AGR_SpecificationWindow
                     {
                         DataContext = specificationVM,
@@ -317,7 +322,9 @@ namespace Agrovent.Services
                     var confirmationDialog = new SaveConfirmationView
                     {
                         DataContext = confirmationVM,
-                        ShowInTaskbar = true
+                        ShowInTaskbar = true,
+                        Title = $"Сохранение {component.Name}"
+                        
                     };
 
 
@@ -558,6 +565,10 @@ namespace Agrovent.Services
                     return false;
                 }
 
+                // 1. Создаем источник токена отмены
+                using var cts = new CancellationTokenSource();
+                progressVM.CancelationToken = cts;
+
                 // --- Показываем окно прогресса ---
                 progressVM.LogMessages.Clear();
                 progressVM.AddLogMessage($"Начало обновления чертежей. Компонентов для проверки: {distinctModelPaths.Count}");
@@ -574,11 +585,19 @@ namespace Agrovent.Services
                 int updated = 0;
                 int missing = 0;
                 int failed = 0;
+                bool isCanceled = false;
 
                 try
                 {
                     foreach (var modelPath in distinctModelPaths)
                     {
+                        if (cts.Token.IsCancellationRequested)
+                        {
+                            isCanceled = true;
+                            break; // Выходим из цикла
+                        }
+
+
                         var componentName = Path.GetFileNameWithoutExtension(modelPath);
                         var kindLabel = GetComponentKindLabel(modelPath); // "детали" / "сборки"
                         var drawingPath = Path.ChangeExtension(modelPath, ".slddrw");
@@ -610,10 +629,22 @@ namespace Agrovent.Services
                             progressVM.AddLogMessage(msg);
                             _logger.LogError(ex, msg);
                         }
+
+                        // 3. ВАЖНО: Возвращаем управление UI-потоку, чтобы окно могло обработать нажатие кнопки "Закрыть"
+                        // и обновить интерфейс. Без этого цикл может "заморозить" окно.
+                        await Task.Delay(1, cts.Token);
                     }
 
+                    // 4. Формируем итоговый отчет
                     progressVM.AddLogMessage("──────────────────────");
-                    progressVM.AddLogMessage($"Итого: обновлено — {updated}, без чертежа — {missing}, ошибок — {failed}");
+                    if (isCanceled)
+                    {
+                        progressVM.AddLogMessage($"Операция прервана пользователем. Частичный результат: обновлено — {updated}, без чертежа — {missing}, ошибок — {failed}");
+                    }
+                    else
+                    {
+                        progressVM.AddLogMessage($"Итого: обновлено — {updated}, без чертежа — {missing}, ошибок — {failed}");
+                    }
                 }
                 finally
                 {
@@ -622,7 +653,8 @@ namespace Agrovent.Services
 
                 progressDialog.Activate();
 
-                return failed == 0;
+                // Возвращаем true только если не было отмены и нет ошибок
+                return !isCanceled && failed == 0;
             }
             catch (Exception ex)
             {
@@ -634,7 +666,6 @@ namespace Agrovent.Services
                 return false;
             }
         }
-
         public async Task<bool> GetSheetMetallPartsAssmbly()
         {
             if (_swApp == null)
@@ -777,7 +808,52 @@ namespace Agrovent.Services
                 }
             }
         }
+        public async Task<bool> PackNGoAsync()
+        {
+            if (_swApp == null)
+            {
+                AGR_Helper.ShowMessage("Приложение недоступно",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
 
+            var activeDoc = _swApp.Documents.Active;
+            if (activeDoc == null)
+            {
+                AGR_Helper.ShowMessage("Нет активного документа.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            ISwDocument3D swDoc = activeDoc as ISwDocument3D;
+            if (swDoc == null)
+            {
+                AGR_Helper.ShowMessage("Активный документ не является деталью или сборкой.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            var rootComponent = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
+
+            // Свежий IServiceScopeFactory/ILogger<T> берём из уже имеющегося IServiceProvider -
+            // сам AGR_PackNGoVM использует IServiceScopeFactory.CreateScope() на каждую операцию
+            // с БД (генерация партномеров), не переиспользуя закэшированный на плагин UnitOfWork.
+            var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+            var vmLogger = _serviceProvider.GetRequiredService<ILogger<AGR_PackNGoVM>>();
+
+            var vm = new AGR_PackNGoVM(rootComponent, _swApp, scopeFactory, vmLogger);
+            var window = new AGR_PackNGoWindow
+            {
+                DataContext = vm
+            };
+
+            window.ShowDialog();
+
+            return vm.DialogResult == true;
+        }
         private async Task UpdateMassPropertyAsync(ISwConfiguration configuration)
         {
             ISwDocument3D document3D = configuration.OwnerDocument as ISwDocument3D;

@@ -34,6 +34,7 @@ using Xarial.XCad.Documents;
 using System.Windows;
 using Agrovent.ViewModels.TaskPane;
 using Agrovent.ViewModels.Specification;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Agrovent.ViewModels.Base
 {
@@ -670,7 +671,7 @@ namespace Agrovent.ViewModels.Base
     //}
     public class AGR_BaseComponent : BaseViewModel, IAGR_BaseComponent
     {
-        private readonly IAGR_ComponentVersionService _componentVersionService;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly AGR_TaskPaneViewModel _taskPane;
 
         #region FIELDS
@@ -719,7 +720,7 @@ namespace Agrovent.ViewModels.Base
 
         public AGR_BaseComponent(ISwDocument3D swDocument3D)
         {
-            _componentVersionService = AGR_ServiceContainer.GetService<IAGR_ComponentVersionService>();
+            _scopeFactory = AGR_ServiceContainer.GetService<IServiceScopeFactory>();
             _taskPane = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
             mDocument = swDocument3D;
 
@@ -987,7 +988,7 @@ namespace Agrovent.ViewModels.Base
                     break;
                     case AGR_ComponentType_e.SheetMetallPart:
                     PropertiesCollection = new AGR_SheetPartPropertiesCollection(mDocument);
-                    PropertiesCollection.UpdateProperties();
+                    //PropertiesCollection.UpdateProperties();
                     break;
                     case AGR_ComponentType_e.Purchased:
                     PropertiesCollection?.Properties.Clear();
@@ -1342,22 +1343,22 @@ namespace Agrovent.ViewModels.Base
 
             try
             {
-                //if (ComponentType == AGR_ComponentType_e.Assembly)
-                //{
-                //    var vm = new AGR_AssemblyEditVM(PartNumber, Version, Name, unitOfWork,
-                //        AGR_ServiceContainer.GetService<ILogger<AGR_AssemblyEditVM>>());
-                //    await vm.InitializeAsync(PartNumber, Version);
-                //    var view = new AGR_SpecificationWindow { DataContext = vm, Topmost = true };
-                //    view.Show();
-                //    OnPropertyChanged(nameof(vm.Components));
-                //}
-                //else
-                //{
+                if (ComponentType == AGR_ComponentType_e.Assembly)
+                {
+                    var vm = new AGR_AssemblyEditVM(PartNumber, Version, Name, unitOfWork,
+                        AGR_ServiceContainer.GetService<ILogger<AGR_AssemblyEditVM>>());
+                    //await vm.InitializeAsync(PartNumber, Version);
+                    var view = new AGR_SpecificationWindow { DataContext = vm, Topmost = true, Title = $"Подробная информация" };
+                    view.Show();
+                    OnPropertyChanged(nameof(vm.Components));
+                }
+                else
+                {
                     var vm = new AGR_ComponentEditVM(PartNumber, Version, unitOfWork,
                         AGR_ServiceContainer.GetService<ILogger<AGR_ComponentEditVM>>());
-                    var view = new SaveConfirmationView { DataContext = vm, Topmost = true };
+                    var view = new SaveConfirmationView { DataContext = vm, Topmost = true, Title = $"Подробная информация" };
                     view.Show();
-                //}
+                }
             }
             catch (Exception ex)
             {
@@ -1373,7 +1374,24 @@ namespace Agrovent.ViewModels.Base
         private bool CanSetNewPartnumberCommandExecute(object p) => true;
         private async void OnSetNewPartnumberCommandExecuted(object p)
         {
-            await _componentVersionService.CreateNewComponent(this);
+            // Свой изолированный скоуп на одну операцию — свой DataContext,
+            // не завязанный на "вечный" _componentVersionService из корневого провайдера.
+            using var scope = _scopeFactory.CreateScope();
+            var versionService = scope.ServiceProvider.GetRequiredService<IAGR_ComponentVersionService>();
+
+            try
+            {
+                var newComponent = await versionService.CreateNewComponent(this);
+                if (newComponent != null && !string.IsNullOrWhiteSpace(newComponent.PartNumber))
+                {
+                    // Сработает существующий сеттер: OnPropertyChanged + PartnumberChanged + запись в свойство SW-документа
+                    PartNumber = newComponent.PartNumber;
+                }
+            }
+            catch (Exception ex)
+            {
+                // сюда стоит добавить логгер, например через scope.ServiceProvider.GetService<ILogger<AGR_BaseComponent>>()
+            }
         }
         #endregion
 

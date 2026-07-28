@@ -35,6 +35,11 @@ namespace Agrovent.ViewModels.Specification
         private readonly ILogger? _logger;
         private ComponentVersion _assemblyVersion;
 
+        // Параметры отложенной загрузки: конструктор больше не запускает InitializeAsync сам —
+        // это делает View по событию Loaded, чтобы окно успело отобразиться с оверлеем прогресса.
+        private string _pendingPartNumber;
+        private int _pendingVersion;
+
         public AGR_WindowMode_e Mode => AGR_WindowMode_e.EditExisting;
         public AGR_AssemblyEditVM(string partNumber, int version, string displayName, IUnitOfWork unitOfWork, ILogger? logger = null)
         {
@@ -46,7 +51,8 @@ namespace Agrovent.ViewModels.Specification
             UpdateGroupedView();
 
             WindowTitle = $"Редактирование сборки: {displayName} ({partNumber})";
-            //_ = InitializeAsync(partNumber, version);
+            _pendingPartNumber = partNumber;
+            _pendingVersion = version;
         }
         public AGR_AssemblyEditVM(AGR_ComponentRegistryItemVM registryItem, IUnitOfWork unitOfWork, ILogger? logger = null)
         {
@@ -59,14 +65,25 @@ namespace Agrovent.ViewModels.Specification
 
             WindowTitle = $"Редактирование сборки: {registryItem.Name} ({registryItem.PartNumber})";
 
-            //_ = InitializeAsync(registryItem.PartNumber, registryItem.Version);
+            _pendingPartNumber = registryItem.PartNumber;
+            _pendingVersion = registryItem.Version;
         }
 
         #region Инициализация
+        // Вызывается из Window_Loaded окна AGR_SpecificationWindow — окно уже видно, показан оверлей прогресса.
+        public Task InitializeAsync()
+        {
+            var result = InitializeAsync(_pendingPartNumber, _pendingVersion);
+            return result;
+        }
+
         public async Task InitializeAsync(string partNumber, int version)
         {
             try
             {
+                IsLoading = true;
+                LoadingStatus = "Загрузка сборки...";
+
                 _assemblyVersion = await _unitOfWork.ComponentRepository.GetComponentVersionForEdit(partNumber, version);
                 if (_assemblyVersion == null)
                 {
@@ -100,6 +117,7 @@ namespace Agrovent.ViewModels.Specification
                 OnPropertyChanged(nameof(BaseAssemblyPaintName));
                 OnPropertyChanged(nameof(NoPaint));
 
+                LoadingStatus = "Загрузка состава сборки...";
                 await LoadCompositionAsync(partNumber, version);
                 ValidateSpecification();
             }
@@ -108,6 +126,11 @@ namespace Agrovent.ViewModels.Specification
                 _logger?.LogError(ex, $"Ошибка при загрузке сборки {partNumber} v{version} для редактирования.");
                 Errors = "Ошибка при загрузке данных сборки: " + ex.Message;
                 HasErrors = true;
+            }
+            finally
+            {
+                IsLoading = false;
+                LoadingStatus = string.Empty;
             }
         }
 

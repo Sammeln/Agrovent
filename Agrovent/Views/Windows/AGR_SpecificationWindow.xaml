@@ -16,7 +16,8 @@
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" 
         WindowState="Maximized"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        Loaded="Window_Loaded">
 
     <Window.Resources>
         <ResourceDictionary>
@@ -39,6 +40,7 @@
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
             <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+            <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBoolToVisibilityConverter"/>
             <AGR_converter:AGR_ComponentTypeToVisibility x:Key="ComponentTypeToVisibility"/>
             <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
 
@@ -94,120 +96,122 @@
     </Window.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <Grid Visibility="{Binding IsLoading, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <!-- Заголовок окна -->
-        <Border Grid.Row="0" Style="{StaticResource WindowHeaderStyle}">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="{Binding WindowTitle}" 
+            <!-- Заголовок окна -->
+            <Border Grid.Row="0" Style="{StaticResource WindowHeaderStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding WindowTitle}" 
                            Foreground="White" 
                            FontSize="16" 
                            FontWeight="Bold"/>
-            </StackPanel>
-        </Border>
+                </StackPanel>
+            </Border>
 
-        <!-- Панель с превью главной сборки и настройками -->
-        <Border Grid.Row="1" Background="#F5F5F5" Padding="16" Margin="16,8,16,8" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="160"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- Панель с превью главной сборки и настройками -->
+            <Border Grid.Row="1" Background="#F5F5F5" Padding="16" Margin="16,8,16,8" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- Превью главной сборки -->
-                <Border Grid.Column="0" Width="150" Height="150" Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Margin="0,0,16,0">
-                    <Image Source="{Binding BaseAssemblyPreview}" Stretch="Uniform" />
-                </Border>
+                    <!-- Превью главной сборки -->
+                    <Border Grid.Column="0" Width="150" Height="150" Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Margin="0,0,16,0">
+                        <Image Source="{Binding BaseAssemblyPreview}" Stretch="Uniform" />
+                    </Border>
 
-                <!-- Информация о главной сборке и настройки -->
-                <StackPanel Grid.Column="1" Orientation="Vertical">
+                    <!-- Информация о главной сборке и настройки -->
+                    <StackPanel Grid.Column="1" Orientation="Vertical">
 
-                    <!-- Наименование -->
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
-                        <TextBlock Grid.Column="1" Text="{Binding BaseAssemblyName}" Margin="0,0,0,8"/>
-                        <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0,0,0,8"/>
-                    </StackPanel>
+                        <!-- Наименование -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Наименование:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <TextBlock Grid.Column="1" Text="{Binding BaseAssemblyName}" Margin="0,0,0,8"/>
+                            <TextBlock Text="Конфигурация:" FontWeight="Bold" Margin="8,0,8,8"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ConfigName}" Margin="0,0,0,8"/>
+                        </StackPanel>
 
-                    <!-- Partnumber -->
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BaseAssemblyPartNumber}" Margin="0,0,8,8"/>
-                    </StackPanel>
+                        <!-- Partnumber -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Partnumber:" FontWeight="Bold" Margin="0,0,8,8"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BaseAssemblyPartNumber}" Margin="0,0,8,8"/>
+                        </StackPanel>
 
-                    <!-- Тип AVA -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <!-- Тип AVA -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Тип:" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
 
-                        <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
+                            <ComboBox ItemsSource="{Binding Source={StaticResource AvaTypeEnum}}"
                                   SelectedItem="{Binding BaseAssemblyAvaTypeEnum}"
                                   Width="150"
                                   Style="{StaticResource ModernComboBox}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <!-- Артикул -->
-                    <StackPanel Orientation="Vertical">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Артикул:" FontWeight="Bold" Margin="0,0,8,8"/>
-                            <Button Content="Выбрать" Command="{Binding SelectArticleCommand}" Padding="8,4" Margin="0,0,0,8"/>
-                            <TextBlock Text="{Binding ArticleString}" Margin="10,0,8,8"/>
-                            <!-- Чекбокс "Без артикула" -->
-                            <CheckBox Grid.Row="3" Grid.Column="0" Content="Без артикула" IsChecked="{Binding NoArticle}" Margin="0,0,0,8"/>
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource AvaTypeConverter}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </StackPanel>
-                    </StackPanel>
 
-                    <StackPanel Orientation="Vertical">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Покрытие:" FontWeight="Bold" Margin="0,0,8,8"/>
-                            <Button Content="Выбрать" Command="{Binding SelectPaintCommand}" Padding="8,4" Margin="8,0,0,8" HorizontalAlignment="Left"/>
-                            <TextBlock Text="{Binding BaseAssemblyPaintName}" Margin="8,0,8,8"/>
-                            <!-- Чекбокс "Без покрытия" -->
-                            <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint}" Margin="0,0,0,8"/>
+                        <!-- Артикул -->
+                        <StackPanel Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Артикул:" FontWeight="Bold" Margin="0,0,8,8"/>
+                                <Button Content="Выбрать" Command="{Binding SelectArticleCommand}" Padding="8,4" Margin="0,0,0,8"/>
+                                <TextBlock Text="{Binding ArticleString}" Margin="10,0,8,8"/>
+                                <!-- Чекбокс "Без артикула" -->
+                                <CheckBox Grid.Row="3" Grid.Column="0" Content="Без артикула" IsChecked="{Binding NoArticle}" Margin="0,0,0,8"/>
+                            </StackPanel>
                         </StackPanel>
+
+                        <StackPanel Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Покрытие:" FontWeight="Bold" Margin="0,0,8,8"/>
+                                <Button Content="Выбрать" Command="{Binding SelectPaintCommand}" Padding="8,4" Margin="8,0,0,8" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding BaseAssemblyPaintName}" Margin="8,0,8,8"/>
+                                <!-- Чекбокс "Без покрытия" -->
+                                <CheckBox Content="Без покрытия" IsChecked="{Binding NoPaint}" Margin="0,0,0,8"/>
+                            </StackPanel>
+                        </StackPanel>
+
                     </StackPanel>
+                </Grid>
+            </Border>
 
-                </StackPanel>
-            </Grid>
-        </Border>
+            <!-- Основной контент - DataGrid с группировкой и панель ошибок -->
+            <Grid Grid.Row="2" Margin="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition  Width="auto"/>
+                </Grid.ColumnDefinitions>
 
-        <!-- Основной контент - DataGrid с группировкой и панель ошибок -->
-        <Grid Grid.Row="2" Margin="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition/>
-                <ColumnDefinition  Width="auto"/>
-            </Grid.ColumnDefinitions>
-
-            <Grid.Resources>
-                <!-- CollectionViewSource для группировки компонентов -->
-                <CollectionViewSource x:Key="1GroupedComponents" 
+                <Grid.Resources>
+                    <!-- CollectionViewSource для группировки компонентов -->
+                    <CollectionViewSource x:Key="1GroupedComponents" 
                                       Source="{Binding Components, NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}">
-                    <CollectionViewSource.GroupDescriptions>
-                        <PropertyGroupDescription PropertyName="ComponentType"/>
-                    </CollectionViewSource.GroupDescriptions>
-                    <CollectionViewSource.SortDescriptions>
-                        <scm:SortDescription PropertyName="ComponentType" Direction="Ascending"/>
-                        <scm:SortDescription PropertyName="Name" Direction="Ascending"/>
-                    </CollectionViewSource.SortDescriptions>
-                </CollectionViewSource>
-            </Grid.Resources>
+                        <CollectionViewSource.GroupDescriptions>
+                            <PropertyGroupDescription PropertyName="ComponentType"/>
+                        </CollectionViewSource.GroupDescriptions>
+                        <CollectionViewSource.SortDescriptions>
+                            <scm:SortDescription PropertyName="ComponentType" Direction="Ascending"/>
+                            <scm:SortDescription PropertyName="Name" Direction="Ascending"/>
+                        </CollectionViewSource.SortDescriptions>
+                    </CollectionViewSource>
+                </Grid.Resources>
 
-            <!-- DataGrid с группировкой -->
-            <!--ItemsSource="{Binding  Source={StaticResource GroupedComponents}}"-->
-            <DataGrid Grid.Column="0"
+                <!-- DataGrid с группировкой -->
+                <!--ItemsSource="{Binding  Source={StaticResource GroupedComponents}}"-->
+                <DataGrid Grid.Column="0"
                       ItemsSource="{Binding GroupedComponentsView}"
                       Style="{StaticResource SpecificationDataGrid}"
+                          Name="ComponentsDataGrid"
                       GridLinesVisibility="Vertical"
                       VerticalGridLinesBrush="LightGray"
                       AutoGenerateColumns="False"
@@ -217,163 +221,170 @@
                       b:AGR_DataGridSelectedItemsBehavior.SelectedItems="{Binding SelectedComponents, Mode=TwoWay}"
                       >
 
-                <DataGrid.InputBindings>
-                    <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
-                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectComponentCommand}"/>
-                </DataGrid.InputBindings>
+                    <DataGrid.InputBindings>
+                        <KeyBinding Key="Space" Command="{Binding SelectComponentCommand}"/>
+                        <MouseBinding Gesture="LeftDoubleClick" Command="{Binding SelectComponentCommand}"/>
+                    </DataGrid.InputBindings>
 
 
-                <!-- Настройка группировки -->
-                <DataGrid.GroupStyle>
-                    <GroupStyle>
-                        <GroupStyle.ContainerStyle>
-                            <Style TargetType="{x:Type GroupItem}" BasedOn="{StaticResource GroupHeaderStyle}"/>
-                        </GroupStyle.ContainerStyle>
-                    </GroupStyle>
-                </DataGrid.GroupStyle>
+                    <!-- Настройка группировки -->
+                    <DataGrid.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.ContainerStyle>
+                                <Style TargetType="{x:Type GroupItem}" BasedOn="{StaticResource GroupHeaderStyle}"/>
+                            </GroupStyle.ContainerStyle>
+                        </GroupStyle>
+                    </DataGrid.GroupStyle>
 
-                <!-- Колонки DataGrid -->
-                <DataGrid.Columns>
+                    <!-- Колонки DataGrid -->
+                    <DataGrid.Columns>
 
-                    <DataGridTemplateColumn Width="25">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Width="25">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                    <!-- Preview Column -->
-                    <DataGridTemplateColumn Width="50" MinWidth="50">
-                        <DataGridTemplateColumn.CellStyle>
-                            <Style TargetType="DataGridCell">
-                                <Setter Property="ToolTip">
-                                    <Setter.Value>
-                                        <Image Source="{Binding Preview}" Width="450"/>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
-                                <Setter Property="ToolTipService.Placement" Value="Right"/>
-                            </Style>
-                        </DataGridTemplateColumn.CellStyle>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
-                                <!-- Контейнер для основного отображения в ячейке -->
-                                <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                        <!-- Preview Column -->
+                        <DataGridTemplateColumn Width="50" MinWidth="50">
+                            <DataGridTemplateColumn.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="ToolTip">
+                                        <Setter.Value>
+                                            <Image Source="{Binding Preview}" Width="450"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+                                    <Setter Property="ToolTipService.Placement" Value="Right"/>
+                                </Style>
+                            </DataGridTemplateColumn.CellStyle>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate DataType="{x:Type vm:AGR_SpecificationItemVM}">
+                                    <!-- Контейнер для основного отображения в ячейке -->
+                                    <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                    <!-- Наименование -->
-                    <DataGridTemplateColumn Header="Наименование" SortMemberPath="Name" Width="SizeToCells">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding ArticleName}" 
+                        <!-- Наименование -->
+                        <DataGridTemplateColumn Header="Наименование" SortMemberPath="Name" Width="SizeToCells">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding ArticleName}" 
                                                Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
                                                VerticalAlignment="Center" Foreground="BlueViolet"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    
-                    
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                    <!-- PartNumber/Артикул -->
-                    <DataGridTextColumn Header=" PartNumber / Артикул " 
-                                        Width="1.5*"
+
+
+                        <!-- PartNumber/Артикул -->
+                        <DataGridTextColumn Header=" PartNumber / Артикул " 
+                                        Width="SizeToCells"
                                         CanUserSort="True"
                                         ElementStyle="{StaticResource DGCell_LeftAlignedAndWrapping}"
                                         Binding="{Binding PartnumberOrArticle}">
-                    </DataGridTextColumn>
+                        </DataGridTextColumn>
 
-                    <!-- Количество -->
-                    <DataGridTextColumn Header=" Количество " 
+                        <!-- Количество -->
+                        <DataGridTextColumn Header=" Количество " 
                                         Binding="{Binding Quantity}" 
                                         Width="*"
                                         CanUserSort="True"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
-                    <!-- Толщина -->
-                    <DataGridTextColumn Header=" Толщина " 
+                        <!-- Толщина -->
+                        <DataGridTextColumn Header=" Толщина " 
                                         Binding="{Binding SheetMetalThickness}" 
-                                        Width="*"
+                                        Width="SizeToHeader"
                                         ElementStyle="{StaticResource CenterAlignedTextStyle}"/>
 
-                    <!-- Материал -->
-                    <DataGridTemplateColumn Header="Материал" SortMemberPath="Name" Width="3*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding MaterialArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding MaterialName}" 
+                        <!-- Материал -->
+                        <DataGridTemplateColumn Header="Материал" SortMemberPath="Name" Width="3*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding MaterialArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding MaterialName}" 
                                                Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
                                                VerticalAlignment="Center" Foreground="BlueViolet"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    
-                    <!-- Краска -->
-                    <DataGridTemplateColumn Header="Краска" SortMemberPath="Name" Width="3*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding PaintArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding PaintName}" 
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Краска -->
+                        <DataGridTemplateColumn Header="Краска" SortMemberPath="Name" Width="3*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding PaintArticle}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding PaintName}" 
                                                Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
                                                VerticalAlignment="Center" Foreground="BlueViolet"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                </DataGrid.Columns>
+                    </DataGrid.Columns>
 
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                <Setter Property="Background" Value="LightBlue"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                        <Setter Property="ContextMenu" Value="{StaticResource RowMenu}"/>
-                    </Style>
-                </DataGrid.RowStyle>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                    <Setter Property="Background" Value="LightBlue"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                            <Setter Property="ContextMenu" Value="{StaticResource RowMenu}"/>
+                        </Style>
+                    </DataGrid.RowStyle>
 
-            </DataGrid>
+                </DataGrid>
 
-            <!-- Панель ошибок справа -->
-            <Border Grid.Column="1"
+                <!-- Панель ошибок справа -->
+                <Border Grid.Column="1"
                     Style="{StaticResource ErrorBorderStyle}"
                     Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibilityConverter}}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel>
-                        <TextBlock Text="Ошибки:" 
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <TextBlock Text="Ошибки:" 
                                FontWeight="Bold" 
                                    TextDecorations="Underline"
                                Style="{StaticResource ErrorTextblockStyle}"/>
-                        <TextBlock Text="{Binding Errors}" 
+                            <TextBlock Text="{Binding Errors}" 
                                Style="{StaticResource ErrorTextblockStyle}"/>
-                        <TextBlock Text="{Binding Warnings}" 
+                            <TextBlock Text="{Binding Warnings}" 
                                 Style="{StaticResource WarningTextblockStyle}"/>
-                    </StackPanel>
-                </ScrollViewer>
-            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
 
-            <!-- Сообщение при отсутствии компонентов -->
-            <!--<TextBlock Text="Нет компонентов для отображения" 
+                <!-- Сообщение при отсутствии компонентов -->
+                <!--<TextBlock Text="Нет компонентов для отображения" 
                        Style="{StaticResource EmptySpecificationStyle}"
                        Visibility="{Binding HasComponents, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=true}"/>-->
-        </Grid>
+            </Grid>
 
-        <!-- Панель действий -->
-        <Border Grid.Row="3" 
+            <!-- Панель действий -->
+            <Border Grid.Row="3" 
                 Background="White" 
                 Padding="16,12" 
                 BorderBrush="#E0E0E0" 
                 BorderThickness="0,1,0,0">
+                <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Button Content="Подобрать артикулы..."
+                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                        Command="{Binding MatchArticlesCommand}"
+                        Padding="8,4"/>
+                </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <CheckBox IsChecked="{Binding IgnoreErrors}" Content="Игнорировать ошибки"/>
                     <Button Content="Сохранить" 
@@ -387,7 +398,23 @@
                         Style="{StaticResource CancelButtonStyle}"
                         />
                 </StackPanel>
-        </Border>
+                </Grid>
+            </Border>
 
+        </Grid>
+        <Border Background="#80000000"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="20"/>
+                <TextBlock Text="{Binding LoadingStatus}"
+                           Foreground="White"
+                           FontSize="16"
+                           Margin="0,10,0,0"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
+
+
+

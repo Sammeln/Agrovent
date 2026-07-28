@@ -15,7 +15,7 @@ namespace Agrovent.Infrastructure.Interfaces
         Task<bool> CheckAndSaveAssemblyAsync(AGR_AssemblyComponentVM assembly);
         Task<ComponentVersion?> GetComponentVersionAsync(string partNumber, int version);
         Task<bool> HasComponentChangedAsync(IAGR_BaseComponent component);
-        Task<bool> CreateNewComponent(IAGR_BaseComponent component);
+        Task<Component> CreateNewComponent(IAGR_BaseComponent component);
         Task<bool> CreateNewComponents(List<IAGR_BaseComponent> components);
 
         // Дополнительные методы (опционально)

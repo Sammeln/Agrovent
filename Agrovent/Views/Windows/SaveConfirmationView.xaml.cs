@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using Agrovent.ViewModels.Windows;
 
 namespace Agrovent.Views.Windows
 {
@@ -22,6 +23,16 @@ namespace Agrovent.Views.Windows
         public SaveConfirmationView()
         {
             InitializeComponent();
+        }
+
+        // Окно уже показано (со своим прогресс-оверлеем в XAML, см. IsLoading/LoadingStatus) —
+        // здесь запускаем фактическую асинхронную загрузку из БД для режима редактирования.
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is AGR_ComponentEditVM vm)
+            {
+                await vm.InitializeAsync();
+            }
         }
     }
 }

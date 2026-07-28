@@ -248,9 +248,9 @@ namespace Agrovent.DAL.Services.Repositories
             var _component = new Component
             {
                 CreatedAt = DateTime.UtcNow,
-                PartNumber = component.PartNumber // PartNumber уже сгенерирован заранее!
             };
             _context.Components.Add(_component);
+            await _context.SaveChangesAsync();
 
             return _component;
         }
@@ -261,10 +261,10 @@ namespace Agrovent.DAL.Services.Repositories
                 var _component = new Component
                 {
                     CreatedAt = DateTime.UtcNow,
-                    PartNumber = item.PartNumber // PartNumber уже сгенерирован заранее!
                 };
                 _context.Components.Add(_component);
             }
+            await _context.SaveChangesAsync();
             return true;
         }
 
@@ -373,7 +373,6 @@ namespace Agrovent.DAL.Services.Repositories
                     PreviewImage = component.Preview,
                     Name = component.Name,
                     ConfigName = component.ConfigName,
-                    AvaArticle = mAvaArticle,
                     AvaArticleArticle = mAvaArticle?.Article,
                     ComponentType = component.ComponentType,
                     AvaType = component.AvaType,
@@ -672,17 +671,6 @@ namespace Agrovent.DAL.Services.Repositories
                 var componentHash = item.Component.CalculateComponentHash();
                 var componentVersion = await SaveComponent(item.Component, componentHash);
 
-                // Создаем запись в структуре
-                //var structure = new AssemblyStructure
-                //{
-                //    AssemblyVersion = assemblyVersion,
-                //    ComponentVersion = componentVersion,
-                //    Quantity = item.Quantity,
-                //    Level = level,
-                //    ParentStructure = parent,
-                //    OrderIndex = orderIndex++
-                //};
-
                 var existStructure = await GetExistingAssemblyStructure(assemblyVersion, componentVersion, item.Quantity);
 
                 if (existStructure == null)
@@ -704,6 +692,7 @@ namespace Agrovent.DAL.Services.Repositories
                             Quantity = item.Quantity,
                             Order = orderIndex++
                         };
+                        _context.AssemblyStructures.Add(existStructure);
                     }
                     else
                     {
@@ -711,7 +700,6 @@ namespace Agrovent.DAL.Services.Repositories
                         _saveProgress.AddLogMessage($"Структура найдена в локальном контексте: {assemblyVersion.Component.PartNumber}");
                         existStructure = localStructure;
                     }
-                    _context.AssemblyStructures.Add(existStructure);
                 }
 
 
@@ -926,11 +914,11 @@ namespace Agrovent.DAL.Services.Repositories
                 ComponentVersion = componentVersion,
                 BaseMaterial = baseMaterial?.Name,
                 BaseMaterialCount = baseMaterialCount,
-                MaterialAvaArticle = baseMaterial?.AvaModel,
+                MaterialAvaArticleID = baseMaterial?.AvaModel?.Article,
 
                 Paint = paint?.Name,
                 PaintCount = paintCount,
-                PaintAvaArticle = paint?.AvaModel
+                PaintAvaArticleID = paint?.AvaModel?.Article
 
             };
 

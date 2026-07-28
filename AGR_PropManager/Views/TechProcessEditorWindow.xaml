@@ -234,10 +234,12 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel>
-                                    <TextBox Text="{Binding PartNumber, Mode=OneWay}" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                                    <TextBox Text="{Binding PartNumber, Mode=OneWay}" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                             Background="{Binding Background, RelativeSource={RelativeSource AncestorType=DataGridRow, Mode=FindAncestor}}"/>
                                     <TextBox Text="{Binding AvaArticle.Article, StringFormat=Артикул№0 , Mode=OneWay}" BorderThickness="0"
+                                             Background="{Binding Background, RelativeSource={RelativeSource AncestorType=DataGridRow, Mode=FindAncestor}}"
                                              Visibility="{Binding AvaArticle, Converter={StaticResource NullToVisibilityConverter}}"
-                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Center" 
                                              Foreground="BlueViolet"/>
                                 </StackPanel>
                             </DataTemplate>

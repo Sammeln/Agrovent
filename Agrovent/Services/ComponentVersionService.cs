@@ -262,7 +262,7 @@ namespace Agrovent.Infrastructure.Services
             {
                 await _unitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, $"Ошибка при сохранении сборки: {assemblyPartnumber}");
-                _saveProgress.AddLogMessage($"Ошибка при сохранении сборки: {assemblyPartnumber}. {ex.Message}");
+                _saveProgress.AddLogMessage($"Ошибка при сохранении сборки: {assemblyPartnumber}. {ex.Message}. {ex.InnerException.InnerException.Message.ToString()}");
                 throw;
             }
         }
@@ -327,9 +327,9 @@ namespace Agrovent.Infrastructure.Services
 
 
 
-        public async Task<bool> CreateNewComponent(IAGR_BaseComponent baseComponent)
+        public async Task<AgroventInfrastructure.Entities.Components.Component> CreateNewComponent(IAGR_BaseComponent baseComponent)
         {
-            return await _unitOfWork.ComponentRepository.CreateNewComponent(baseComponent) != null;
+            return await _unitOfWork.ComponentRepository.CreateNewComponent(baseComponent);
         }
         public async Task<bool> CreateNewComponents(List<IAGR_BaseComponent> baseComponents)
         {

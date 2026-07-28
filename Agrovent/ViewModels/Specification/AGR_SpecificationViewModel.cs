@@ -21,6 +21,7 @@ using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
 using AgroventInfrastructure.Enums;
 using ICSharpCode.SharpZipLib.Zip;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.Base.Enums;
 using Xarial.XCad.Documents;
@@ -33,13 +34,16 @@ namespace Agrovent.ViewModels.Specification
         private readonly AGR_AssemblyComponentVM _baseComponent;
         private readonly ILogger _logger;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IServiceScopeFactory _scopeFactory; // NEW
+
 
         #region CTOR
-        public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent, IUnitOfWork unitOfWork)
+        public AGR_SpecificationViewModel(AGR_AssemblyComponentVM baseComponent, IUnitOfWork unitOfWork, IServiceScopeFactory scopeFactory)
         {
             //_logger = AGR_ServiceContainer.GetService<ILogger>();
             _baseComponent = baseComponent;
             _unitOfWork = unitOfWork;
+            _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
             WindowTitle = $"Спецификация: {baseComponent.Name} ({baseComponent.PartNumber})";
             Initialize();
         }
@@ -743,7 +747,8 @@ namespace Agrovent.ViewModels.Specification
             try
             {
                 // Получаем нужные сервисы для VM
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 // Создаем ViewModel
@@ -825,7 +830,8 @@ namespace Agrovent.ViewModels.Specification
             try
             {
                 // Получаем нужные сервисы для VM
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 // Создаем ViewModel
@@ -886,7 +892,8 @@ namespace Agrovent.ViewModels.Specification
             try
             {
                 // Получаем нужные сервисы для VM
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 // Создаем ViewModel
@@ -927,6 +934,38 @@ namespace Agrovent.ViewModels.Specification
             }
 
             DeselectAllComponents();
+        }
+        #endregion
+
+        #region MatchArticlesCommand
+        private ICommand _MatchArticlesCommand;
+        public ICommand MatchArticlesCommand => _MatchArticlesCommand
+            ??= new RelayCommand(OnMatchArticlesCommandExecuted);
+        private void OnMatchArticlesCommandExecuted(object p)
+        {
+            try
+            {
+                var logger = AGR_ServiceContainer.GetService<ILogger<AGR_MatchArticlesVM>>();
+                var matchVm = new AGR_MatchArticlesVM(Components, _scopeFactory, logger);
+
+                var matchView = new AGR_MatchArticlesWindow
+                {
+                    DataContext = matchVm,
+                    Owner = p as Window,
+                    Topmost = true
+                };
+                matchView.ShowDialog();
+
+                // Присвоение AvaArticle выбранным вариантам произошло напрямую на тех же
+                // AGR_SpecificationItemVM, что лежат в Components (по ссылке), поэтому
+                // основная таблица уже обновилась через INotifyPropertyChanged.
+                // Здесь достаточно перевалидировать спецификацию.
+                ValidateSpecification();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Ошибка при открытии окна подбора артикулов.");
+            }
         }
         #endregion
 
@@ -1005,7 +1044,8 @@ namespace Agrovent.ViewModels.Specification
         {
             try
             {
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
@@ -1042,7 +1082,8 @@ namespace Agrovent.ViewModels.Specification
         {
             try
             {
-                var dataContext = AGR_ServiceContainer.GetService<DataContext>();
+                using var scope = _scopeFactory.CreateScope(); // NEW
+                var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
                 var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
