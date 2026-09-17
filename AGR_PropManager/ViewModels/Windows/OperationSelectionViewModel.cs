@@ -9,7 +9,7 @@ using AGR_PropManager.ViewModels.Components;
 using AGR_PropManager.ViewModels.TechProcess;
 using Agrovent.DAL;
 using Agrovent.DAL.Services.Repositories;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -118,7 +118,6 @@ namespace AGR_PropManager.ViewModels.Windows
                 await _unitOfWork.CommitTransactionAsync();
 
                 _logger?.LogInformation($"Все изменения успешно сохранены в БД. Добавлено операций: {_selectedComponents.Count}.");
-                CloseRequested?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception ex)
             {

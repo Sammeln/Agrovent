@@ -1,34 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Text;
+﻿using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Agrovent.DAL;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Interfaces.Components;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Services;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.TaskPane;
 using Agrovent.ViewModels.Windows;
+using AgroventInfrastructure;
 using AgroventInfrastructure.Entities.Components;
-using AgroventInfrastructure.Interfaces.Entities.Components;
-using EnumsNET;
+using AgroventInfrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces.Components;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.OLE.Interop;
-using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
-using Xarial.XCad.Documents;
-using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
-using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.Infrastructure.Services
 {
@@ -317,7 +305,7 @@ namespace Agrovent.Infrastructure.Services
             foreach (var item in docsToSave)
             {
                 var attr = File.GetAttributes(item.Path);
-                if (attr.HasAnyFlags(FileAttributes.ReadOnly))
+                if (attr.HasFlag(FileAttributes.ReadOnly))
                 {
                     continue;
                 }
@@ -327,7 +315,7 @@ namespace Agrovent.Infrastructure.Services
 
 
 
-        public async Task<AgroventInfrastructure.Entities.Components.Component> CreateNewComponent(IAGR_BaseComponent baseComponent)
+        public async Task<Component> CreateNewComponent(IAGR_BaseComponent baseComponent)
         {
             return await _unitOfWork.ComponentRepository.CreateNewComponent(baseComponent);
         }

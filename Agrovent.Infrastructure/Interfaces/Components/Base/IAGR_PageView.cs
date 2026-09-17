@@ -1,4 +1,4 @@
-﻿namespace Agrovent.Infrastructure.Interfaces.Components.Base
+﻿namespace AgroventInfrastructure.Interfaces.Components.Base
 {
     public interface IAGR_PageView
     {

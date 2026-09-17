@@ -1,7 +1,7 @@
-﻿using Agrovent.Infrastructure.Enums;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
+﻿using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Components.Base;
 
-namespace Agrovent.Infrastructure.Interfaces.Specification
+namespace AgroventInfrastructure.Interfaces.Specification
 {
     public interface IAGR_SpecificationItem
     {

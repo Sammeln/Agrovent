@@ -1,9 +1,9 @@
 ﻿// File: ViewModels/Windows/AGR_ComponentFileEditVM.cs
 using System.IO;
-using Agrovent.Infrastructure;
-using Agrovent.Infrastructure.Enums;
 using Agrovent.ViewModels.Base;
+using AgroventInfrastructure;
 using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Enums;
 
 namespace Agrovent.ViewModels.Windows
 {

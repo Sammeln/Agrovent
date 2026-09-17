@@ -1,15 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Agrovent.Infrastructure.Enums;
-using Agrovent.Infrastructure.Interfaces.Components;
-using Agrovent.Infrastructure.Interfaces.Specification;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Infrastructure.Interfaces.Properties;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Components;
+using AgroventInfrastructure.Interfaces.Specification;
+using AgroventInfrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Interfaces.Properties;
 using Agrovent.Infrastructure.Interfaces;
 using Microsoft.VisualBasic.FileIO;
 using Xarial.XCad.Documents;
 using Xarial.XCad.SolidWorks.Documents;
-using Agrovent.ViewModels.Windows;
 using System.Windows.Forms;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities;
@@ -19,6 +18,8 @@ using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Entities.TechProcess;
 using Agrovent.Infrastructure;
 using System.Data;
+using AgroventInfrastructure;
+using AgroventInfrastructure.Interfaces;
 
 namespace Agrovent.DAL.Services.Repositories
 {
@@ -130,8 +131,6 @@ namespace Agrovent.DAL.Services.Repositories
                         .ThenInclude(tp => tp.Operations)
                     .FirstOrDefaultAsync(c => c.PartNumber == partNumber);
 
-
-
                 return comp;
             }
             catch (Exception ex)
@@ -177,6 +176,7 @@ namespace Agrovent.DAL.Services.Repositories
                 var cv = component.Versions
                     .OrderByDescending(v => v.Version)
                     .FirstOrDefault();
+
                 if (cv != null)
                 {
                     cv.ParentAssemblies = await GetAssembliesUsedComponent(cv);
@@ -600,6 +600,8 @@ namespace Agrovent.DAL.Services.Repositories
 
 
             var directChildren = await _context.AssemblyStructures
+                .Include(s => s.ParentComponentVersion)
+                    .ThenInclude(cv => cv.Component)
                 .Include(s => s.ParentComponentVersion)
                     .ThenInclude(cv => cv.Material)
                     .ThenInclude(m => m.PaintAvaArticle)
@@ -1067,26 +1069,32 @@ namespace Agrovent.DAL.Services.Repositories
         {
             try
             {
-                _logger.LogDebug("Запрос версий сборок верхнего уровня, не входящих в проекты");
+                _logger.LogDebug("Запрос сборок верхнего уровня, не входящих ни в один проект");
 
-                // Предположим, ComponentType_e.Assembly соответствует 0 (или другому значению enum -> int)
-                // и что "верхний уровень" означает, что у компонента нет родителя в структуре сборки (что сложно определить без хранения этой связи)
-                // Вместо этого, будем искать сборки, которые НЕ находятся НИ в одном ProjectComponent
+                // "Верхний уровень" = сборка никогда не встречается как дочерний компонент
+                // в составе другой сборки (AssemblyStructure.ChildComponentVersionId)
+                var usedAsChild = _context.AssemblyStructures
+                    .Select(a => a.ChildComponentVersionId)
+                    .Distinct();
+
                 var assembliesInProjects = _context.ProjectComponents
                     .Select(pc => pc.ComponentVersionId)
                     .Distinct();
 
                 var topLevelAssemblies = await _context.ComponentVersions
-                    .Include(cv => cv.Component) // Подгружаем связанный компонент
-                    .Where(cv => cv.ComponentType == (int)AGR_ComponentType_e.Assembly
+                    .Include(cv => cv.Component)
+                    .Include(cv => cv.Files)
+                    .Where(cv => cv.ComponentType == AGR_ComponentType_e.Assembly
+                                && !usedAsChild.Contains(cv.Id)
                                 && !assembliesInProjects.Contains(cv.Id))
+                    .AsNoTracking()
                     .ToListAsync();
 
                 return topLevelAssemblies;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при получении версий сборок верхнего уровня, не входящих в проекты");
+                _logger.LogError(ex, "Ошибка при получении сборок верхнего уровня, не входящих в проекты");
                 throw;
             }
         }

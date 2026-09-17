@@ -1,22 +1,16 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using Agrovent.DAL;
-using Agrovent.Infrastructure;
 using Agrovent.Infrastructure.Commands;
-using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.Services;
 using Agrovent.ViewModels.Base;
 using Agrovent.Views.Windows;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
+using AgroventInfrastructure;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Components;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Microsoft.Extensions.Logging;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
@@ -31,19 +25,21 @@ namespace Agrovent.ViewModels.PackNGo
     /// <summary>
     /// ViewModel диалога "Pack'n'Go" - расширенная замена штатного Pack and Go SolidWorks.
     /// Строит табличное дерево всех компонентов активной сборки (с сохранением вложенности),
-    /// позволяет переименовать любой компонент ("Сохранить как"), пометить его как новый
-    /// (партномер будет сгенерирован при сохранении - с автоматическим каскадным присвоением
-    /// новых партномеров всем вышестоящим сборкам), выбрать, какие компоненты копировать.
-    /// Сохранение выполняется в три шага: 1) генерация новых партномеров и создание записей
-    /// Component в БД (без изменения исходных документов), 2) копирование файлов через нативный
-    /// ISldWorks.CopyDocument (см. ExecuteCopyDocument), 3) простановка партномеров уже в
-    /// СКОПИРОВАННЫЕ файлы и их сохранение (см. ApplyPartNumbersToCopy) - исходные документы
-    /// при этом никогда не изменяются и не сохраняются.
+    /// позволяет переименовать любой компонент ("Сохранить как"), пометить его как новый -
+    /// партномер при этом просто сбрасывается в пустой (с автоматическим каскадным сбросом
+    /// партномеров всех вышестоящих сборок), выбрать, какие компоненты копировать.
+    /// Сам Pack'n'Go НЕ генерирует новые партномера и НЕ создаёт записи Component в БД - состав
+    /// сборки в процессе проектирования ещё может измениться, поэтому занимать номер под деталь,
+    /// которая, возможно, вообще не попадёт в финальную сборку, не нужно. Реальный партномер
+    /// назначается позже, обычной командой "Присвоить новый партномер" (SetNewPartnumberCommand).
+    /// Сохранение выполняется в два шага: 1) копирование файлов через нативный
+    /// ISldWorks.CopyDocument (см. ExecuteCopyDocument), 2) простановка партномеров (в т.ч. пустых -
+    /// для помеченных как новые) уже в СКОПИРОВАННЫЕ файлы и их сохранение (см. ApplyPartNumbersToCopy) -
+    /// исходные документы при этом никогда не изменяются и не сохраняются.
     /// </summary>
     public class AGR_PackNGoVM : BaseViewModel
     {
         private readonly ISwApplication _swApp;
-        private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AGR_PackNGoVM> _logger;
 
         /// <summary>Все уникальные компоненты дерева (по одному на файл), независимо от того,
@@ -74,11 +70,10 @@ namespace Agrovent.ViewModels.PackNGo
         #region CTOR
 
         public AGR_PackNGoVM(IAGR_BaseComponent rootComponent, ISwApplication swApp,
-            IServiceScopeFactory scopeFactory, ILogger<AGR_PackNGoVM> logger)
+            ILogger<AGR_PackNGoVM> logger)
         {
             if (rootComponent == null) throw new ArgumentNullException(nameof(rootComponent));
             _swApp = swApp ?? throw new ArgumentNullException(nameof(swApp));
-            _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
             _logger = logger;
 
             // Сама сборка (или деталь) тоже присутствует в таблице - первой строкой (п.1 ТЗ).
@@ -220,7 +215,7 @@ namespace Agrovent.ViewModels.PackNGo
             var path = baseComponent.SwDocument?.Path;
             if (string.IsNullOrEmpty(path))
             {
-                path = (baseComponent as Infrastructure.Interfaces.Components.IAGR_HasFile)?.CurrentModelFilePath;
+                path = (baseComponent as IAGR_HasFile)?.CurrentModelFilePath;
             }
             if (string.IsNullOrEmpty(path))
             {
@@ -442,17 +437,7 @@ namespace Agrovent.ViewModels.PackNGo
             {
                 Directory.CreateDirectory(SaveFolder);
 
-                // 1. Генерируем недостающие партномера и создаём записи Component в БД -
-                // через отдельный scope/DataContext (не через закэшированный на весь плагин
-                // UnitOfWork), чтобы не наступить на известную проблему scoped DbContext.
-                var needNewPartNumber = checkedComponents.Where(c => c.IsNewPartNumber).ToList();
-                if (needNewPartNumber.Count > 0)
-                {
-                    LoadingStatus = "Генерация партномеров...";
-                    await GenerateAndPersistNewComponentsAsync(needNewPartNumber);
-                }
-
-                // 2. Копируем файлы через нативный ISldWorks.CopyDocument - как и в
+                // 1. Копируем файлы через нативный ISldWorks.CopyDocument - как и в
                 // ComponentVersionService.CopyFilesToStorageAsync. В отличие от штатного
                 // SW Pack and Go, здесь мы полностью сами задаём целевые пути (без
                 // приведения имён к верхнему регистру и без схемы префикс/суффикс).
@@ -468,81 +453,37 @@ namespace Agrovent.ViewModels.PackNGo
                     return;
                 }
 
-                // 3. Партномера (в т.ч. только что сгенерированные) записываем не в исходник,
-                // а в СКОПИРОВАННЫЕ файлы: открываем скопированную сборку, обходим её компоненты
-                // и для каждого, у которого значение отличается от того, что нужно по диалогу,
-                // проставляем свойство PartNumber и сохраняем документ.
+
+
+                //Проверяем на readonly файлы, если есть - снимаем чтение
+                LoadingStatus = "Проверка файлов 'только для чтения'...";
+                CheckReadOnlyFiles();
+
+
+                // 2. Партномера записываем не в исходник, а в СКОПИРОВАННЫЕ файлы: открываем
+                // скопированную сборку, обходим её компоненты и для каждого, у которого значение
+                // отличается от того, что нужно по диалогу, проставляем свойство PartNumber и
+                // сохраняем документ. Для компонентов, помеченных как "новые" (переименованные
+                // либо явно очищенные через ПКМ), значение просто сбрасывается в пустое - реальный
+                // новый партномер и запись Component в БД создаются позже, штатной командой
+                // "Присвоить новый партномер" (SetNewPartnumberCommand), когда пользователь
+                // окончательно определится с составом сборки. Здесь этим специально не занимаемся,
+                // чтобы не занимать номера впустую под детали, которые могут ещё поменяться.
                 LoadingStatus = "Простановка партномеров в скопированных файлах...";
                 ApplyPartNumbersToCopy(checkedComponents);
 
                 DialogResult = true;
                 (parameter as Window)?.Close();
-
-
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
+                _logger?.LogError(ex, "Ошибка при выполнении Pack'n'Go.");
                 MessageBox.Show($"Ошибка: {ex.Message}", "Pack'n'Go", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
                 IsSaving = false;
                 IsLoading = false;
-            }
-        }
-
-        /// <summary>
-        /// Генерирует новые партномера и создаёт для них записи Component в БД. ВАЖНО: здесь мы
-        /// НЕ пишем ничего в открытый (исходный) документ SolidWorks - только фиксируем значение
-        /// в состоянии диалога (comp.ApplyGeneratedPartNumber) и создаём запись Component напрямую
-        /// через DataContext (без ComponentRepository.CreateNewComponent - тот принимает
-        /// IAGR_BaseComponent и берёт PartNumber из НЕГО, что вынудило бы писать в исходник).
-        /// Реальная запись свойства PartNumber произойдёт позже, уже в СКОПИРОВАННЫЙ файл -
-        /// см. ApplyPartNumbersToCopy.
-        /// </summary>
-        private async Task GenerateAndPersistNewComponentsAsync(List<AGR_PackNGoComponentVM> needNewPartNumber)
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
-
-            var connection = dataContext.Database.GetDbConnection();
-            if (connection.State != System.Data.ConnectionState.Open)
-            {
-                await connection.OpenAsync();
-            }
-
-            try
-            {
-                foreach (var comp in needNewPartNumber)
-                {
-                    LoadingStatus = $"Генерация партномера: {comp.SaveAsName}";
-
-                    string newPn;
-                    using (var command = connection.CreateCommand())
-                    {
-                        command.CommandText = "SELECT nextval('part_number_seq')";
-                        var result = await command.ExecuteScalarAsync();
-                        newPn = Convert.ToInt32(result).ToString("D7");
-                    }
-
-                    // Фиксируем значение только в диалоге - исходный документ не трогаем.
-                    comp.ApplyGeneratedPartNumber(newPn);
-
-                    dataContext.Components.Add(new AgroventInfrastructure.Entities.Components.Component
-                    {
-                        CreatedAt = DateTime.UtcNow,
-                        PartNumber = newPn
-                    });
-                }
-
-                await dataContext.SaveChangesAsync();
-            }
-            finally
-            {
-                if (connection.State == System.Data.ConnectionState.Open)
-                {
-                    await connection.CloseAsync();
-                }
             }
         }
 
@@ -567,6 +508,7 @@ namespace Agrovent.ViewModels.PackNGo
                 foreach (var comp in checkedComponents)
                 {
                     if (string.IsNullOrEmpty(comp.FilePath)) continue;
+                    if (comp.FilePath.Contains("Local\\Temp")) continue;
 
                     var ext = Path.GetExtension(comp.FilePath);
                     sourceList.Add(comp.FilePath);
@@ -745,7 +687,7 @@ namespace Agrovent.ViewModels.PackNGo
                     var baseComp = xComp.AGR_BaseComponent();
                     if (baseComp == null) continue;
 
-                    var filePath = (baseComp as Infrastructure.Interfaces.Components.IAGR_HasFile)?.CurrentModelFilePath
+                    var filePath = (baseComp as IAGR_HasFile)?.CurrentModelFilePath
                                    ?? baseComp.SwDocument?.Path;
                     var fileNameNoExt = string.IsNullOrEmpty(filePath) ? null : Path.GetFileNameWithoutExtension(filePath);
 
@@ -802,6 +744,19 @@ namespace Agrovent.ViewModels.PackNGo
 
             copyComponent.PartNumber = targetPn;
             return true;
+        }
+
+        private void CheckReadOnlyFiles()
+        {
+            var files = Directory.GetFiles(SaveFolder);
+            foreach (var file in files)
+            {
+                if (File.GetAttributes(file)
+                    .HasFlag(FileAttributes.ReadOnly))
+                {
+                    File.SetAttributes(file, FileAttributes.Normal);
+                }
+            }
         }
 
         private static void AddDocToSave(Dictionary<string, ModelDoc2> docsToSave, ISwDocument3D swDoc)

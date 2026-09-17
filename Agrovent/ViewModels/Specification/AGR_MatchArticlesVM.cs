@@ -9,13 +9,14 @@ using System.Windows.Data;
 using System.Windows.Input;
 using Agrovent.DAL;
 using Agrovent.Infrastructure.Commands;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.ViewModels.Base;
 using AgroventInfrastructure.Entities.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using AgroventInfrastructure.Interfaces;
 
 namespace Agrovent.ViewModels.Specification
 {

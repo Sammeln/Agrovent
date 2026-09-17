@@ -2,11 +2,9 @@
 using System.Collections.ObjectModel;
 using Agrovent.DAL.Services;
 using Agrovent.Infrastructure.Extensions;
-using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Interfaces.Components;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Specification;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.SolidWorks.Documents;
 

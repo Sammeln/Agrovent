@@ -2,34 +2,25 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Agrovent.DAL;
-using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Handlers;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Models;
 using Agrovent.Properties;
 using Agrovent.Services;
-using Agrovent.TestMacroFeature;
 using Agrovent.ViewModels.Components;
-using Agrovent.ViewModels.Specification;
 using Agrovent.ViewModels.TaskPane;
 using Agrovent.Views.Pages;
 using Agrovent.Views.Windows;
-using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NPOI.Util;
 using SolidWorks.Interop.sldworks;
-using Xarial.XCad.Base;
 using Xarial.XCad.Base.Attributes;
 using Xarial.XCad.Documents.Extensions;
-using Xarial.XCad.Features;
-using Xarial.XCad.Geometry;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
-using Xarial.XCad.SolidWorks.Features.CustomFeature;
-using Xarial.XCad.SolidWorks.Geometry;
 using Xarial.XCad.SolidWorks.UI;
 using Xarial.XCad.UI.Commands;
 using Xarial.XCad.UI.Commands.Attributes;
@@ -60,8 +51,8 @@ namespace Agrovent
         //[Title("Реестр КД")]
         //ComponentRegistry,
 
-        //[Title("Проводник проектов")]
-        //ProjectsExplorer,
+        [Title("Проводник проектов")]
+        ProjectsExplorer,
 
         //1993
         [Title("Переместить компонент")]
@@ -85,13 +76,17 @@ namespace Agrovent
         [Title("Pack'n'Go")]
         //[Icon(typeof(Resources), nameof(Resources.PackNGo_96))] 
         [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly | WorkspaceTypes_e.Part, true, RibbonTabTextDisplay_e.TextBelow)]
-        PackNGo
+        PackNGo,
+
+        Test
     }
 
     [ComVisible(true)]
     [Guid("8864d08d-f77a-47b9-858f-4af5eea4fd76")]
     public class AgroventAddin : SwAddInEx
     {
+
+
         #region DI Services
         private ILogger<AgroventAddin> _logger;
         private IAGR_ComponentVersionService _versionService;
@@ -102,17 +97,18 @@ namespace Agrovent
         private IUnitOfWork _unitOfWork;
         public AGR_TaskPaneViewModel MainTaskPane { get; private set; }
         public ISwTaskPane<AGR_TaskPaneView> TaskPaneControl { get; private set; }
-
-        #endregion
-
         public bool NeedClearId { get; set; } = false;
         public IAGR_BaseComponent? LastComponent { get; set; }
         public string LastDocPath { get; set; }
+
+        #endregion
 
         public override void OnConnect()
         {
             try
             {
+                Microsoft.Xaml.Behaviors.Behavior behavior;
+
                 // Инициализация контейнера сервисов
                 InitDI();
 
@@ -124,8 +120,8 @@ namespace Agrovent
                 _viewModelFactory = AGR_ServiceContainer.GetService<IAGR_ComponentViewModelFactory>();
                 _unitOfWork = AGR_ServiceContainer.GetService<IUnitOfWork>();
 
-                // Проверка и создание БД (если нужно)
-                EnsureDatabaseCreated();
+                // Проверка и создание БД
+                //EnsureDatabaseCreated();
 
                 // Решение проблемы с Behaviour
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -212,7 +208,7 @@ namespace Agrovent
                 var taskPane = AGR_ServiceContainer.GetService<AGR_ComponentRegistryTaskPaneVM>();
                 var taskPaneView = this.CreateTaskPaneWpf<AGR_ComponentRegistryTaskPaneView>();
 
-                taskPane.LoadDataCommand.Execute(null);
+                //taskPane.LoadDataCommand.Execute(null);
                 taskPaneView.Control.DataContext = taskPane;
                 taskPaneView.IsActive = true;
                 taskPaneView.Control.Focus();
@@ -260,37 +256,66 @@ namespace Agrovent
                     break;
 
                     case AGR_Commands_e.UpdateProperties:
-                        await _commandService.UpdatePropertiesAsync();
+                    await _commandService.UpdatePropertiesAsync();
                     break;
                     //case AGR_Commands_e.ComponentRegistry:
                     //    _commandService.OpenComponentRegistryAsync();
                     //    break;
-                    //case AGR_Commands_e.ProjectsExplorer:
-                    //_commandService.OpenProjectExplorerWindowAsync();
-                    //break;
+                    case AGR_Commands_e.ProjectsExplorer:
+                    _commandService.OpenProjectExplorerWindowAsync();
+                    break;
                     case AGR_Commands_e.MoveComponentWithTriade:
                     Application.Sw.RunCommand(1993, string.Empty);
                     break;
 
                     case AGR_Commands_e.CopyFilesToStorage:
-                        await _commandService.CopyFilesToStorageAsync();
+                    await _commandService.CopyFilesToStorageAsync();
                     break;
 
                     case AGR_Commands_e.CopyFilesToProd:
-                        await _commandService.CopyFilesToProdAsync();
+                    await _commandService.CopyFilesToProdAsync();
                     break;
 
                     case AGR_Commands_e.UpdateDrawings:
-                        await _commandService.UpdateDrawingsAsync();
+                    await _commandService.UpdateDrawingsAsync();
                     break;
 
                     case AGR_Commands_e.GetSheetMetallPartsAssmbly:
-                        _commandService.GetSheetMetallPartsAssmbly();
+                    _commandService.GetSheetMetallPartsAssmbly();
                     break;
 
                     case AGR_Commands_e.PackNGo:
-                        await _commandService.PackNGoAsync();
+                    await _commandService.PackNGoAsync();
                     break;
+
+                    case AGR_Commands_e.Test:
+
+                    //Application.Documents.Active.Features.CreateCustomFeature<BoxMacroFeatureDefinition, BoxMacroFeatureData, BoxPropertyPage>();
+                    //var doc = Application.Documents.Active;
+                    //if (doc.State == Xarial.XCad.Documents.Enums.DocumentState_e.ReadOnly)
+                    //{
+                    //    var path = doc.Path;
+
+                    //    if (doc is ISwAssembly assembly)
+                    //    {
+                    //        var comp = assembly.Configurations.Active.Components.AGR_TryFlatten()
+                    //            .Select(comp => comp.ReferencedDocument.Path)
+                    //            .Distinct();
+                    //        foreach (var compPath in comp)
+                    //        {
+                    //            File.SetAttributes(compPath, FileAttributes.Normal);
+                    //        }
+
+                    //    }
+
+                    //    Application.Sw.CloseAllDocuments(true);
+                    //    File.SetAttributes(path, FileAttributes.Normal);
+                    //    Application.Documents.Open(path, Xarial.XCad.Documents.Enums.DocumentState_e.Default);
+                    //}
+
+                    break;
+
+
 
                     default:
                     break;
@@ -303,7 +328,6 @@ namespace Agrovent
                     Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
             }
         }
-
         private int SwApp_CommandCloseNotify(int Command, int reason)
         {
             //если запустили нашу команду сохранить как с очисткой идентификаторов
@@ -319,12 +343,12 @@ namespace Agrovent
 
                     //Получаем модель бокового меню
                     var taskPaneVM = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
-                    
+
                     //обновляем TaskPane, передаем новый активный документ на отображение.
                     var newdocVM = _viewModelCache.GetOrCreate(
                         doc as ISwDocument3D,
                         d => _viewModelFactory.CreateComponent(d));
-                    
+
                     taskPaneVM.BaseComponent = newdocVM;
                     taskPaneVM.ActiveView = newdocVM;
 
@@ -391,7 +415,6 @@ namespace Agrovent
                     Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
             }
         }
-
         private async void SaveActiveAssembly()
         {
             try
@@ -428,7 +451,6 @@ namespace Agrovent
                     Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error);
             }
         }
-
         private void ExportToIGES()
         {
             var doc = Application.Documents.Active;

@@ -1,9 +1,10 @@
+C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\bin\Release\net6.0-windows\AgroventInfrastructure.comhost.dll
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\bin\Release\net6.0-windows\Agrovent.DAL.deps.json
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\bin\Release\net6.0-windows\Agrovent.DAL.runtimeconfig.json
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\bin\Release\net6.0-windows\Agrovent.DAL.dll
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\bin\Release\net6.0-windows\Agrovent.DAL.pdb
-C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\bin\Release\net6.0-windows\Agrovent.Infrastructure.dll
-C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\bin\Release\net6.0-windows\Agrovent.Infrastructure.pdb
+C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\bin\Release\net6.0-windows\AgroventInfrastructure.dll
+C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\bin\Release\net6.0-windows\AgroventInfrastructure.pdb
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\obj\Release\net6.0-windows\Agrovent.DAL.csproj.AssemblyReference.cache
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\obj\Release\net6.0-windows\Agrovent.DAL.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\Usr\source\repos\Agrovent\Agrovent.DAL\obj\Release\net6.0-windows\Agrovent.DAL.AssemblyInfoInputs.cache

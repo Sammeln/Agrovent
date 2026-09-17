@@ -1,20 +1,16 @@
 ﻿// File: ViewModels/Windows/AGR_SelectAvaArticleVM.cs
-using Agrovent.ViewModels.Base;
-using Microsoft.EntityFrameworkCore; // Для AsNoTracking
-using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Data; // Для CollectionViewSource
 using System.Windows.Input;
 using Agrovent.DAL;
 using Agrovent.Infrastructure.Commands;
-using System.Windows;
-using Agrovent.Infrastructure.Interfaces;
+using Agrovent.ViewModels.Base;
 using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Enums; // Для ICommand
+using AgroventInfrastructure.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace Agrovent.ViewModels.Windows
 {

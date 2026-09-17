@@ -1,5 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using AgroventInfrastructure.Entities.Base;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 

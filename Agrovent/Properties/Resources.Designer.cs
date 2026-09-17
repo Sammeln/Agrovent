@@ -63,6 +63,16 @@ namespace Agrovent.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Byte[].
         /// </summary>
+        internal static byte[] box_icon {
+            get {
+                object obj = ResourceManager.GetObject("box-icon", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
         internal static byte[] CopyProd_96 {
             get {
                 object obj = ResourceManager.GetObject("CopyProd-96", resourceCulture);
@@ -103,6 +113,16 @@ namespace Agrovent.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Byte[].
         /// </summary>
+        internal static byte[] height_icon {
+            get {
+                object obj = ResourceManager.GetObject("height_icon", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
         internal static byte[] Iges_96 {
             get {
                 object obj = ResourceManager.GetObject("Iges-96", resourceCulture);
@@ -123,6 +143,16 @@ namespace Agrovent.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Byte[].
         /// </summary>
+        internal static byte[] length_icon {
+            get {
+                object obj = ResourceManager.GetObject("length_icon", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
         internal static byte[] Move_96 {
             get {
                 object obj = ResourceManager.GetObject("Move-96", resourceCulture);
@@ -136,6 +166,16 @@ namespace Agrovent.Properties {
         internal static byte[] NonePreview {
             get {
                 object obj = ResourceManager.GetObject("NonePreview", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
+        internal static byte[] parametric_box_icon {
+            get {
+                object obj = ResourceManager.GetObject("parametric-box-icon", resourceCulture);
                 return ((byte[])(obj));
             }
         }
@@ -176,6 +216,16 @@ namespace Agrovent.Properties {
         internal static byte[] UpdateDraw_96 {
             get {
                 object obj = ResourceManager.GetObject("UpdateDraw-96", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Byte[].
+        /// </summary>
+        internal static byte[] width_icon {
+            get {
+                object obj = ResourceManager.GetObject("width_icon", resourceCulture);
                 return ((byte[])(obj));
             }
         }

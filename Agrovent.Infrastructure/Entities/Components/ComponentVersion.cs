@@ -2,8 +2,8 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
 using System.Linq;
-using Agrovent.Infrastructure.Enums;
-using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces;
 using AgroventInfrastructure.Entities.Base;
 using AgroventInfrastructure.Entities.Projects;
 using AgroventInfrastructure.Interfaces.Entities;

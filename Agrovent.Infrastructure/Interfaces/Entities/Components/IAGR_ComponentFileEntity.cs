@@ -1,5 +1,5 @@
 ﻿using System;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 
 namespace AgroventInfrastructure.Interfaces.Entities.Components
 {

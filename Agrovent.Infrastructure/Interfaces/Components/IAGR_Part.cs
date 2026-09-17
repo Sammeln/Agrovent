@@ -1,9 +1,10 @@
-﻿using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Infrastructure.Interfaces.Properties;
+﻿using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Interfaces.Properties;
 using System.Collections.Generic;
 using Xarial.XCad.Data;
 
-namespace Agrovent.Infrastructure.Interfaces.Components
+namespace AgroventInfrastructure.Interfaces.Components
 {
     public interface IAGR_Part : IAGR_BaseComponent
     {

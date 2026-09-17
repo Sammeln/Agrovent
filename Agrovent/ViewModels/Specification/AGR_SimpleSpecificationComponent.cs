@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Agrovent.Infrastructure.Enums;
+﻿using System.IO;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.ViewModels.Base;
+using AgroventInfrastructure.Enums;
 using Xarial.XCad.Documents;
 
 namespace Agrovent.ViewModels.Specification
@@ -24,7 +19,10 @@ namespace Agrovent.ViewModels.Specification
             _xComponent = xComponent;
             _Name = Path.GetFileNameWithoutExtension(_xComponent.ReferencedDocument.Path);
             _ConfigName = _xComponent.ReferencedConfiguration.Name;
-            _PartNumber = _xComponent.ReferencedDocument.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString() ?? "";
+            _PartNumber = _xComponent
+                .ReferencedDocument
+                .Configurations.Active
+                .Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString() ?? "";
             _Quantity = quantity;
         }
 

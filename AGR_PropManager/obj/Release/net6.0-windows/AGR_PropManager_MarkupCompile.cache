@@ -10,11 +10,11 @@ none
 false
 TRACE;RELEASE;NET;NET6_0;NETCOREAPP
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\App.xaml
-5429916754
+10256268772
 
-23-558017435
-260-151834261
-Views\MainWindow.xaml;Views\OperationSelectionWindow.xaml;Views\Reports\ImportClassifierReportWindow.xaml;Views\Reports\TechOpsImportReportWindow.xaml;Views\Reports\TreeImportReportWindow.xaml;
+332013746646
+260-139646132
+Views\AGR_SelectAvaArticleView.xaml;Views\MainWindow.xaml;Views\OperationSelectionWindow.xaml;Views\Reports\ImportClassifierReportWindow.xaml;Views\Reports\ImportFullClassifierReportWindow.xaml;Views\Reports\TechOpsImportReportWindow.xaml;Views\Reports\TreeImportReportWindow.xaml;Views\Style\PartComponentStyle.xaml;Views\Style\SpecificationStyle.xaml;Views\TechProcessEditorWindow.xaml;
 
 False
 

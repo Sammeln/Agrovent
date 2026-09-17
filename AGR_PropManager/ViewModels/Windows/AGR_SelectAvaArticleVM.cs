@@ -10,7 +10,7 @@ using System.Windows.Data; // Для CollectionViewSource
 using System.Windows.Input;
 using Agrovent.DAL;
 using System.Windows;
-using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces;
 using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Enums;
 using AGR_PropManager.ViewModels.Base;

@@ -4,9 +4,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Input; // ICommand
 using AGR_PropManager.Infrastructure.Commands;
 using System.Collections.ObjectModel;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using AGR_PropManager.ViewModels.TechProcess;
-using Agrovent.Infrastructure.Interfaces.Properties;
+using AgroventInfrastructure.Interfaces.Properties;
 using Agrovent.DAL;
 using System.Collections.Specialized;
 using Agrovent.DAL.Services.Repositories;
@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Agrovent.Infrastructure.Interfaces;
 using AgroventInfrastructure.Entities.Components;
 using System.Runtime.CompilerServices;
+using AgroventInfrastructure.Interfaces;
 
 namespace AGR_PropManager.ViewModels.Components
 {

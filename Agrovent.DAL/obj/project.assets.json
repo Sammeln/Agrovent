@@ -153,10 +153,10 @@
           "buildTransitive/net6.0/_._": {}
         }
       },
-      "Microsoft.Extensions.Configuration.Abstractions/10.0.0": {
+      "Microsoft.Extensions.Configuration.Abstractions/10.0.10": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Extensions.Primitives": "10.0.0"
+          "Microsoft.Extensions.Primitives": "10.0.10"
         },
         "compile": {
           "lib/netstandard2.0/Microsoft.Extensions.Configuration.Abstractions.dll": {
@@ -285,7 +285,7 @@
           "buildTransitive/net6.0/_._": {}
         }
       },
-      "Microsoft.Extensions.Primitives/10.0.0": {
+      "Microsoft.Extensions.Primitives/10.0.10": {
         "type": "package",
         "dependencies": {
           "System.Memory": "4.6.3",
@@ -481,7 +481,7 @@
           "buildTransitive/net6.0/System.Text.Json.targets": {}
         }
       },
-      "Xarial.XCad/0.8.2": {
+      "Xarial.XCad/0.8.3": {
         "type": "package",
         "dependencies": {
           "System.Drawing.Common": "7.0.0"
@@ -497,11 +497,11 @@
           }
         }
       },
-      "Xarial.XCad.SolidWorks/0.8.2": {
+      "Xarial.XCad.SolidWorks/0.8.3": {
         "type": "package",
         "dependencies": {
-          "Xarial.XCad": "0.8.2",
-          "Xarial.XCad.Toolkit": "0.8.2"
+          "Xarial.XCad": "0.8.3",
+          "Xarial.XCad.Toolkit": "0.8.3"
         },
         "compile": {
           "lib/net6.0-windows7.0/SolidWorks.Interop.sldworks.dll": {},
@@ -521,13 +521,16 @@
         },
         "frameworkReferences": [
           "Microsoft.WindowsDesktop.App"
-        ]
+        ],
+        "build": {
+          "build/_._": {}
+        }
       },
-      "Xarial.XCad.Toolkit/0.8.2": {
+      "Xarial.XCad.Toolkit/0.8.3": {
         "type": "package",
         "dependencies": {
           "System.Drawing.Common": "7.0.0",
-          "Xarial.XCad": "0.8.2"
+          "Xarial.XCad": "0.8.3"
         },
         "compile": {
           "lib/net6.0/Xarial.XCad.Toolkit.dll": {
@@ -544,9 +547,9 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v6.0",
         "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.0",
-          "Xarial.XCad": "0.8.2",
-          "Xarial.XCad.SolidWorks": "0.8.2"
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.10",
+          "Xarial.XCad": "0.8.3",
+          "Xarial.XCad.SolidWorks": "0.8.3"
         },
         "compile": {
           "bin/placeholder/AgroventInfrastructure.dll": {}
@@ -727,10 +730,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "Microsoft.Extensions.Configuration.Abstractions/10.0.0": {
-      "sha512": "d2kDKnCsJvY7mBVhcjPSp9BkJk48DsaHPg5u+Oy4f8XaOqnEedRy/USyvnpHL92wpJ6DrTPy7htppUUzskbCXQ==",
+    "Microsoft.Extensions.Configuration.Abstractions/10.0.10": {
+      "sha512": "5Vnd2I75DmZCVEjSynIdJ/0EGafgnLQwgR3t2C2/fkjx/nRG+cLwxLLdInoHeCEpkD5K4Ov/g9ZCRYrl4TRsaA==",
       "type": "package",
-      "path": "microsoft.extensions.configuration.abstractions/10.0.0",
+      "path": "microsoft.extensions.configuration.abstractions/10.0.10",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -751,7 +754,7 @@
         "lib/net9.0/Microsoft.Extensions.Configuration.Abstractions.xml",
         "lib/netstandard2.0/Microsoft.Extensions.Configuration.Abstractions.dll",
         "lib/netstandard2.0/Microsoft.Extensions.Configuration.Abstractions.xml",
-        "microsoft.extensions.configuration.abstractions.10.0.0.nupkg.sha512",
+        "microsoft.extensions.configuration.abstractions.10.0.10.nupkg.sha512",
         "microsoft.extensions.configuration.abstractions.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -970,10 +973,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "Microsoft.Extensions.Primitives/10.0.0": {
-      "sha512": "inRnbpCS0nwO/RuoZIAqxQUuyjaknOOnCEZB55KSMMjRhl0RQDttSmLSGsUJN3RQ3ocf5NDLFd2mOQViHqMK5w==",
+    "Microsoft.Extensions.Primitives/10.0.10": {
+      "sha512": "5wu/GrYVd8mG2DVUw3vFJzF+O336TyTGg/Kmcgw9bfwYhCoFiV5lR5QeEmKecJyrW4W54nMfD3p3589E8a7czQ==",
       "type": "package",
-      "path": "microsoft.extensions.primitives/10.0.0",
+      "path": "microsoft.extensions.primitives/10.0.10",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -994,7 +997,7 @@
         "lib/net9.0/Microsoft.Extensions.Primitives.xml",
         "lib/netstandard2.0/Microsoft.Extensions.Primitives.dll",
         "lib/netstandard2.0/Microsoft.Extensions.Primitives.xml",
-        "microsoft.extensions.primitives.10.0.0.nupkg.sha512",
+        "microsoft.extensions.primitives.10.0.10.nupkg.sha512",
         "microsoft.extensions.primitives.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -1290,10 +1293,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "Xarial.XCad/0.8.2": {
-      "sha512": "W7lk5n1lf6ELxbVIYOZbHmIqUJB6P/czb0hExm9L74xFhgNQFrkRcRotbyf7a5BScDFEPb9tNpqKh8LqhTKOUw==",
+    "Xarial.XCad/0.8.3": {
+      "sha512": "8gqiOldcS31QiyQeuExY1wV5enA9q+pzloCngFolI+B+N28D45G1qF02tVbvCIwoi3oMow5XgBMZ+GFt4L3iXA==",
       "type": "package",
-      "path": "xarial.xcad/0.8.2",
+      "path": "xarial.xcad/0.8.3",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -1308,21 +1311,21 @@
         "lib/net7.0/Xarial.XCad.xml",
         "lib/netstandard2.1/Xarial.XCad.dll",
         "lib/netstandard2.1/Xarial.XCad.xml",
-        "xarial.xcad.0.8.2.nupkg.sha512",
+        "xarial.xcad.0.8.3.nupkg.sha512",
         "xarial.xcad.nuspec"
       ]
     },
-    "Xarial.XCad.SolidWorks/0.8.2": {
-      "sha512": "JJgV44RYOOyDQeTVH5nWKXfi0ZXcit53Im9rH2sDmwVyZl+4AbEAMaqdAmyOMVanRz1Zg6wpbtQZcBlew1tHRA==",
+    "Xarial.XCad.SolidWorks/0.8.3": {
+      "sha512": "H6LhYa+E0j4EYC//kbJr53xF5c84uzDaBYYg5gpD3oS6R70U94ZmYLmGUJFXRyURl2V0V2jQarV2LRsDli3xnA==",
       "type": "package",
-      "path": "xarial.xcad.solidworks/0.8.2",
+      "path": "xarial.xcad.solidworks/0.8.3",
       "hasTools": true,
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "LICENSE.md",
         "README.md",
-        "build/--Xarial.XCad.SolidWorks.targets",
+        "build/Xarial.XCad.SolidWorks.targets",
         "icon.png",
         "lib/net461/SolidWorks.Interop.sldworks.dll",
         "lib/net461/SolidWorks.Interop.swconst.dll",
@@ -1346,14 +1349,14 @@
         "lib/netcoreapp3.1/Xarial.XCad.SolidWorks.xml",
         "readme.txt",
         "tools/init.ps1",
-        "xarial.xcad.solidworks.0.8.2.nupkg.sha512",
+        "xarial.xcad.solidworks.0.8.3.nupkg.sha512",
         "xarial.xcad.solidworks.nuspec"
       ]
     },
-    "Xarial.XCad.Toolkit/0.8.2": {
-      "sha512": "u6LxPA0LxH+XGezz5h+hQ4iJsqQJ4/Hg0U+V2J1k5g5QjDRHfsjGSzgCF0rbTlZalYiOBo6X2rkGyQ8risY8gg==",
+    "Xarial.XCad.Toolkit/0.8.3": {
+      "sha512": "5v5t20QXaMwG+TWiXN9aqAZAirfJhGOk+r32k5qmHb4mE/sPFMauQQqOyeoOCqT8qFaRJzk7kOznGtCTRcNzUQ==",
       "type": "package",
-      "path": "xarial.xcad.toolkit/0.8.2",
+      "path": "xarial.xcad.toolkit/0.8.3",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -1368,7 +1371,7 @@
         "lib/net7.0/Xarial.XCad.Toolkit.xml",
         "lib/netstandard2.1/Xarial.XCad.Toolkit.dll",
         "lib/netstandard2.1/Xarial.XCad.Toolkit.xml",
-        "xarial.xcad.toolkit.0.8.2.nupkg.sha512",
+        "xarial.xcad.toolkit.0.8.3.nupkg.sha512",
         "xarial.xcad.toolkit.nuspec"
       ]
     },
@@ -1384,7 +1387,7 @@
       "Microsoft.EntityFrameworkCore >= 7.0.20",
       "Microsoft.EntityFrameworkCore.Tools >= 7.0.20",
       "Npgsql.EntityFrameworkCore.PostgreSQL >= 7.0.18",
-      "Xarial.XCad >= 0.8.2"
+      "Xarial.XCad >= 0.8.3"
     ]
   },
   "packageFolders": {
@@ -1459,7 +1462,7 @@
           },
           "Xarial.XCad": {
             "target": "Package",
-            "version": "[0.8.2, )"
+            "version": "[0.8.3, )"
           }
         },
         "imports": [

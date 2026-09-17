@@ -42,8 +42,8 @@
                   AutoGenerateColumns="False"
                   GridLinesVisibility="Vertical"
                   VerticalGridLinesBrush="LightGray"
+                  SelectionMode="Single"
                   CanUserAddRows="False"
-                  SelectionUnit="Cell"
                   IsReadOnly="True"
                   Margin="10">
             <DataGrid.Columns>

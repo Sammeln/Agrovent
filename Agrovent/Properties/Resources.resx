@@ -156,4 +156,19 @@
 	<data name="SheetAssembly-24" type="System.Resources.ResXFileRef, System.Windows.Forms">
 		<value>..\Resources\icons8-puzzle-24.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</data>
+	<data name="box-icon" type="System.Resources.ResXFileRef, System.Windows.Forms">
+		<value>..\Resources\box-icon.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</data>
+	<data name="height_icon" type="System.Resources.ResXFileRef, System.Windows.Forms">
+		<value>..\Resources\height-icon.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</data>
+	<data name="length_icon" type="System.Resources.ResXFileRef, System.Windows.Forms">
+		<value>..\Resources\length-icon.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</data>
+	<data name="parametric-box-icon" type="System.Resources.ResXFileRef, System.Windows.Forms">
+		<value>..\Resources\parametric-box-icon.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</data>
+	<data name="width_icon" type="System.Resources.ResXFileRef, System.Windows.Forms">
+		<value>..\Resources\width-icon.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</data>
 </root>

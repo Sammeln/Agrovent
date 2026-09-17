@@ -2,12 +2,13 @@
 using Agrovent.DAL;
 using System.Collections.ObjectModel;
 using System.Windows.Data;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using AgroventInfrastructure.Entities.Components;
 using Microsoft.Extensions.Logging;
+using AgroventInfrastructure.Interfaces;
 
 namespace Agrovent.ViewModels.Specification
 {

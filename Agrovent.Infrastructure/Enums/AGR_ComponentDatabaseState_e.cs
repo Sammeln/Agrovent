@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Agrovent.Infrastructure.Enums
+namespace AgroventInfrastructure.Enums
 {
     public enum AGR_ComponentDatabaseState_e
     {

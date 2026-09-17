@@ -1,24 +1,26 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Windows.Data;
-using AGR_PropManager.ViewModels.Base;
-using System.Windows.Input;
-using AGR_PropManager.Infrastructure.Commands;
-using Agrovent.DAL;
-using System.Windows.Media.Imaging;
-using Agrovent.Infrastructure.Enums;
-using AGR_PropManager.ViewModels.Components;
-using AGR_PropManager.ViewModels.TechProcess;
-using Agrovent.DAL.Services.Repositories;
-using System.Windows;
-using AGR_PropManager.Views;
-using AGR_PropManager.ViewModels.Reports;
-using AGR_PropManager.Views.Reports;
-using AgroventInfrastructure.Entities.Components;
-using Agrovent.Infrastructure;
 using System.IO;
+using System.Windows;
+using System.Windows.Data;
+using System.Windows.Forms;
+using System.Windows.Input;
+using System.Windows.Media.Imaging;
+using AGR_PropManager.Infrastructure.Commands;
+using AGR_PropManager.ViewModels.Base;
+using AGR_PropManager.ViewModels.Components;
+using AGR_PropManager.ViewModels.Reports;
+using AGR_PropManager.ViewModels.TechProcess;
+using AGR_PropManager.Views;
+using AGR_PropManager.Views.Reports;
+using Agrovent.DAL;
+using AgroventInfrastructure;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Enums;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using MessageBox = System.Windows.Forms.MessageBox;
 
 namespace AGR_PropManager.ViewModels.Windows
 {
@@ -26,882 +28,31 @@ namespace AGR_PropManager.ViewModels.Windows
     /// ViewModel для диалогового окна редактора технологического процесса
     /// Содержит функционал группировки и редактирования компонентов
     /// </summary>
-    public class TechProcessEditorViewModel2 : BaseViewModel
-    {
-        private readonly DataContext _dataContext;
-        private readonly UnitOfWork _unitOfWork;
-        private readonly ILogger _logger;
-        private readonly ComponentItemViewModel _selectedComponent;
-
-        private ImportClassifierReportViewModel _importClassifierReportViewModel;
-        private TreeImportReportViewModel _treeImportReportViewModel;
-        private TechOpsImportReportViewModel _techOpsImportReportViewModel;
-        #region CTOR
-
-        public TechProcessEditorViewModel2(
-            ComponentItemViewModel selectedComponent,
-            DataContext dataContext,
-            ILogger? logger,
-            UnitOfWork unitOfWork)
-        {
-            _selectedComponent = selectedComponent;
-            _dataContext = dataContext;
-            _logger = logger;
-            _unitOfWork = unitOfWork;
-
-            Initialize(selectedComponent);
-        }
-
-        private async void Item_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            await ValidateSpecificationAsync();
-        }
-
-        private async void Initialize(ComponentItemViewModel selectedComponent)
-        {
-            // Инициализируем коллекцию компонентов из выбранных
-            if (selectedComponent.ComponentType == AGR_ComponentType_e.Assembly)
-            {
-                await LoadAssemblyStructureAsync(selectedComponent.PartNumber);
-            }
-            else if (selectedComponent.ComponentType == AGR_ComponentType_e.Part ||
-                selectedComponent.ComponentType == AGR_ComponentType_e.SheetMetallPart)
-            {
-                await LoadPartDataAsync(selectedComponent.PartNumber);
-            }
-
-
-            // Настраиваем CollectionViewSource
-            Components_CVS.Source = Components;
-            RefreshGrouping();
-            foreach (var item in Components)
-            {
-                item.PropertyChanged += Item_PropertyChanged;
-            }
-            await ValidateSpecificationAsync();
-        }
-
-
-
-        // Конструктор по умолчанию (для Design-time)
-        public TechProcessEditorViewModel2() { }
-
-        #endregion
-
-        #region Commands
-
-        #region CloseCommand
-        private ICommand _CloseCommand;
-        public ICommand CloseCommand => _CloseCommand
-            ??= new RelayCommand(OnCloseCommandExecuted, CanCloseCommandExecute);
-        private bool CanCloseCommandExecute(object p) => true;
-        private void OnCloseCommandExecuted(object p)
-        {
-            CloseRequested?.Invoke(this, EventArgs.Empty);
-        }
-        #endregion
-
-        #region SaveCommand
-        private ICommand _SaveCommand;
-        public ICommand SaveCommand => _SaveCommand
-            ??= new RelayCommand(OnSaveCommandExecuted, CanSaveCommandExecute);
-        private bool CanSaveCommandExecute(object p) => true;
-        private async void OnSaveCommandExecuted(object p)
-        {
-            await SaveChangesAsync();
-            CloseRequested?.Invoke(this, EventArgs.Empty);
-        }
-        #endregion
-
-        #region InsertTechProcessCommand
-        private ICommand _InsertTechProcessCommand;
-        public ICommand InsertTechProcessCommand => _InsertTechProcessCommand
-            ??= new RelayCommand(OnInsertTechProcessCommandExecuted, CanInsertTechProcessCommandExecute);
-        private bool CanInsertTechProcessCommandExecute(object p) => HasSelectedComponents;
-        private void OnInsertTechProcessCommandExecuted(object p)
-        {
-            EditProcess();
-        }
-
-        #region Метод редактирования процесса (открывает окно выбора операции)
-        private void EditProcess()
-        {
-            var selectedComponents = Components.Where(c => c.IsSelected).ToList();
-            if (selectedComponents.Any())
-            {
-                _logger?.LogInformation($"Открытие окна выбора операции для {selectedComponents.Count} компонентов.");
-                var operationSelectionViewModel = new OperationSelectionViewModel(
-                    new ObservableCollection<ComponentItemViewModel>(selectedComponents),
-                    _unitOfWork,
-                    _logger);
-
-                var selectionWindow = new OperationSelectionWindow(operationSelectionViewModel);
-                DeselectAllComponents();
-            }
-        }
-        #endregion
-        #endregion
-
-        #region SelectComponentCommand
-        private ICommand _SelectComponentCommand;
-        public ICommand SelectComponentCommand => _SelectComponentCommand
-            ??= new RelayCommand(OnSelectComponentCommandExecuted, CanSelectComponentCommandExecute);
-        private bool CanSelectComponentCommandExecute(object p) => true;
-        private void OnSelectComponentCommandExecuted(object p)
-        {
-            foreach (var item in SelectedComponents)
-            {
-                item.IsSelected = !item.IsSelected;
-            }
-        }
-        #endregion
-
-        #region DeleteOperationCommand (для удаления операций из главного DataGrid)
-        private ICommand _DeleteOperationCommand;
-        public ICommand DeleteOperationCommand => _DeleteOperationCommand
-            ??= new RelayCommand<TechOperationViewModel>(OnDeleteOperationCommandExecuted, CanDeleteOperationCommandExecute);
-        private bool CanDeleteOperationCommandExecute(TechOperationViewModel? p) => p != null;
-        private async void OnDeleteOperationCommandExecuted(TechOperationViewModel? operation)
-        {
-            if (operation == null || operation.ParentComponent == null) return;
-
-            if (operation.TechProcess != null)
-            {
-                var entOp = _dataContext.Operations.FirstOrDefault(o =>
-                    o.TechnologicalProcessId == operation.TechProcess.Id &&
-                    o.SequenceNumber == operation.SequenceNumber);
-                if (entOp != null)
-                {
-                    _dataContext.Operations.Remove(entOp);
-                    await _dataContext.SaveChangesAsync();
-                    operation.ParentComponent.Operations.Remove(operation);
-                }
-            }
-            else
-            {
-                operation.ParentComponent.Operations.Remove(operation);
-            }
-            OnPropertyChanged(nameof(ComponentItemViewModel.HasZeroTimeOperations));
-        }
-        #endregion
-
-        #region REPORTS
-
-        #region ShowImportClassifierReportCommand
-        private ICommand _ShowImportClassifierReportCommand;
-        public ICommand ShowImportClassifierReportCommand => _ShowImportClassifierReportCommand
-            ??= new RelayCommand(OnShowImportClassifierReportCommandExecuted, CanShowImportClassifierReportCommandExecute);
-        private bool CanShowImportClassifierReportCommandExecute(object p) => true;
-        private void OnShowImportClassifierReportCommandExecuted(object p)
-        {
-            var mainComponents = Components;
-
-            try
-            {
-                _importClassifierReportViewModel = new ImportClassifierReportViewModel(mainComponents);
-
-                var reportWindow = new ImportClassifierReportWindow(_importClassifierReportViewModel)
-                {
-                    Width = 1000,
-                    Height = 700,
-                    ResizeMode = ResizeMode.CanResizeWithGrip,
-                };
-
-                reportWindow.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-        #endregion
-
-        #region ShowTreeImportReportCommand
-        private ICommand _ShowTreeImportReportCommand;
-        public ICommand ShowTreeImportReportCommand => _ShowTreeImportReportCommand
-            ??= new RelayCommand(OnShowTreeImportReportCommandExecuted, CanShowTreeImportReportCommandExecute);
-        private bool CanShowTreeImportReportCommandExecute(object p) => true;
-        private void OnShowTreeImportReportCommandExecuted(object p)
-        {
-            var mainComponent = Components?.FirstOrDefault();
-            if (mainComponent == null)
-            {
-                MessageBox.Show("Нет доступных компонентов.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                _treeImportReportViewModel = new TreeImportReportViewModel(mainComponent, _unitOfWork);
-
-                // Display the view in a new window
-                var reportWindow = new TreeImportReportWindow(_treeImportReportViewModel)
-                {
-                    Width = 1200,
-                    Height = 800,
-                    ResizeMode = ResizeMode.CanResizeWithGrip
-                };
-                reportWindow.ShowDialog(); // Modal
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-        #endregion
-
-
-        #region ShowTechOpsImportReportCommand
-        private ICommand _ShowTechOpsImportReportCommand;
-        public ICommand ShowTechOpsImportReportCommand => _ShowTechOpsImportReportCommand
-            ??= new RelayCommand(OnShowTechOpsImportReportCommandExecuted, CanShowTechOpsImportReportCommandExecute);
-        private bool CanShowTechOpsImportReportCommandExecute(object p) => true;
-        private void OnShowTechOpsImportReportCommandExecuted(object p)
-        {
-
-            if (Components == null || !Components.Any())
-            {
-                MessageBox.Show("Нет доступных компонентов.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                _techOpsImportReportViewModel = new TechOpsImportReportViewModel(Components);
-
-                // Display the view in a new window
-                var reportWindow = new TechOpsImportReportWindow(_techOpsImportReportViewModel)
-                {
-                    Width = 1600,
-                    Height = 800,
-                    ResizeMode = ResizeMode.CanResizeWithGrip
-                };
-                reportWindow.ShowDialog(); // Modal
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-        #endregion 
-
-        #endregion
-
-        #endregion
-
-        #region PROPS
-
-        #region SelectedGroupingMode
-        private string _SelectedGroupingMode = "По типу"; // Значение по умолчанию
-        public string SelectedGroupingMode
-        {
-            get => _SelectedGroupingMode;
-            set
-            {
-                if (Set(ref _SelectedGroupingMode, value))
-                {
-                    RefreshGrouping();
-                }
-            }
-        }
-        #endregion
-
-        #region HasSelectedComponents
-        public bool HasSelectedComponents => Components.Any(c => c.IsSelected);
-        private void NotifyHasSelectedComponentsChanged()
-        {
-            OnPropertyChanged(nameof(HasSelectedComponents));
-        }
-        #endregion
-
-        #region Коллекция компонентов
-        private ObservableCollection<ComponentItemViewModel> _Components = new ObservableCollection<ComponentItemViewModel>();
-        public ObservableCollection<ComponentItemViewModel> Components
-        {
-            get => _Components;
-            set => Set(ref _Components, value);
-        }
-        #endregion
-
-        #region CollectionViewSource
-        private CollectionViewSource Components_CVS = new CollectionViewSource();
-        public ICollectionView ComponentsView => Components_CVS?.View;
-        #endregion
-
-        #region Коллекция выбранных компонентов
-        private ObservableCollection<ComponentItemViewModel> _SelectedComponents = new ObservableCollection<ComponentItemViewModel>();
-        public ObservableCollection<ComponentItemViewModel> SelectedComponents
-        {
-            get => _SelectedComponents;
-            set => Set(ref _SelectedComponents, value);
-        }
-        #endregion
-
-        #region HasErrors
-        private bool _hasErrors;
-        public bool HasErrors
-        {
-            get => _hasErrors;
-            set => Set(ref _hasErrors, value);
-        }
-        #endregion
-
-        #region Errors
-
-        private string _errors;
-        public string Errors
-        {
-            get => _errors;
-            set => Set(ref _errors, value);
-        }
-        #endregion
-
-        #endregion
-
-        #region Methods
-
-        #region Метод обновления группировки
-        private void RefreshGrouping()
-        {
-            Components_CVS.GroupDescriptions.Clear();
-            ComponentsView.Filter = null;
-
-            switch (SelectedGroupingMode)
-            {
-                case "По материалу":
-                Components_CVS.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ComponentItemViewModel.Material)));
-                ComponentsView.Filter = FilterGroupedItemByMaterial;
-                break;
-                case "По типу":
-                Components_CVS.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ComponentItemViewModel.ComponentType)));
-                break;
-                default:
-                break;
-            }
-
-            Components_CVS.View.Refresh();
-        }
-        #endregion
-
-        #region Фильтр при группировке по материалу
-        private bool FilterGroupedItemByMaterial(object item)
-        {
-            if (item is not ComponentItemViewModel compItem) return false;
-            if (compItem.ComponentType is AGR_ComponentType_e.Purchased) return false;
-
-            return true;
-        }
-        #endregion
-
-        #region Сохранение изменений
-        private async Task SaveChangesAsync()
-        {
-            try
-            {
-                await _unitOfWork.CompleteAsync();
-                _logger?.LogInformation("Изменения сохранены.");
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Ошибка при сохранении изменений.");
-            }
-        }
-        #endregion
-
-        #region Снятие выделения со всех компонентов
-        private void DeselectAllComponents()
-        {
-            foreach (var component in Components)
-            {
-                component.IsSelected = false;
-            }
-            NotifyHasSelectedComponentsChanged();
-        }
-        #endregion
-
-        private async Task LoadAssemblyStructureAsync(string partNumber)
-        {
-            if (string.IsNullOrWhiteSpace(partNumber))
-            {
-                _logger.LogWarning("PartNumber пуст при попытке загрузки структуры.");
-                return;
-            }
-
-            try
-            {
-                _logger.LogInformation($"Загрузка структуры для PartNumber: {partNumber}");
-
-                // Очищаем текущую коллекцию
-                Components.Clear();
-
-                // Найдем версию сборки по PartNumber (берем последнюю по версии)
-                var assemblyVersion = await _dataContext.ComponentVersions
-                    .Include(cv => cv.Component) // Загружаем связанный компонент
-                        .ThenInclude(c => c.TechnologicalProcess)
-                    .Include(c => c.Material)
-                    .Include(cv => cv.Properties) // Загружаем свойства
-                    .Where(cv => cv.Component.PartNumber == partNumber)
-                    .OrderByDescending(cv => cv.Version) // Берем последнюю версию
-                    .FirstOrDefaultAsync();
-
-                if (assemblyVersion == null)
-                {
-                    _logger.LogWarning($"Сборка с PartNumber {partNumber} не найдена.");
-                    return;
-                }
-
-                //добавляем саму сборку
-                var vmMainAssembly = new ComponentItemViewModel(_dataContext, _unitOfWork)
-                {
-                    PartNumber = assemblyVersion.Component.PartNumber,
-                    Name = assemblyVersion.Name,
-                    Version = assemblyVersion.Version,
-                    Quantity = 1,
-                    Material = "",
-                    Paint = assemblyVersion.Material?.Paint,
-                    BendCount = 0,
-                    ContourLength = 0,
-                    ComponentType = assemblyVersion.ComponentType,
-                    PreviewImage = LoadImageFromBytes(assemblyVersion.PreviewImage),
-                    Article = assemblyVersion.AvaArticleArticle.ToString(),
-                    AvaArticle = assemblyVersion.AvaArticle
-                };
-                var assemblyTP = await _unitOfWork.TechProcessRepository.GetByPartNumberAsync(vmMainAssembly.PartNumber);
-                if (assemblyTP != null)
-                {
-                    if (assemblyTP.Operations.Count != 0)
-                    {
-                        var operationsList = assemblyTP.Operations.Select(
-                            op => new TechOperationViewModel(op)
-                            {
-                                ParentComponent = vmMainAssembly
-                            })
-                            .OrderBy(o => o.SequenceNumber).ToList();
-                        vmMainAssembly.Operations = new ObservableCollection<TechOperationViewModel>(operationsList);
-                    }
-                }
-
-
-                Components.Add(vmMainAssembly);
-
-                // Найдем все элементы структуры для этой версии сборки
-                var assemblyStructureEntries = await _unitOfWork.ComponentRepository.GetAssemblyStructureRecursive(partNumber, assemblyVersion.Version);
-
-                var groupedEntries = assemblyStructureEntries
-                    .GroupBy(s => s.ChildComponentVersion.Component.PartNumber) // Группируем по PartNumber
-                    .Select(g => new
-                    {
-                        PartNumber = g.Key,
-                        FirstComponentVersion = g.First().ChildComponentVersion,
-                        TotalQuantity = g.Sum(s => s.Quantity) // Суммируем Quantity
-                    })
-                    .ToList();
-
-                // Загрузим все связанные TechnologicalProcesses за один запрос
-                var partNumbersInStructure = groupedEntries.Select(entry => entry.PartNumber).Distinct().ToList();
-                var techProcesses = await _dataContext.TechProcesses // Предполагаем, что DbSet называется TechProcesses
-                    .Include(tp => tp.Operations)
-                    .Where(tp => partNumbersInStructure.Contains(tp.PartNumber))
-                    .ToListAsync();
-
-                foreach (var groupedEntry in groupedEntries)
-                {
-                    var compVer = groupedEntry.FirstComponentVersion;
-                    var comp = compVer.Component;
-                    var partNum = comp.PartNumber;
-                    var totalQty = groupedEntry.TotalQuantity; // Используем суммарное количество
-                    var props = compVer.Properties;
-                    var materials = compVer.Material; // Предполагаем, что Material связан с ComponentVersion
-
-                    // Загрузим нужные свойства из ComponentProperties (берем из первой версии в группе)
-                    // Используем AGR_PropertyNames для получения свойств
-                    var materialProp = materials?.BaseMaterial;
-                    var paintProp = materials?.Paint;
-                    var bendCountProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankBends)?.Value; // Получаем .Value
-                    var blankOuterContourProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankOuterContour)?.Value; // Получаем .Value
-                    var blankInnerContourProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankInnerContour)?.Value; // Получаем .Value
-
-                    // Парсим длину контура
-                    var contourSum = (decimal.TryParse(blankInnerContourProp, out decimal innerLen) ? innerLen : 0) +
-                                     (decimal.TryParse(blankOuterContourProp, out decimal outerLen) ? outerLen : 0);
-
-                    var previewImage = compVer.PreviewImage != null ? LoadImageFromBytes(compVer.PreviewImage) : null;
-
-                    // Найдем соответствующий техпроцесс по PartNumber
-                    var techProcess = techProcesses.FirstOrDefault(tp => tp.PartNumber == partNum);
-
-
-                    var vm = new ComponentItemViewModel(_dataContext, _unitOfWork)
-                    {
-                        PartNumber = partNum,
-                        Name = compVer.Name,
-                        Quantity = totalQty,
-                        Version = compVer.Version,
-                        Material = materialProp ?? "",
-                        Paint = paintProp ?? "",
-                        BendCount = int.TryParse(bendCountProp, out int bc) ? bc : 0,
-                        ContourLength = contourSum,
-                        ComponentType = compVer.ComponentType,
-                        PreviewImage = previewImage,
-                        Article = compVer.AvaArticleArticle.ToString(),
-                        AvaArticle = compVer.AvaArticle
-                    };
-                    var operationsList = techProcess?.Operations
-                        .Select(op => new TechOperationViewModel(op)
-                        {
-                            ParentComponent = vm
-                        })
-                        .OrderBy(o => o.SequenceNumber)
-                        .ToList();
-
-                    // Заполняем Operations и TechProcessSummary из найденного TechnologicalProcess
-                    if (operationsList != null && operationsList.Count != 0)
-                    {
-                        vm.Operations = new ObservableCollection<TechOperationViewModel>(operationsList);
-                        vm.TechnologicalProcessModel.Operations = vm.Operations;
-                    }
-
-                    var propsVM = props.Select(prop => new AGR_PropertyViewModel(prop)).ToList();
-                    if (propsVM != null)
-                    {
-                        foreach (var prop in propsVM)
-                        {
-                            vm.PropertiesCollection.Add(prop);
-                        }
-                    }
-
-                    Components.Add(vm);
-                }
-
-                // Обновляем CollectionViewSource Source, чтобы он отслеживал изменения в коллекции
-                Components_CVS.Source = Components;
-
-                _logger.LogInformation($"Загружено {Components.Count} уникальных компонентов (суммарные количества) для сборки {partNumber}.");
-
-                // Обновляем группировку
-                RefreshGrouping();
-                ComponentsView.Refresh();
-
-                OnPropertyChanged(nameof(ComponentsView));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Ошибка при загрузке структуры сборки {partNumber}");
-            }
-        }
-        private async Task LoadPartDataAsync(string partNumber)
-        {
-            if (string.IsNullOrWhiteSpace(partNumber))
-            {
-                _logger.LogWarning("PartNumber пуст при попытке загрузки данных.");
-                return;
-            }
-
-            _logger.LogInformation($"Загрузка данных для PartNumber: {partNumber}");
-
-            // Очищаем текущую коллекцию
-            Components.Clear();
-
-            // Найдем версию сборки по PartNumber (берем последнюю по версии)
-            var partVersion = await _dataContext.ComponentVersions
-                .Include(cv => cv.Component) // Загружаем связанный компонент
-                    .ThenInclude(c => c.TechnologicalProcess)
-                .Include(c => c.Material)
-                .Include(cv => cv.Properties) // Загружаем свойства
-                .Where(cv => cv.Component.PartNumber == partNumber)
-                .OrderByDescending(cv => cv.Version) // Берем последнюю версию
-                .FirstOrDefaultAsync();
-
-            if (partVersion == null)
-            {
-                _logger.LogWarning($"Деталь с PartNumber {partNumber} не найдена.");
-                return;
-            }
-            var props = partVersion.Properties;
-            var bendCountProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankBends)?.Value; // Получаем .Value
-            var blankOuterContourProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankOuterContour)?.Value; // Получаем .Value
-            var blankInnerContourProp = props.FirstOrDefault(p => p.Name == AGR_PropertyNames.BlankInnerContour)?.Value; // Получаем .Value
-
-            // Парсим длину контура
-            var contourSum = (decimal.TryParse(blankInnerContourProp, out decimal innerLen) ? innerLen : 0) +
-                             (decimal.TryParse(blankOuterContourProp, out decimal outerLen) ? outerLen : 0);
-
-            //добавляем саму сборку
-            var vmMainPart = new ComponentItemViewModel(_dataContext, _unitOfWork)
-            {
-                PartNumber = partVersion.Component.PartNumber,
-                Name = partVersion.Name,
-                Version = partVersion.Version,
-                Quantity = 1,
-                Material = partVersion.Material?.BaseMaterial,
-                Paint = partVersion.Material?.Paint,
-                ComponentType = partVersion.ComponentType,
-                PreviewImage = LoadImageFromBytes(partVersion.PreviewImage),
-                Article = partVersion.AvaArticleArticle.ToString(),
-                AvaArticle = partVersion.AvaArticle,
-                BendCount = int.TryParse(bendCountProp, out int bc) ? bc : 0,
-                ContourLength = contourSum
-
-            };
-
-            var assemblyTP = await _unitOfWork.TechProcessRepository.GetByPartNumberAsync(vmMainPart.PartNumber);
-            if (assemblyTP != null)
-            {
-                if (assemblyTP.Operations.Count != 0)
-                {
-                    var operationsList = assemblyTP.Operations.Select(
-                        op => new TechOperationViewModel(op)
-                        {
-                            ParentComponent = vmMainPart
-                        })
-                        .OrderBy(o => o.SequenceNumber).ToList();
-                    vmMainPart.Operations = new ObservableCollection<TechOperationViewModel>(operationsList);
-                }
-            }
-
-            Components.Add(vmMainPart);
-
-            // Обновляем CollectionViewSource Source, чтобы он отслеживал изменения в коллекции
-            Components_CVS.Source = Components;
-
-            _logger.LogInformation($"Загружено {Components.Count} уникальных компонентов (суммарные количества) для сборки {partNumber}.");
-
-            // Обновляем группировку
-            RefreshGrouping();
-            ComponentsView.Refresh();
-
-            OnPropertyChanged(nameof(ComponentsView));
-        }
-        #region Вспомогательный метод для загрузки изображения
-        private BitmapImage? LoadImageFromBytes(byte[] imageData)
-        {
-            try
-            {
-                using var ms = new System.IO.MemoryStream(imageData);
-                var image = new BitmapImage();
-                image.BeginInit();
-                image.StreamSource = ms;
-                image.CacheOption = BitmapCacheOption.OnLoad;
-                image.EndInit();
-                image.Freeze(); // Оптимизация для UI Thread
-                return image;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-        #endregion
-
-        public void ValidateSpecification()
-        {
-
-            Errors = null;
-            HasErrors = false;
-
-            var errorList = new List<string>();
-
-            //у каждой производимой детали должен быть указан материал
-            foreach (var item in Components)
-            {
-
-                //проверяем чтобы было указано количество
-                if (item.Quantity == 0)
-                    errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указано количество");
-
-                if (item.IsProduced)
-                {
-                    if (item.IsPart)
-                    {
-                        //проверяем указан ли материал
-                        if (string.IsNullOrEmpty(item.Material))
-                        {
-                            errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указан материал");
-                        }
-                        //проверяем обязательные свойства листовой детали
-                        if (item.IsSheetMetallPart)
-                        {
-                            //у каждой листовой детали должен быть указан контур
-                            //если свойство есть но пустое, добавляем ошибку
-                            if (string.IsNullOrEmpty(item.ContourLength.ToString())
-                                || string.IsNullOrWhiteSpace(item.ContourLength.ToString())
-                                || item.ContourLength == 0)
-                            {
-                                errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указана сумма контуров резки");
-                            }
-
-                            //у каждой листовой детали должно быть указано количество сгибов
-                            if (string.IsNullOrEmpty(item.BendCount.ToString()) || string.IsNullOrWhiteSpace(item.BendCount.ToString()))
-                            {
-                                errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указано количество сгибов");
-                            }
-                        }
-                    }
-                    //у всех производимых должен быть техпроцесс
-                    //if (item.TechnologicalProcessModel == null)
-                    //errorList.Add($"У компонента {item.PartNumber}.{item.Name} нет техпроцесса");
-
-                    //в каждом техпроцессе должна быть как минимум 1 операция
-                    if (item.Operations.Count == 0)
-                        errorList.Add($"У компонента {item.PartNumber}.{item.Name} нет ни одной операции в техпроцессе");
-                    else
-                    {
-                        foreach (var operation in item.Operations)
-                        {
-                            //у каждой операции техпроцесса должна быть заполнена трудоемкость, трудоемкость не должна равняться нулю
-                            if (string.IsNullOrEmpty(operation.CostPerHour.ToString()) || operation.CostPerHour == 0)
-                                errorList.Add($"У компонента {item.PartNumber}.{item.Name} не заполнена трудоемкость для операции #{operation.SequenceNumber}.{operation.Name}");
-                        }
-                    }
-                    //Если у производимого указан цвет, обязательно должна быть операция покраски
-                    if (!string.IsNullOrEmpty(item.Paint) && item.Paint != "Без покраски")
-                    {
-                        if (!item.Operations.Any(x => x.Name == "Покраска"))
-                        {
-                            errorList.Add($"У компонента {item.PartNumber}.{item.Name} указан цвет покраски но нет операции покраски");
-                        }
-                    }
-                    if (item.Paint == "Без покраски" || string.IsNullOrEmpty(item.Paint))
-                    {
-                        //Операция покраски не может быть указана если не указан цвет
-                        if (!item.Operations.Any(x => x.Name == "Покраска"))
-                        {
-                            errorList.Add($"У компонента {item.PartNumber}.{item.Name} не указан цвет покраски но есть операции покраски");
-                        }
-                    }
-                }
-            }
-
-
-            if (errorList.Any())
-            {
-                Errors = string.Join("\n", errorList);
-                HasErrors = true;
-            }
-            HasErrors = !string.IsNullOrEmpty(Errors);
-        }
-        public async Task ValidateSpecificationAsync()
-        {
-            // 1. Сбрасываем ошибки сразу в UI потоке (чтобы интерфейс сразу отреагировал)
-            Errors = null;
-            HasErrors = false;
-
-            // 2. ВАЖНО: Делаем "снимок" (копию) коллекции.
-            // Если во время проверки в фоновом потоке пользователь или UI изменит 
-            // исходную коллекцию Components (например, ObservableCollection), 
-            // вы получите исключение "Collection was modified".
-            var componentsSnapshot = Components?.ToList();
-            if (componentsSnapshot == null || !componentsSnapshot.Any()) return;
-
-            // 3. Выносим ресурсоемкий перебор в фоновый поток пула потоков
-            var errorList = await Task.Run(() =>
-            {
-                var localErrorList = new List<string>();
-
-                foreach (var item in componentsSnapshot)
-                {
-                    // --- ИСПРАВЛЕННАЯ ЛОГИКА ПРОВЕРКИ (см. пояснения ниже) ---
-
-                    if (item.Quantity == 0)
-                        localErrorList.Add($"У компонента {item.PartNumber}.{item.Name} не указано количество");
-
-                    if (item.IsProduced)
-                    {
-                        if (item.IsPart)
-                        {
-                            if (string.IsNullOrEmpty(item.Material))
-                            {
-                                localErrorList.Add($"У компонента {item.PartNumber}.{item.Name} не указан материал");
-                            }
-
-                            if (item.IsSheetMetallPart)
-                            {
-                                // Убираем лишние ToString() и IsNullOrEmpty для чисел
-                                if (item.ContourLength == 0)
-                                {
-                                    localErrorList.Add($"У компонента {item.PartNumber}.{item.Name} не указана сумма контуров резки");
-                                }
-
-                                if (item.BendCount == 0) // Аналогично для сгибов
-                                {
-                                    localErrorList.Add($"У компонента {item.PartNumber}.{item.Name} не указано количество сгибов");
-                                }
-                            }
-                        }
-
-                        if (item.Operations.Count == 0)
-                        {
-                            localErrorList.Add($"У компонента {item.PartNumber}.{item.Name} нет ни одной операции в техпроцессе");
-                        }
-                        else
-                        {
-                            foreach (var operation in item.Operations)
-                            {
-                                if (operation.CostPerHour == 0)
-                                    localErrorList.Add($"У компонента {item.PartNumber}.{item.Name} не заполнена трудоемкость для операции #{operation.SequenceNumber}.{operation.Name}");
-                            }
-                        }
-
-                        // ИСПРАВЛЕНА ЛОГИЧЕСКАЯ ОШИБКА (заменено || на &&)
-                        if (!string.IsNullOrEmpty(item.Paint) && item.Paint != "Без покраски")
-                        {
-                            if (!item.Operations.Any(x => x.Name == "Покраска"))
-                            {
-                                localErrorList.Add($"У компонента {item.PartNumber}.{item.Name} указан цвет покраски но нет операции покраски");
-                            }
-                        }
-
-                        if (item.Paint == "Без покраски" || string.IsNullOrEmpty(item.Paint))
-                        {
-                            if (item.Operations.Any(x => x.Name == "Покраска"))
-                            {
-                                localErrorList.Add($"У компонента {item.PartNumber}.{item.Name} не указан цвет покраски но есть операции покраски");
-                            }
-                        }
-                    }
-                }
-
-                return localErrorList;
-            });
-
-            // 4. Благодаря await, код ниже автоматически продолжит выполняться в UI потоке!
-            // Мы можем безопасно обновлять свойства, привязанные к WPF интерфейсу.
-            if (errorList.Any())
-            {
-                Errors = string.Join("\n", errorList);
-            }
-
-            HasErrors = !string.IsNullOrEmpty(Errors);
-        }
-        private void ValidateElement()
-        {
-
-        }
-        #endregion
-
-        public event EventHandler? CloseRequested;
-    }
     public class TechProcessEditorViewModel : BaseViewModel
     {
         private readonly DataContext _dataContext;
         private readonly UnitOfWork _unitOfWork;
         private readonly ILogger _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly ComponentItemViewModel _selectedComponent;
         private CancellationTokenSource _loadingCts;
 
         private ImportClassifierReportViewModel _importClassifierReportViewModel;
+        private FullImportClassifierReportViewModel _importFullClassifierReportViewModel;
         private TreeImportReportViewModel _treeImportReportViewModel;
         private TechOpsImportReportViewModel _techOpsImportReportViewModel;
         public TechProcessEditorViewModel(
             ComponentItemViewModel selectedComponent,
             DataContext dataContext,
             ILogger? logger,
-            UnitOfWork unitOfWork)
+            UnitOfWork unitOfWork,
+            IServiceScopeFactory scopeFactory)
         {
             _selectedComponent = selectedComponent;
             _dataContext = dataContext;
             _logger = logger;
             _unitOfWork = unitOfWork;
+            _scopeFactory = scopeFactory;
 
             // НЕ вызываем Initialize здесь!
             // Вместо этого используем метод, который можно вызвать из View
@@ -945,7 +96,7 @@ namespace AGR_PropManager.ViewModels.Windows
             {
                 _logger?.LogError(ex, "Ошибка при инициализации");
                 MessageBox.Show($"Ошибка при загрузке данных: {ex.Message}",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
@@ -994,17 +145,29 @@ namespace AGR_PropManager.ViewModels.Windows
         private void EditProcess()
         {
             var selectedComponents = Components.Where(c => c.IsSelected).ToList();
-            if (selectedComponents.Any())
+            if (!selectedComponents.Any()) return;
+
+            _logger?.LogInformation($"Открытие окна выбора операции для {selectedComponents.Count} компонентов.");
+
+            using (var scope = _scopeFactory.CreateScope())
             {
-                _logger?.LogInformation($"Открытие окна выбора операции для {selectedComponents.Count} компонентов.");
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<UnitOfWork>();
+
                 var operationSelectionViewModel = new OperationSelectionViewModel(
                     new ObservableCollection<ComponentItemViewModel>(selectedComponents),
-                    _unitOfWork,
+                    unitOfWork,
                     _logger);
 
-                var selectionWindow = new OperationSelectionWindow(operationSelectionViewModel);
-                DeselectAllComponents();
+                var selectionWindow = new OperationSelectionWindow() { DataContext = operationSelectionViewModel };
+                operationSelectionViewModel.CloseRequested += (s, e) => selectionWindow.Close();
+                selectionWindow.Closed += SelectionWindow_Closed;
+                selectionWindow.ShowDialog();
             }
+        }
+
+        private void SelectionWindow_Closed(object? sender, EventArgs e)
+        {
+            DeselectAllComponents();
         }
         #endregion
         #endregion
@@ -1085,39 +248,42 @@ namespace AGR_PropManager.ViewModels.Windows
 
             try
             {
-
-                // Создаем ViewModel
-                var selectVm = new AGR_SelectAvaArticleVM(_dataContext);
-                selectVm.SearchText = "Краска порошковая";
-                selectVm.SelectedAvaType = "Товар";
-
-                // Создаем View и устанавливаем DataContext
-                var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm };
-
-                selectView.ShowActivated = true;
-                // Открываем окно модально
-                selectView.ShowDialog();
-
-                // Если окно закрыто с результатом OK и элемент выбран
-                if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
+                using (var scope = _scopeFactory.CreateScope())
                 {
-                    foreach (var item in _selectedComponents)
+                    var scopedDataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                    // Создаем ViewModel
+                    var selectVm = new AGR_SelectAvaArticleVM(scopedDataContext);
+                    selectVm.SearchText = "Краска порошковая";
+                    selectVm.SelectedAvaType = "Товар";
+
+                    // Создаем View и устанавливаем DataContext
+                    var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm, ShowActivated = true };
+
+                    // Открываем окно модально
+                    selectView.ShowDialog();
+
+                    // Если окно закрыто с результатом OK и элемент выбран
+                    if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
                     {
-                        item.Paint = selectVm.SelectedArticle.Name;
-                        OnPropertyChanged(nameof(item.PartnumberOrArticle));
-                        _logger?.LogInformation("Выбран AvaArticle {Article} для компонента {PartNumber}", selectVm.SelectedArticle.Article, item.PartNumber);
+                        foreach (var item in _selectedComponents)
+                        {
+                            item.Paint = selectVm.SelectedArticle.Name;
+                            OnPropertyChanged(nameof(item.PartnumberOrArticle));
+                            _logger?.LogInformation("Выбран AvaArticle {Article} для компонента {PartNumber}", selectVm.SelectedArticle.Article, item.PartNumber);
 
+                        }
+
+                        // Обновляем свойства, если это влияет на них (например, BaseMaterialCount)
+                        //Task.Run(async () => await UpdatePropertiesAsync()).ConfigureAwait(false); // Вызов асинхронного метода
                     }
-
-                    // Обновляем свойства, если это влияет на них (например, BaseMaterialCount)
-                    //Task.Run(async () => await UpdatePropertiesAsync()).ConfigureAwait(false); // Вызов асинхронного метода
+                    else
+                    {
+                        _logger?.LogDebug("Окно выбора AvaArticle закрыто без выбора.");
+                    }
+                    DeselectAllComponents();
+                    ValidateSpecification();
                 }
-                else
-                {
-                    _logger?.LogDebug("Окно выбора AvaArticle закрыто без выбора.");
-                }
-                DeselectAllComponents();
-                ValidateSpecification();
             }
             catch (Exception ex)
             {
@@ -1152,10 +318,40 @@ namespace AGR_PropManager.ViewModels.Windows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         #endregion
+
+        #region ShowImportFullClassifierReportCommand
+        private ICommand _ShowImportFullClassifierReportCommand;
+        public ICommand ShowImportFullClassifierReportCommand => _ShowImportFullClassifierReportCommand
+            ??= new RelayCommand(OnShowImportFullClassifierReportCommandExecuted, CanShowImportFullClassifierReportCommandExecute);
+        private bool CanShowImportFullClassifierReportCommandExecute(object p) => true;
+        private void OnShowImportFullClassifierReportCommandExecuted(object p)
+        {
+            var mainComponents = Components;
+
+            try
+            {
+                _importFullClassifierReportViewModel = new FullImportClassifierReportViewModel(mainComponents);
+
+                var reportWindow = new ImportFullClassifierReportWindow(_importFullClassifierReportViewModel)
+                {
+                    Width = 1000,
+                    Height = 700,
+                    ResizeMode = ResizeMode.CanResizeWithGrip,
+                };
+
+                reportWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        #endregion
+
 
         #region ShowTreeImportReportCommand
         private ICommand _ShowTreeImportReportCommand;
@@ -1167,26 +363,37 @@ namespace AGR_PropManager.ViewModels.Windows
             var mainComponent = Components?.FirstOrDefault();
             if (mainComponent == null)
             {
-                MessageBox.Show("Нет доступных компонентов.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Нет доступных компонентов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             try
             {
-                _treeImportReportViewModel = new TreeImportReportViewModel(mainComponent, _unitOfWork);
+                using var scope = _scopeFactory.CreateScope();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<UnitOfWork>();
 
-                // Display the view in a new window
+                _treeImportReportViewModel = new TreeImportReportViewModel(mainComponent, unitOfWork);
+
                 var reportWindow = new TreeImportReportWindow(_treeImportReportViewModel)
                 {
                     Width = 1200,
                     Height = 800,
                     ResizeMode = ResizeMode.CanResizeWithGrip
                 };
-                reportWindow.ShowDialog(); // Modal
+                reportWindow.ShowDialog(); // блокирует — scope освободится сразу после закрытия
+
+                if (_treeImportReportViewModel.IsExcelSaved == true)
+                {
+                    DialogResult result = MessageBox.Show("Отчет успешно сохранен в Excel. Экспортировать файлы в рабочий каталог?", "Экспорт файлов", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    if (result == DialogResult.Yes)
+                    {
+                        ExportStorageFilesCommand?.Execute(null);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         #endregion
@@ -1201,7 +408,7 @@ namespace AGR_PropManager.ViewModels.Windows
 
             if (Components == null || !Components.Any())
             {
-                MessageBox.Show("Нет доступных компонентов.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Нет доступных компонентов.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -1220,7 +427,7 @@ namespace AGR_PropManager.ViewModels.Windows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при открытии отчета: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         #endregion
@@ -1242,7 +449,7 @@ namespace AGR_PropManager.ViewModels.Windows
                 if (string.IsNullOrWhiteSpace(rootFolder))
                 {
                     MessageBox.Show("Путь к папке производства не задан (AGR_Options.ProductionRootFolderPath).",
-                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -1258,7 +465,7 @@ namespace AGR_PropManager.ViewModels.Windows
 
                 if (!componentsSnapshot.Any())
                 {
-                    MessageBox.Show("Нет непокупных компонентов для обработки.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Нет непокупных компонентов для обработки.", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
 
@@ -1340,12 +547,12 @@ namespace AGR_PropManager.ViewModels.Windows
                     if (errors.Count > 10) message += "\n... и еще ошибки.";
                 }
 
-                MessageBox.Show(message, "Результат экспорта", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(message, "Результат экспорта", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Критическая ошибка при экспорте: {ex.Message}",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         #endregion
@@ -1535,6 +742,7 @@ namespace AGR_PropManager.ViewModels.Windows
                     .Include(c => c.Material)
                     .Include(cv => cv.Properties)
                     .Include(cv => cv.Files)
+                    .Include(cv => cv.AvaArticle)
                     .Where(cv => cv.Component.PartNumber == partNumber)
                     .OrderByDescending(cv => cv.Version)
                     .FirstOrDefaultAsync(cancellationToken);
@@ -2098,7 +1306,7 @@ namespace AGR_PropManager.ViewModels.Windows
             if (componentsSnapshot == null || !componentsSnapshot.Any()) return;
 
             // 3. Выносим ресурсоемкий перебор в фоновый поток пула потоков
-            
+
             var result = await Task.Run(() =>
             {
                 var localErrorList = new List<string>();

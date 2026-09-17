@@ -22,6 +22,7 @@ namespace Agrovent.Views.Pages
     {
         public AGR_AssemblyPageView()
         {
+            var _ = new Microsoft.Xaml.Behaviors.DefaultTriggerAttribute(typeof(Trigger), typeof(Microsoft.Xaml.Behaviors.TriggerBase), null);
             InitializeComponent();
         }
     }

@@ -34,6 +34,7 @@
         <DataGrid Grid.Row="1" Style="{StaticResource PropertiesDataGrid}"
                   ItemsSource="{Binding ReportData, Mode=OneWay}"
                   AutoGenerateColumns="False"
+                  SelectionMode="Single"
                   GridLinesVisibility="Vertical"
                   VerticalGridLinesBrush="LightGray"
                   CanUserAddRows="False"

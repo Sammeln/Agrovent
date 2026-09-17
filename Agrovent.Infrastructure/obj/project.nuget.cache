@@ -1,18 +1,18 @@
 {
   "version": 2,
-  "dgSpecHash": "z9mfa+hw7nI=",
+  "dgSpecHash": "GHpGafuvjD8=",
   "success": true,
   "projectFilePath": "C:\\Users\\Usr\\source\\repos\\Agrovent\\Agrovent.Infrastructure\\AgroventInfrastructure.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\Usr\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\10.0.0\\microsoft.extensions.configuration.abstractions.10.0.0.nupkg.sha512",
-    "C:\\Users\\Usr\\.nuget\\packages\\microsoft.extensions.primitives\\10.0.0\\microsoft.extensions.primitives.10.0.0.nupkg.sha512",
+    "C:\\Users\\Usr\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\10.0.10\\microsoft.extensions.configuration.abstractions.10.0.10.nupkg.sha512",
+    "C:\\Users\\Usr\\.nuget\\packages\\microsoft.extensions.primitives\\10.0.10\\microsoft.extensions.primitives.10.0.10.nupkg.sha512",
     "C:\\Users\\Usr\\.nuget\\packages\\microsoft.win32.systemevents\\7.0.0\\microsoft.win32.systemevents.7.0.0.nupkg.sha512",
     "C:\\Users\\Usr\\.nuget\\packages\\system.drawing.common\\7.0.0\\system.drawing.common.7.0.0.nupkg.sha512",
     "C:\\Users\\Usr\\.nuget\\packages\\system.memory\\4.6.3\\system.memory.4.6.3.nupkg.sha512",
     "C:\\Users\\Usr\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.1.2\\system.runtime.compilerservices.unsafe.6.1.2.nupkg.sha512",
-    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad\\0.8.2\\xarial.xcad.0.8.2.nupkg.sha512",
-    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad.solidworks\\0.8.2\\xarial.xcad.solidworks.0.8.2.nupkg.sha512",
-    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad.toolkit\\0.8.2\\xarial.xcad.toolkit.0.8.2.nupkg.sha512"
+    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad\\0.8.3\\xarial.xcad.0.8.3.nupkg.sha512",
+    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad.solidworks\\0.8.3\\xarial.xcad.solidworks.0.8.3.nupkg.sha512",
+    "C:\\Users\\Usr\\.nuget\\packages\\xarial.xcad.toolkit\\0.8.3\\xarial.xcad.toolkit.0.8.3.nupkg.sha512"
   ],
   "logs": []
 }

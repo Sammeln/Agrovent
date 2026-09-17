@@ -1,4 +1,4 @@
-﻿namespace Agrovent.Infrastructure.Enums
+﻿namespace AgroventInfrastructure.Enums
 {
     public enum AGR_ComponentType_e
     {

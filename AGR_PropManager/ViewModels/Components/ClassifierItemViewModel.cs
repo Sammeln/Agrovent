@@ -1,6 +1,6 @@
 // File: ViewModels/Components/ClassifierItemViewModel.cs
 using AGR_PropManager.ViewModels.Base;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using System.Windows.Media.Imaging;
 
 namespace AGR_PropManager.ViewModels.Components

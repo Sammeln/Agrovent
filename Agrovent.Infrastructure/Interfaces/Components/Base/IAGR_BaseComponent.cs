@@ -2,14 +2,13 @@
 using System.Collections.Generic;
 using System.Windows.Documents;
 using System.Windows.Forms.Design;
-using Agrovent.Infrastructure.Enums;
-using Agrovent.Infrastructure.Interfaces.Properties;
-using Agrovent.ViewModels.Components;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Properties;
 using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.Components;
 using Xarial.XCad.SolidWorks.Documents;
 
-namespace Agrovent.Infrastructure.Interfaces.Components.Base
+namespace AgroventInfrastructure.Interfaces.Components.Base
 {
     public interface IAGR_BaseComponent : IAGR_BaseObject, IAGR_PageView
     {

@@ -1,4 +1,4 @@
-using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces;
 
 namespace Agrovent.Models
 {

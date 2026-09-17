@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using AgroventInfrastructure.Entities.Base;
 using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Interfaces.Entities.Components;

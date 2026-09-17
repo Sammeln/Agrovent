@@ -1,13 +1,13 @@
 ﻿using Agrovent.DAL;
-using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.ViewModels.Base;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Enums;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Xarial.XCad.Data;
 using Xarial.XCad.SolidWorks.Documents;
-using Microsoft.EntityFrameworkCore;
-using AgroventInfrastructure.Entities.Components;
 
 namespace Agrovent.ViewModels.Components
 {

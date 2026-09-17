@@ -6,7 +6,7 @@
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:vm="clr-namespace:Agrovent.ViewModels.Components"
              xmlns:local="clr-namespace:Agrovent.Views.Pages"
-             xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=AgroventInfrastructure"
+             xmlns:enum="clr-namespace:AgroventInfrastructure.Enums;assembly=AgroventInfrastructure"
              xmlns:system="clr-namespace:System;assembly=mscorlib"            
              xmlns:components="clr-namespace:Agrovent.ViewModels.Components"
              xmlns:converter="clr-namespace:Agrovent.Infrastructure.Converters"
@@ -29,12 +29,12 @@
             </ObjectDataProvider>
 
             <AGR_converter:AGR_AvaTypeConverter x:Key="AvaTypeConverter"/>
-            <converter:AGR_ComponentDBStateConverter x:Key="ComponentDBStateConverter"/>
+            <AGR_converter:AGR_ComponentDBStateConverter x:Key="ComponentDBStateConverter"/>
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <AGR_converter:AGR_InverseBooleanConverter x:Key="InverseBool"/>
 
             <!-- Converter для видимости секций в зависимости от типа компонента -->
-            <converter:AGR_ComponentTypeToVisibilityConverter x:Key="ComponentTypeToVisibilityConverter"/>
+            <AGR_converter:AGR_ComponentTypeToVisibility x:Key="ComponentTypeToVisibilityConverter"/>
             <AGR_converter:AGR_NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -109,14 +109,23 @@
                             <!-- Артикул -->
                             <DockPanel Style="{StaticResource PropertyGroupStyle}">
                                 <TextBlock Text="Артикул:" Style="{StaticResource PropertyLabelStyle}"/>
-                                <TextBox Text="{Binding AvaArticle.Article, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ReadOnlyTextBox}">
-                                    <i:Interaction.Triggers>
-                                        <i:EventTrigger EventName="MouseDoubleClick">
-                                            <i:InvokeCommandAction Command="{Binding SelectAvaArticleCommand}"/>
-                                        </i:EventTrigger>
-                                    </i:Interaction.Triggers>
-                                </TextBox>
+                                <Border BorderBrush="Gray" BorderThickness="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="50"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Text="{Binding AvaArticle.Article, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0"
+                                             Style="{StaticResource ReadOnlyTextBox}" Grid.Column="0">
+                                            <i:Interaction.Triggers>
+                                                <i:EventTrigger EventName="MouseDoubleClick">
+                                                    <i:InvokeCommandAction Command="{Binding SelectAvaArticleCommand}"/>
+                                                </i:EventTrigger>
+                                            </i:Interaction.Triggers>
+                                        </TextBox>
+                                        <Button Grid.Column="1" Content=". . ." Command="{Binding SelectAvaArticleCommand}"/>
+                                    </Grid>
+                                </Border>
                             </DockPanel>
 
                             <!-- Версия -->
@@ -149,18 +158,29 @@
                             <!-- Название материала -->
                             <DockPanel Style="{StaticResource PropertyGroupStyle}">
                                 <TextBlock Text="Материал:" Style="{StaticResource PropertyLabelStyle}"/>
-                                <TextBox Text="{Binding BaseMaterial.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
-                                    <i:Interaction.Triggers>
-                                        <i:EventTrigger EventName="MouseDoubleClick">
-                                            <i:InvokeCommandAction Command="{Binding SelectBaseMaterialCommand}"/>
-                                        </i:EventTrigger>
-                                    </i:Interaction.Triggers>
-                                </TextBox>
+
+                                <Border BorderBrush="Gray" BorderThickness="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="50"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Text="{Binding BaseMaterial.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}" Grid.Column="0" BorderThickness="0">
+                                            <i:Interaction.Triggers>
+                                                <i:EventTrigger EventName="MouseDoubleClick">
+                                                    <i:InvokeCommandAction Command="{Binding SelectBaseMaterialCommand}"/>
+                                                </i:EventTrigger>
+                                            </i:Interaction.Triggers>
+                                        </TextBox>
+                                        <Button Grid.Column="1" Content=". . ." Command="{Binding SelectBaseMaterialCommand}"/>
+                                    </Grid>
+                                </Border>
                             </DockPanel>
 
                             <!-- Количество материала -->
                             <DockPanel Style="{StaticResource PropertyGroupStyle}" Visibility="Collapsed">
                                 <TextBlock Text="Количество:" Style="{StaticResource PropertyLabelStyle}"/>
+
                                 <TextBox Text="{Binding BaseMaterialCount, StringFormat={}{0:F3}}"
                                    Style="{StaticResource ModernTextBox}"/>
                             </DockPanel>
@@ -168,19 +188,28 @@
                             <!-- Название краски -->
                             <DockPanel Style="{StaticResource PropertyGroupStyle}">
                                 <TextBlock Text="Краска:" Style="{StaticResource PropertyLabelStyle}"/>
-                                <TextBox Text="{Binding Paint.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}">
-                                    <i:Interaction.Triggers>
-                                        <i:EventTrigger EventName="MouseDoubleClick">
-                                            <i:InvokeCommandAction Command="{Binding SelectPaintCommand}"/>
-                                        </i:EventTrigger>
-                                    </i:Interaction.Triggers>
-                                    <TextBox.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Найти краску" Command="{Binding SelectPaintCommand}"/>
-                                            <MenuItem Header="Очистить" Command="{Binding ClearPaintCommand}"/>
-                                        </ContextMenu>
-                                    </TextBox.ContextMenu>
-                                </TextBox>
+                                <Border BorderBrush="Gray" BorderThickness="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="50"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Text="{Binding Paint.Name, Mode=OneWay}" Style="{StaticResource ReadOnlyTextBox}" Grid.Column="0" BorderThickness="0">
+                                            <i:Interaction.Triggers>
+                                                <i:EventTrigger EventName="MouseDoubleClick">
+                                                    <i:InvokeCommandAction Command="{Binding SelectPaintCommand}"/>
+                                                </i:EventTrigger>
+                                            </i:Interaction.Triggers>
+                                            <TextBox.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Найти краску" Command="{Binding SelectPaintCommand}"/>
+                                                    <MenuItem Header="Очистить" Command="{Binding ClearPaintCommand}"/>
+                                                </ContextMenu>
+                                            </TextBox.ContextMenu>
+                                        </TextBox>
+                                        <Button Grid.Column="1" Content=". . ." Command="{Binding SelectPaintCommand}"/>
+                                    </Grid>
+                                </Border>
                             </DockPanel>
 
 
@@ -291,9 +320,9 @@
                     <Setter Property="ContextMenu" Value="{StaticResource RowMenu}" />
                 </Style>
             </TabItem.Resources>
-                <Grid>
-                    <!-- DataGrid -->
-                    <DataGrid
+            <Grid>
+                <!-- DataGrid -->
+                <DataGrid
                           ItemsSource="{Binding ParentAssemblies}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
@@ -301,39 +330,41 @@
                           SelectionMode="Single"
                           IsReadOnly="True"
                           RowStyle="{StaticResource DefaultRowStyle}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" CanUserResize="False" Width="SizeToCells"/>
-                            <!-- Превью -->
-                            <DataGridTemplateColumn Width="40" CanUserResize="False">
-                                <DataGridTemplateColumn.CellStyle>
-                                    <Style TargetType="DataGridCell">
-                                        <Setter Property="ToolTip">
-                                            <Setter.Value>
-                                                <Image Source="{Binding Preview}" Width="800"/>
-                                            </Setter.Value>
-                                        </Setter>
-                                        <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
-                                        <Setter Property="ToolTipService.Placement" Value="Right"/>
-                                    </Style>
-                                </DataGridTemplateColumn.CellStyle>
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate DataType="{x:Type components:AGR_ComponentRegistryItemVM}">
-                                        <!-- Контейнер для основного отображения в ячейке -->
-                                        <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <!-- Наименование -->
-                            <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="SizeToCells" />
-                            <!-- PartNumber -->
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" CanUserResize="False" Width="SizeToCells"/>
+                        <!-- Превью -->
+                        <DataGridTemplateColumn Width="40" CanUserResize="False">
+                            <DataGridTemplateColumn.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="ToolTip">
+                                        <Setter.Value>
+                                            <Image Source="{Binding Preview}" Width="800"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter Property="ToolTipService.InitialShowDelay" Value="50" />
+                                    <Setter Property="ToolTipService.Placement" Value="Right"/>
+                                </Style>
+                            </DataGridTemplateColumn.CellStyle>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate DataType="{x:Type components:AGR_ComponentRegistryItemVM}">
+                                    <!-- Контейнер для основного отображения в ячейке -->
+                                    <Image Source="{Binding Preview}" MaxHeight="50" MaxWidth="50" Stretch="Uniform"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <!-- Наименование -->
+                        <DataGridTextColumn Header="Наименование" Binding="{Binding Name}" Width="SizeToCells" />
+                        <!-- PartNumber -->
                         <DataGridTextColumn Header="Обозначение" Binding="{Binding PartNumber}" Width="SizeToHeader" />
-                            <!-- Кто сохранил -->
+                        <!-- Version -->
+                        <DataGridTextColumn Header="Версия" Binding="{Binding Version}" Width="SizeToHeader" />
+                        <!-- Кто сохранил -->
                         <DataGridTextColumn Header="Сохранил" Binding="{Binding SavedByUserInitials}" Width="SizeToCells" />
-                            <!-- Дата создания -->
-                            <DataGridTextColumn Header="Дата сохранения" Binding="{Binding CreatedAt, StringFormat='dd.MM.yyyy'}" Width="*" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
+                        <!-- Дата создания -->
+                        <DataGridTextColumn Header="Дата сохранения" Binding="{Binding CreatedAt, StringFormat='dd.MM.yyyy'}" Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
         </TabItem>
     </TabControl>
 </UserControl>

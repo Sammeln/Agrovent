@@ -9,8 +9,7 @@ namespace Agrovent.Views.Pages
     /// Логика взаимодействия для AGR_ComponentRegistryTaskPaneView.xaml
     /// </summary>
     [Icon(typeof(Resources), nameof(Properties.Resources.FolderIcon32))]
-    [Title("WPF Task Pane Example")]
-    [Description("Example of WPF control hosted in SOLIDWORKS Task Pane control")]
+    [Title("Проводник КД")]
     public partial class AGR_ComponentRegistryTaskPaneView : UserControl
     {
         public AGR_ComponentRegistryTaskPaneView()

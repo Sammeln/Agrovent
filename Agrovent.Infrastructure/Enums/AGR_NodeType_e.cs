@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Agrovent.Infrastructure.Enums
+namespace AgroventInfrastructure.Enums
 {
     public enum AGR_NodeType_e
     {

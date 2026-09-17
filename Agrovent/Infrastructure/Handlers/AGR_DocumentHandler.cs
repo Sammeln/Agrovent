@@ -1,11 +1,10 @@
 ﻿using System.IO;
 using System.Windows.Controls;
 using System.Windows.Forms;
-using AGR_PropManager;
 using Agrovent.DAL;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using Agrovent.Infrastructure.Helpers;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Agrovent.Services;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
@@ -18,6 +17,7 @@ using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
 using Xarial.XCad.SolidWorks.Documents.Services;
+using AgroventInfrastructure;
 
 namespace Agrovent.Infrastructure.Handlers
 {

@@ -1,4 +1,4 @@
-﻿using Agrovent.Infrastructure.Interfaces.Components.Base;
+﻿using AgroventInfrastructure.Interfaces.Components.Base;
 
 namespace Agrovent.ViewModels.Components
 {

@@ -1,22 +1,19 @@
-﻿using Agrovent.Services;
+﻿using System.Diagnostics;
+using Agrovent.DAL;
+using Agrovent.DAL.Services;
+using Agrovent.DAL.Services.Repositories;
+using Agrovent.Services;
 using Agrovent.ViewModels.Base;
-using Xarial.XCad.Documents;
-using Xarial.XCad.SolidWorks.Documents;
 using Agrovent.ViewModels.Components;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces.Components.Base;
+using Microsoft.Extensions.Logging;
+using SolidWorks.Interop.sldworks;
+using Xarial.XCad.Documents;
 using Xarial.XCad.Geometry;
 using Xarial.XCad.SolidWorks;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Microsoft.Extensions.Logging;
-using Agrovent.DAL.Services;
-using SolidWorks.Interop.sldworks;
-using Agrovent.Infrastructure.Enums;
-using Agrovent.DAL;
-using System.Diagnostics;
-using Agrovent.DAL.Services.Repositories;
-using Agrovent.Infrastructure.Interfaces.Components;
-using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Services;
-using Microsoft.EntityFrameworkCore.Metadata;
+using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.TaskPane
 {
@@ -34,6 +31,21 @@ namespace Agrovent.ViewModels.TaskPane
         #endregion
 
         #region PROPS
+
+
+        #region ActiveUser
+
+        /// <summary>
+        /// Пользователь для отображения на таскпанели
+        /// </summary>
+        private IAGR_User _ActiveUser;
+        public IAGR_User ActiveUser
+        {
+            get => _ActiveUser;
+            set => Set(ref _ActiveUser, value);
+        }
+        #endregion
+
         private ISwDocument3D _ActiveComponent;
         public ISwDocument3D ActiveComponent
         {
@@ -98,7 +110,8 @@ namespace Agrovent.ViewModels.TaskPane
             IComponentDataService componentDataService,
             IAGR_ComponentRepository componentRepo,
             IUnitOfWork unitOfWork,
-            IAGR_ViewModelCacheService cacheService)
+            IAGR_ViewModelCacheService cacheService,
+            IAGR_User activeUser)
         {
             _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
             _viewModelFactory = viewModelFactory;
@@ -106,6 +119,7 @@ namespace Agrovent.ViewModels.TaskPane
             _unitOfWork = unitOfWork;
             _viewModelCache = cacheService;
             _cancellationTokenSource = new CancellationTokenSource();
+            ActiveUser = activeUser;
             if (!Initialized)
             {
                 _app.Documents.DocumentActivated += OnDocumentActivatedAsync;
@@ -195,6 +209,7 @@ namespace Agrovent.ViewModels.TaskPane
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource = new CancellationTokenSource();
             var cancellationToken = _cancellationTokenSource.Token;
+
 
             try
             {
@@ -356,7 +371,7 @@ namespace Agrovent.ViewModels.TaskPane
                     foreach (var prop in latestVersion.Properties)
                     {
                         var compProp = component.PropertiesCollection.Properties.FirstOrDefault(p => p.Name == prop.Name);
-                        if (compProp != null)
+                        if (compProp != null && compProp.Value != null)
                         {
                             compProp.Value = prop.Value;
                         }
@@ -414,6 +429,7 @@ namespace Agrovent.ViewModels.TaskPane
                             component.PartNumber = existingComponent.Component.PartNumber;
                         }
                     }
+                    else component.IsInDatabase = AGR_ComponentDatabaseState_e.NotSavedInDB;
                 }
             }
             catch (Exception ex)

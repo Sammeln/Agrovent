@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 
-namespace Agrovent.Infrastructure
+namespace AgroventInfrastructure
 {
     public static class AGR_Options
     {

@@ -1,32 +1,22 @@
 ﻿using System.Collections.ObjectModel;
-using Agrovent.Infrastructure.Enums;
-using Agrovent.Infrastructure.Extensions;
-using Agrovent.ViewModels.Base;
-using Xarial.XCad.SolidWorks.Documents;
-using Agrovent.ViewModels.Specification;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Infrastructure.Interfaces.Components;
-using Agrovent.Infrastructure.Interfaces.Specification;
-using Agrovent.Services;
-using Agrovent.Infrastructure.Interfaces;
-using Agrovent.ViewModels.Properties;
-using Agrovent.Infrastructure.Interfaces.Properties;
 using System.Diagnostics;
-using System.Windows.Input;
-using Agrovent.Infrastructure.Commands;
 using System.IO;
-using Xarial.XCad.UI;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System.Drawing;
-using Xarial.XCad.SolidWorks;
-using System.Windows.Media.Imaging;
+using System.Windows.Input;
 using Agrovent.DAL;
+using Agrovent.Infrastructure.Commands;
+using Agrovent.Infrastructure.Extensions;
+using Agrovent.Infrastructure.Interfaces;
+using Agrovent.ViewModels.Base;
+using Agrovent.ViewModels.Specification;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
-using Microsoft.Extensions.Logging;
-using Xarial.XCad.Documents;
 using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Components;
+using AgroventInfrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Interfaces.Specification;
+using Microsoft.Extensions.Logging;
 using Xarial.XCad.Documents.Enums;
+using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -34,6 +24,7 @@ namespace Agrovent.ViewModels.Components
     {
 
         private readonly ILogger<AGR_PartComponentVM> _logger; // Добавляем логгер
+
 
         #region Property - SelectedItem
         private IAGR_BaseComponent _SelectedItem;
@@ -143,7 +134,7 @@ namespace Agrovent.ViewModels.Components
             {
                 // Получаем все компоненты (плоский список)
                 //var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents();
-                var flatComponents = (SwDocument as ISwAssembly).Configurations.Active.Components.TryFlatten().AGR_BaseComponents(onlyActive);
+                var flatComponents = (SwDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents(onlyActive);
                 // Группируем и создаем SpecificationItemVM для плоского списка
                 var groupedFlat = flatComponents
                     .GroupBy(c => new { c.Name, c.ConfigName, c.Extension })

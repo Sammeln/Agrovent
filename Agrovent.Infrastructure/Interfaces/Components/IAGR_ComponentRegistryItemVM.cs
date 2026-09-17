@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Media.Imaging;
 
-namespace Agrovent.ViewModels.Components
+namespace AgroventInfrastructure.Interfaces.Components
 {
     public interface IAGR_ComponentRegistryItemVM
     {

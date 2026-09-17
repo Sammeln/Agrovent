@@ -1,18 +1,11 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using Agrovent.DAL;
-using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
-using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.ViewModels.Base;
 using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.Services

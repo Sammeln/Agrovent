@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 
 namespace Agrovent.Infrastructure.Converters
 {

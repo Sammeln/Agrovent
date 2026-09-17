@@ -1,15 +1,14 @@
 ﻿// File: ViewModels/Windows/SaveProgressVM.cs
-using Agrovent.ViewModels.Base;
-using Agrovent.Infrastructure.Commands; // Для RelayCommand
-using Microsoft.Extensions.Logging; // Для ILogger (опционально)
-using System;
 using System.Collections.ObjectModel;
 using System.IO; // Для SaveFileDialog
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Agrovent.Infrastructure.Commands; // Для RelayCommand
+using Agrovent.ViewModels.Base;
+using AgroventInfrastructure.Interfaces; // Для SaveFileDialog
+using Microsoft.Extensions.Logging; // Для ILogger (опционально)
 using Microsoft.Win32;
-using Xarial.XCad.SolidWorks; // Для SaveFileDialog
+using Xarial.XCad.SolidWorks;
 
 namespace Agrovent.ViewModels.Windows
 {
@@ -60,8 +59,6 @@ namespace Agrovent.ViewModels.Windows
         }
         #endregion
 
-
-
         #region CancelationToken
 
         /// <summary>
@@ -87,25 +84,24 @@ namespace Agrovent.ViewModels.Windows
         private bool CanCloseCommandExecute(object p) => true; // Всегда можно закрыть
         private void OnCloseCommandExecuted(object p)
         {
-            // Если процесс еще идет, нажатие на "Закрыть" срабатывает как "Отмена"
-            if (CancelationToken != null && !IsFinished && !CancelationToken.IsCancellationRequested)
+            // Пока процесс не завершён - кнопка работает ТОЛЬКО как "Отмена".
+            // Важно: проверка "!IsFinished" должна срабатывать при КАЖДОМ клике,
+            // а не только при первом. Раньше повторный клик (когда отмена уже
+            // запрошена, но IsFinished ещё false) проваливался в view.Close() -
+            // окно закрывалось, а фоновая операция как ни в чём не бывало
+            // продолжала работать, потому что она никак не привязана к окну.
+            if (!IsFinished)
             {
-                CancelationToken.Cancel();
-                AddLogMessage("⚠️ Отмена операции пользователем...");
+                if (CancelationToken != null && !CancelationToken.IsCancellationRequested)
+                {
+                    CancelationToken.Cancel();
+                    AddLogMessage("⚠️ Отмена операции пользователем...");
+                }
+                return; // окно закроется только когда IsFinished == true
+            }
 
-                // Мы НЕ закрываем окно сразу. 
-                // Это позволит пользователю увидеть сообщение об отмене и сохранить лог (кнопка SaveLog станет активной).
-                // Окно закроется, когда пользователь нажмет кнопку повторно после завершения (IsFinished = true).
-                return;
-            }
             var view = p as Window;
-            if (view != null)
-            {
-                view.Close();
-                return;
-            }
-            // Закрытие окна будет обработано в View
-            //CloseRequested?.Invoke(this, EventArgs.Empty);
+            view?.Close();
         }
         #endregion
 

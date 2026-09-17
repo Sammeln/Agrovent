@@ -78,9 +78,7 @@ C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\ru
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\runtimes\win\lib\net6.0\System.Drawing.Common.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\runtimes\win\lib\net6.0\System.Security.Cryptography.Pkcs.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\Agrovent.DAL.dll
-C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\Agrovent.Infrastructure.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\Agrovent.DAL.pdb
-C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\Agrovent.Infrastructure.pdb
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\AGR_PropManager.csproj.AssemblyReference.cache
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\MainWindow.g.cs
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\OperationSelectionWindow.g.cs
@@ -108,3 +106,14 @@ C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\re
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\AGR_PropManager.pdb
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\AGR_PropManager.genruntimeconfig.cache
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\ref\AGR_PropManager.dll
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\AgroventInfrastructure.dll
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\AgroventInfrastructure.pdb
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\Style\PartComponentStyle.baml
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\Style\SpecificationStyle.baml
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\AGR_SelectAvaArticleView.g.cs
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\TechProcessEditorWindow.g.cs
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\AGR_SelectAvaArticleView.baml
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\TechProcessEditorWindow.baml
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\AgroventInfrastructure.comhost.dll
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\Reports\ImportFullClassifierReportWindow.g.cs
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\obj\Release\net6.0-windows\Views\Reports\ImportFullClassifierReportWindow.baml

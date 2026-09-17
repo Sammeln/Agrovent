@@ -1,0 +1,2071 @@
+﻿--- Содержимое Agrovent.Infrastructure ---
+==============================================================
+
+--- Файл: AGR_Options.cs ---
+==============================================================
+using Microsoft.Extensions.Configuration;
+
+namespace Agrovent.Infrastructure
+{
+    public static class AGR_Options
+    {
+        public static string OldStorageRootFolderPath { get => @"\\192.168.10.1\kd\!StorageRootFolder"; }
+        public static string OldProductionRootFolderPath { get => @"\\192.168.10.1\kd\Listogib\!TestRootFolder"; }
+        public static string StorageRootFolderPath { get; set; }
+        public static string ProductionRootFolderPath { get; set; }
+        public static string LocalWorkFolder { get; set; }
+
+        public static void Initialize(IConfiguration configuration)
+        {
+            var section = configuration.GetSection("Storage");
+
+            StorageRootFolderPath = section["StorageRootFolderPath"];
+            ProductionRootFolderPath = section["ProductionRootFolderPath"];
+            LocalWorkFolder = section["LocalWorkFolder"];
+        }
+    }
+}
+
+
+
+
+--- Файл: AGR_DataGridSelectedItemsBehavior.cs ---
+==============================================================
+using System.Collections;
+using System.Windows;
+using System.Windows.Controls;
+
+namespace Agrovent.Infrastructure.Behaviors
+{
+    public static class AGR_DataGridSelectedItemsBehavior
+    {
+        public static readonly DependencyProperty SelectedItemsProperty =
+            DependencyProperty.RegisterAttached(
+                "SelectedItems",
+                typeof(IList),
+                typeof(AGR_DataGridSelectedItemsBehavior),
+                new PropertyMetadata(null, OnSelectedItemsChanged));
+
+        public static IList GetSelectedItems(DependencyObject obj) =>
+            (IList)obj.GetValue(SelectedItemsProperty);
+
+        public static void SetSelectedItems(DependencyObject obj, IList value) =>
+            obj.SetValue(SelectedItemsProperty, value);
+
+        private static void OnSelectedItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is DataGrid grid)
+            {
+                grid.SelectionChanged -= Grid_SelectionChanged;
+
+                if (e.NewValue is IList newList)
+                {
+                    grid.SelectionChanged += Grid_SelectionChanged;
+                    UpdateSelectedItems(grid, newList);
+                }
+            }
+        }
+
+        private static void Grid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is DataGrid grid && GetSelectedItems(grid) is IList selectedItems)
+            {
+                selectedItems.Clear();
+                foreach (var item in grid.SelectedItems)
+                    selectedItems.Add(item);
+            }
+        }
+
+        private static void UpdateSelectedItems(DataGrid grid, IList selectedItems)
+        {
+            grid.SelectedItems.Clear();
+            foreach (var item in selectedItems)
+                grid.SelectedItems.Add(item);
+        }
+    }
+}
+
+
+
+--- Файл: AGR_AvaTypeConverter.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Data;
+using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
+
+namespace AgroventInfrastructure.AGR_Converters
+{
+    public class AGR_AvaTypeConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value != null && value != "")
+            {
+                if (value is string)
+                {
+                    switch (value.ToString())
+                    {
+                        //case "Production":
+                        //    return AGR_AvaType_e.Production;
+                        //case "Component":
+                        //    return AGR_AvaType_e.Component;
+                        //case "Purchased":
+                        //    return AGR_AvaType_e.Purchased;
+                        //case "VirtualComponent":
+                        //    return AGR_AvaType_e.VirtualComponent;
+                        //case "DontBuy":
+                        //    return AGR_AvaType_e.DontBuy;
+                        //case "NA":
+                        //    return AGR_AvaType_e.NA;
+                        case "Production":
+                        return AGR_AvaTypeNames.Production;
+                        case "Component":
+                        return AGR_AvaTypeNames.Component;
+                        case "Purchased":
+                        return AGR_AvaTypeNames.Purchased;
+                        case "VirtualComponent":
+                        return AGR_AvaTypeNames.VirtualComponent;
+                        case "DontBuy":
+                        return AGR_AvaTypeNames.DontBuy;
+                        case "NA":
+                        return AGR_AvaTypeNames.NA;
+                    }
+                }
+                if ((AGR_AvaType_e)value != null)
+                {
+                    Enum type = (AGR_AvaType_e)value;
+                    switch (type)
+                    {
+                        case AGR_AvaType_e.Production:
+                            return AGR_AvaTypeNames.Production;
+                        case AGR_AvaType_e.Component:
+                            return AGR_AvaTypeNames.Component;
+                        case AGR_AvaType_e.Purchased:
+                            return AGR_AvaTypeNames.Purchased;
+                        case AGR_AvaType_e.VirtualComponent:
+                            return AGR_AvaTypeNames.VirtualComponent;
+                        case AGR_AvaType_e.DontBuy:
+                            return AGR_AvaTypeNames.DontBuy;
+                        case AGR_AvaType_e.NA:
+                            return AGR_AvaTypeNames.NA;
+                    }
+                }
+            }
+            return null;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is not null)
+            {
+                return value;
+            }
+            return null;
+        }
+    }
+}
+
+
+
+
+--- Файл: AGR_ComponentTypeConverter.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Data;
+using Agrovent.Infrastructure.Enums;
+
+namespace AgroventInfrastructure.AGR_Converters
+{
+    public class AGR_ComponentTypeConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value != "")
+            {
+                if (value is string)
+                {
+                    switch (value.ToString())
+                    {
+                        case "Assembly":
+                            return "Сборочные единицы";
+                        case "Part":
+                            return "Детали";
+                        case "Purchased":
+                            return "Покупное";
+                        case "SheetMetallPart":
+                            return "Листовые детали";
+                    }
+                }
+                else
+                {
+                    Enum type = (AGR_ComponentType_e)value;
+                    switch (type)
+                    {
+                        case AGR_ComponentType_e.Assembly:
+                            return "Сборочные единицы";
+                        case AGR_ComponentType_e.Part:
+                            return "Детали";
+                        case AGR_ComponentType_e.Purchased:
+                            return "Покупное";
+                        case AGR_ComponentType_e.SheetMetallPart:
+                            return "Листовые детали";
+                    }
+                }
+            }
+            return null;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is not null)
+            {
+                return value;
+            }
+            return null;
+        }
+    }
+}
+
+
+
+
+--- Файл: AGR_ComponentTypeToVisibility.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Data;
+using System.Windows;
+using Agrovent.Infrastructure.Enums;
+
+namespace AgroventInfrastructure.AGR_Converters
+{
+    public class AGR_ComponentTypeToVisibility : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var enumVal = (AGR_AvaType_e)value;
+            if (enumVal != null)
+            {
+                return enumVal != AGR_AvaType_e.Purchased;
+            }
+            return true;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
+
+
+
+
+--- Файл: AGR_EmptyCollectionToVisibilityConverter.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Data;
+
+namespace AgroventInfrastructure.AGR_Converters
+{
+    public class AGR_EmptyCollectionToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return (int)value == 0 ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
+
+
+
+
+--- Файл: AGR_GroupHeaderConverter.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Data;
+
+namespace AgroventInfrastructure.AGR_Converters
+
+{
+    public class AGR_GroupHeaderConverter : IMultiValueConverter
+    {
+        private readonly AGR_ComponentTypeConverter _typeConverter = new();
+
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            var groupName = values[0];
+            var groupingMode = values[1].ToString();
+            // Применяем конвертер ТОЛЬКО при группировке по типу
+            if (groupingMode == "По типу")
+            {
+                return _typeConverter.Convert(groupName, targetType, parameter, culture);
+            }
+            return groupName; // Для группировки по материалу возвращаем имя "как есть"
+            //return groupName;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+}
+
+
+
+
+--- Файл: AGR_InverseBooleanConverter.cs ---
+==============================================================
+using System;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Data;
+
+namespace AgroventInfrastructure.AGR_Converters
+{
+    public class AGR_InverseBooleanConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool boolValue)
+            {
+                return !boolValue;
+            }
+            return true;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool boolValue)
+            {
+                return !boolValue;
+            }
+            return false;
+        }
+    }
+}
+
+
+
+--- Файл: AGR_NullToVisibilityConverter.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Data;
+
+namespace AgroventInfrastructure.AGR_Converters
+{
+    public class AGR_NullToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value != null && string.IsNullOrEmpty(value.ToString()))
+            {
+                return string.IsNullOrEmpty(value.ToString()) ? Visibility.Collapsed : Visibility.Visible;
+            }
+            return value == null ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
+
+
+
+
+--- Файл: AGR_PackNGoConverters.cs ---
+==============================================================
+using System;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Data;
+
+namespace AgroventInfrastructure.AGR_Converters
+{
+    /// <summary>Преобразует числовой отступ (AGR_PackNGoNodeVM.Indent) в Thickness с левым отступом -
+    /// используется для визуального отображения вложенности строк дерева в DataGrid.</summary>
+    public class AGR_IndentToMarginConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var indent = value is double d ? d : 0;
+            return new Thickness(indent, 0, 0, 0);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>Отображает символ раскрытия/сворачивания узла дерева ("▼"/"▶") по значению IsExpanded.</summary>
+    public class AGR_ExpandGlyphConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return value is bool isExpanded && isExpanded ? "\u25BC" : "\u25B6";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+}
+
+
+
+
+--- Файл: AGR_AvaTypeNames.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace AgroventInfrastructure.Enums
+{
+    public static class AGR_AvaTypeNames
+    {
+        public const string Production = "Продукция";
+        public const string Component = "Комплектующие";
+        public const string Purchased = "Товар";
+        public const string VirtualComponent = "Постоянная часть";
+        public const string DontBuy = "(Не закупать)";
+        public const string NA = "Прочее";
+        public const string AllTypes = "Все типы";
+    }
+
+    public static class AGR_ComponentTypeNames
+    {
+        public const string Assembly = "Сборочные единицы";
+        public const string Part = "Детали";
+        public const string SheetMetallPart = "Листовые детали";
+        public const string Purchased = "Покупное";
+        public const string NA = "Прочее";
+        public const string AllTypes = "Все типы";
+    }
+}
+
+
+
+
+--- Файл: AGR_AvaType_e.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Enums
+{
+    public enum AGR_AvaType_e
+    {
+        Production = 3,
+        Component = 5,
+        DontBuy = 32,
+        Purchased = 20021,
+        VirtualComponent = 50625,
+        NA = 0
+    }
+}
+
+
+
+--- Файл: AGR_ComponentBOMState_e.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Enums
+{
+    public enum AGR_ComponentBOMState_e
+    {
+        Normal,
+        Excluded
+    }
+}
+
+
+
+
+--- Файл: AGR_ComponentDatabaseState_e.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Agrovent.Infrastructure.Enums
+{
+    public enum AGR_ComponentDatabaseState_e
+    {
+        SavedInDataBase,
+        NotLoaded,
+        NotSavedInDB
+    }
+}
+
+
+
+
+--- Файл: AGR_ComponentType_e.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Enums
+{
+    public enum AGR_ComponentType_e
+    {
+        Assembly,
+        Part,
+        SheetMetallPart,
+        Purchased,
+        NA
+    }
+}
+
+
+
+
+--- Файл: AGR_FileType_e.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Enums
+{
+    public enum AGR_FileType_e
+    {
+        CurrentModel,      // Текущая модель
+        CurrentDrawing,    // Текущий чертеж
+        StorageModel,      // Модель в хранилище
+        StorageDrawing,    // Чертеж в хранилище
+        ProductionModel,   // Модель в производстве
+        ProductionDrawing  // Чертеж в производстве
+    }
+}
+
+
+
+
+--- Файл: AGR_NodeType_e.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Agrovent.Infrastructure.Enums
+{
+    public enum AGR_NodeType_e
+    {
+        Project,
+        Component
+    }
+}
+
+
+
+
+--- Файл: AGR_PropertyNames.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Enums
+{
+    public static class AGR_PropertyNames
+    {
+        public const string Name = "Наименование";
+        public const string Partnumber = "Обозначение";
+        public const string AvaType = "Признак";
+        public const string Extension = "Расширение";
+        public const string FilePath = "Путь файла";
+        public const string Material = "Материал";
+        public const string BlankMass = "Масса";
+        public const string BlankVolume = "Заготовка - объём(м3)";
+        public const string BlankLen = "Заготовка - длина(мм)";
+        public const string BlankWid = "Заготовка - ширина(мм)";
+        public const string BlankThick = "Заготовка - толщина(мм)";
+        public const string BlankContSum = "Заготовка - сумма контуров(мм)";
+        public const string BlankBends = "Заготовка - Сгибы(шт)";
+        public const string BlankArea = "Заготовка - площадь(м2)";
+        public const string BlankHoles = "Заготовка - вырезы(шт)";
+        public const string BlankPlateArea = "Заготовка - площадь поверхности(м2)";
+        public const string BlankOuterContour = "Заготовка - длина внешнего контура(м)";
+        public const string BlankInnerContour = "Заготовка - длина внутреннего контура(м)";
+        public const string Color = "Цвет покраски";
+        public const string Article = "Артикул";
+        public const string Version = "Версия";
+        public const string HashSum = "Хэш-сумма";
+        public const string PDM_Partnumber = "Номер ДСЕ";
+    }
+}
+
+
+
+
+--- Файл: AGR_SheetMetallPropNames_e.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Agrovent.Infrastructure.Enums
+{
+    public static class AGR_SheetMetallPropNames
+    {
+        public const string SM_BlankLen = "Длина граничной рамки";
+        public const string SM_BlankWid = "Ширина граничной рамки";
+        public const string SM_BlankThick = "Толщина листового металла";
+        public const string SM_BlankBends = "Сгибы";
+        public const string SM_BlankArea = "Площадь граничной рамки";
+        public const string SM_BlankHoles = "Вырезы";
+        public const string SM_BlankPlateArea = "Площадь граничной рамки-Общая площадь(без вырезов)";
+        public const string SM_BlankOuterContour = "Периметр граничной рамки (без вырезов)-Внешний";
+        public const string SM_BlankInnerContour = "Периметр граничной рамки (без вырезов)-Внутренний";
+    }
+}
+
+
+
+
+--- Файл: IAGR_AvaArticleModel.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Interfaces
+{
+    public interface IAGR_AvaArticleModel
+    {
+        int Article { get; set; }
+        string? Name { get; set; }
+        string? PartNumber { get; set; }
+        decimal? Count { get; set; }
+        string? MainUOM { get; set; }
+        string? Type { get; set; }
+        string? Folder { get; set; }
+        string? Brand { get; set; }
+        string? Company { get; set; }
+        string? SecondaryUOM { get; set; }
+        string? ArchiveType { get; set; }
+
+    }
+}
+
+
+
+--- Файл: IAGR_SaveProgressVM.cs ---
+==============================================================
+// File: ViewModels/Windows/SaveProgressVM.cs
+using System.Collections.ObjectModel;
+
+namespace Agrovent.ViewModels.Windows
+{
+    public interface IAGR_SaveProgressVM
+    {
+        void AddLogMessage(string message);
+    }
+    
+    public interface IAGR_SaveConfirmationVM
+    {
+        bool? ShowDialog();
+    }
+}
+
+
+
+--- Файл: IAGR_User.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Interfaces
+{
+    public interface IAGR_User
+    {
+        string FirstName { get; set; }
+        string LastName { get; set; }
+        string Patronymic { get; set; }
+
+        string Initials { get; }
+        string FullName { get; }
+    }
+}
+
+
+
+
+--- Файл: BaseEntity.cs ---
+==============================================================
+using AgroventInfrastructure.Interfaces.Entities;
+
+namespace AgroventInfrastructure.Entities.Base
+{
+    public class BaseEntity
+    {
+        public int Id { get; set; }
+
+    }
+}
+
+
+
+
+--- Файл: DateStampEntity.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using AgroventInfrastructure.Interfaces.Entities;
+
+namespace AgroventInfrastructure.Entities.Base
+{
+    public class DateStampEntity : BaseEntity
+    {
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
+    }
+}
+
+
+
+
+--- Файл: UserEntity.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+
+namespace AgroventInfrastructure.Entities.Base
+{
+    public class UserEntity : BaseEntity
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Patronymic { get; set; }
+
+        public string Initials
+        {
+            get
+            {
+                var initials = "";
+                if (!string.IsNullOrEmpty(LastName))
+                    initials += LastName + " ";
+
+                if (!string.IsNullOrEmpty(FirstName))
+                    initials += FirstName[0] + ".";
+
+                if (!string.IsNullOrEmpty(Patronymic))
+                    initials += Patronymic[0] + ".";
+
+                return initials.Trim();
+            }
+        }
+
+        public string FullName
+        {
+            get
+            {
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(LastName))
+                    parts.Add(LastName);
+                if (!string.IsNullOrEmpty(FirstName))
+                    parts.Add(FirstName);
+                if (!string.IsNullOrEmpty(Patronymic))
+                    parts.Add(Patronymic);
+
+                return string.Join(" ", parts);
+            }
+        }
+
+        // Навигационное свойство
+        public virtual ICollection<ComponentVersion> SavedComponentVersions { get; set; } = new List<ComponentVersion>();
+    }
+}
+
+
+
+
+--- Файл: AGR_ComponentEditData.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Agrovent.Infrastructure.Enums;
+
+namespace AgroventInfrastructure.Entities.Components
+{
+    public class AGR_ComponentEditData
+    {
+        public int ComponentVersionId { get; set; }
+        public AGR_AvaType_e AvaType { get; set; }
+        public int? AvaArticleArticle { get; set; }
+        public int? MaterialAvaArticleId { get; set; }
+        public string? MaterialName { get; set; }
+        public int? PaintAvaArticleId { get; set; }
+        public string? PaintName { get; set; }
+    }
+}
+
+
+
+
+--- Файл: AGR_FlatAssemblyComponent.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace AgroventInfrastructure.Entities.Components
+{
+    /// <summary>
+    /// Итоговое количество одной уникальной версии компонента во всей сборке,
+    /// с учётом того, что компонент может входить в несколько разных подсборок,
+    /// а сами подсборки могут повторяться на верхних уровнях.
+    /// </summary>
+    public class AGR_FlatAssemblyComponent
+    {
+        public ComponentVersion Entity { get; set; } = null!;
+        public int TotalQuantity { get; set; }
+    }
+}
+
+
+
+
+--- Файл: AssemblyStructure.cs ---
+==============================================================
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+
+namespace AgroventInfrastructure.Entities.Components
+{
+    public class AssemblyStructure : DateStampEntity
+    {
+        // ID родительской версии компонента (сборки)
+        public int ParentComponentVersionId { get; set; }
+
+        // Навигационное свойство для родительской версии компонента (сборки)
+        [ForeignKey("ParentComponentVersionId")]
+        public ComponentVersion ParentComponentVersion { get; set; } = null!; // Указываем, что не null
+
+        // ID дочерней версии компонента (детали или подсборки)
+        public int ChildComponentVersionId { get; set; }
+
+        // Навигационное свойство для дочерней версии компонента
+        [ForeignKey("ChildComponentVersionId")]
+        public ComponentVersion ChildComponentVersion { get; set; } = null!; // Указываем, что не null
+
+        // Количество дочерних компонентов
+        public int Quantity { get; set; }
+
+        // Порядок следования (для сохранения порядка в спецификации)
+        public int Order { get; set; }
+
+        // Уровень вложенности (опционально, можно вычислять при загрузке)
+        // public int Level { get; set; }
+    }
+}
+
+
+
+--- Файл: AvaArticleModel.cs ---
+==============================================================
+using Agrovent.Infrastructure.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace AgroventInfrastructure.Entities.Components
+{
+    public class AvaArticleModel : IAGR_AvaArticleModel
+    {
+        public int Article { get; set; }
+        public string? Name { get; set; }
+        public string? PartNumber { get; set; }
+        public decimal? Count { get; set; }
+        public string? MainUOM { get; set; }
+        public string? Type { get; set; }
+        public string? Folder { get; set; }
+        public string? Brand { get; set; }
+        public string? Company { get; set; }
+        public string? SecondaryUOM { get; set; }
+        public string? ArchiveType { get; set; }
+    }
+}
+
+
+
+
+--- Файл: Component.cs ---
+==============================================================
+using System.Collections.Generic;
+using System.Linq;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Entities.TechProcess;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.TechProcess;
+
+namespace AgroventInfrastructure.Entities.Components
+{
+    public class Component : DateStampEntity
+    {
+        // Основной идентификатор (PartNumber)
+        public string PartNumber { get; set; }
+
+        // Навигационные свойства
+        public ICollection<ComponentVersion> Versions { get; set; } = new List<ComponentVersion>();
+        public TechnologicalProcess? TechnologicalProcess { get; set; }
+
+        // Метод для получения последней версии
+        public ComponentVersion? GetLatestVersion()
+            => Versions.OrderByDescending(v => v.Version).FirstOrDefault();
+    }
+}
+
+
+
+--- Файл: ComponentFile.cs ---
+==============================================================
+using System;
+using System.ComponentModel.DataAnnotations.Schema;
+using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+
+
+namespace AgroventInfrastructure.Entities.Components
+{
+    public class ComponentFile : DateStampEntity
+    {
+        public int ComponentVersionId { get; set; }
+        [ForeignKey("ComponentVersionId")]
+        public ComponentVersion ComponentVersion { get; set; }
+
+        public AGR_FileType_e FileType { get; set; }
+        public string FilePath { get; set; }
+        public DateTime? LastModified { get; set; }
+        public long? FileSize { get; set; }
+    }
+}
+
+
+
+
+--- Файл: ComponentMaterial.cs ---
+==============================================================
+using System.ComponentModel.DataAnnotations.Schema;
+using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+
+
+namespace AgroventInfrastructure.Entities.Components
+{
+    public class ComponentMaterial : DateStampEntity
+    {
+        // Связь с версией компонента
+        public int ComponentVersionId { get; set; }
+        [ForeignKey("ComponentVersionId")]
+        public ComponentVersion ComponentVersion { get; set; }
+
+        // Материал
+        public string? BaseMaterial { get; set; }
+        public decimal BaseMaterialCount { get; set; }
+        public int? MaterialAvaArticleID { get; set; }
+        [ForeignKey("MaterialAvaArticleID")]
+        public AvaArticleModel? MaterialAvaArticle { get; set; }
+
+        // Покраска
+        public string? Paint { get; set; }
+        public decimal? PaintCount { get; set; }
+        public int? PaintAvaArticleID { get; set; }
+        [ForeignKey("PaintAvaArticleID")]
+        public AvaArticleModel? PaintAvaArticle { get; set; }
+
+        // Флаг, что материал заполнен
+        public bool HasMaterial => !string.IsNullOrEmpty(BaseMaterial);
+        public bool HasPaint => !string.IsNullOrEmpty(Paint);
+    }
+}
+
+
+
+
+--- Файл: ComponentProperty.cs ---
+==============================================================
+using System.ComponentModel.DataAnnotations.Schema;
+using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+
+namespace AgroventInfrastructure.Entities.Components
+{
+    public class ComponentProperty : DateStampEntity
+    {
+        public int ComponentVersionId { get; set; }
+
+        [ForeignKey("ComponentVersionId")]
+        public ComponentVersion ComponentVersion { get; set; }
+
+        public string Name { get; set; }
+        public string Value { get; set; }
+    }
+}
+
+
+
+
+--- Файл: ComponentVersion.cs ---
+==============================================================
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics;
+using System.Linq;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Entities.Projects;
+using AgroventInfrastructure.Interfaces.Entities;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Projects;
+
+namespace AgroventInfrastructure.Entities.Components
+{
+    [DebuggerDisplay("{" + nameof(Name) + "}")]
+    public class ComponentVersion : DateStampEntity
+    {
+        // Связь с компонентом
+        public int ComponentId { get; set; }
+        [ForeignKey("ComponentId")]
+        public Component Component { get; set; }
+
+        // Версия (начинается с 1)
+        public int Version { get; set; }
+
+        // Уникальный хеш модели
+        public int HashSum { get; set; }
+
+        // Основные свойства
+        public string Name { get; set; }
+        public string ConfigName { get; set; }
+        public byte[] PreviewImage { get; set; }
+
+        // Ссылка на артикул Ava
+        public int? AvaArticleArticle { get; set; }
+
+        [ForeignKey("AvaArticleArticle")]
+        public AvaArticleModel? AvaArticle { get; set; }
+
+        // Типы
+        public AGR_ComponentType_e ComponentType { get; set; }
+        public AGR_AvaType_e AvaType { get; set; }
+
+        // Пользователь, сохранивший эту версию
+        public int SavedByUserId { get; set; }
+        [ForeignKey("SavedByUserId")]
+        public virtual UserEntity SavedByUser { get; set; }
+
+        // Навигационные свойства
+        public ComponentMaterial? Material { get; set; }
+        public ICollection<ComponentProperty> Properties { get; set; } = new List<ComponentProperty>();
+        public ICollection<ComponentFile> Files { get; set; } = new List<ComponentFile>();
+        public ICollection<ProjectComponent> ProjectComponents { get; set; } = new List<ProjectComponent>();
+
+        [NotMapped]
+        public List<ComponentVersion> ParentAssemblies { get; set; } = new List<ComponentVersion>();
+
+        public int ParentAssembliesCount => ParentAssemblies.Count;
+
+        // Метод для проверки, является ли версия последней
+        public bool IsLatestVersion()
+        {
+            if (Component == null) return false;
+            return Version == Component.Versions.Max(v => v.Version);
+        }
+    }
+    public class ComponentVersion2 : DateStampEntity, IAGR_ComponentVersionEntity
+    {
+        // Связь с компонентом
+        public int ComponentId { get; set; }
+        [ForeignKey("ComponentId")]
+        public IAGR_ComponentEntity Component { get; set; }
+
+        // Версия (начинается с 1)
+        public int Version { get; set; }
+
+        // Уникальный хеш модели
+        public int HashSum { get; set; }
+
+        // Основные свойства
+        public string Name { get; set; }
+        public string ConfigName { get; set; }
+        public byte[] PreviewImage { get; set; }
+
+        // Ссылка на артикул Ava
+        public int? AvaArticleArticle { get; set; }
+
+        [ForeignKey("AvaArticleArticle")]
+        public IAGR_AvaArticleModel? AvaArticle { get; set; }
+
+        // Типы
+        public AGR_ComponentType_e ComponentType { get; set; }
+        public AGR_AvaType_e AvaType { get; set; }
+
+        // Пользователь, сохранивший эту версию
+        public int SavedByUserId { get; set; }
+        [ForeignKey("SavedByUserId")]
+        public virtual IAGR_UserEntity SavedByUser { get; set; }
+
+        // Навигационные свойства
+        public IAGR_ComponentMaterialEntity? Material { get; set; }
+        public ICollection<IAGR_ComponentPropertyEntity> Properties { get; set; } = new List<IAGR_ComponentPropertyEntity>();
+        public ICollection<IAGR_ComponentFileEntity> Files { get; set; } = new List<IAGR_ComponentFileEntity>();
+        public ICollection<IAGR_ProjectComponentEntity> ProjectComponents { get; set; } = new List<IAGR_ProjectComponentEntity>();
+
+        [NotMapped]
+        public List<ComponentVersion> ParentAssemblies { get; set; } = new List<ComponentVersion>();
+
+        public int ParentAssembliesCount => ParentAssemblies.Count;
+
+        // Метод для проверки, является ли версия последней
+        public bool IsLatestVersion()
+        {
+            if (Component == null) return false;
+            return Version == Component.Versions.Max(v => v.Version);
+        }
+    }
+}
+
+
+
+
+--- Файл: Project.cs ---
+==============================================================
+// File: DAL/Entities/Projects/Project.cs
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using AgroventInfrastructure.Interfaces.Entities.Projects;
+
+namespace AgroventInfrastructure.Entities.Projects
+{
+    [Table("Projects")]
+    public class Project
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [Required]
+        [MaxLength(255)]
+        public string Name { get; set; } = string.Empty;
+
+        // Внешний ключ на родительский проект (для вложенности)
+        public int? ParentId { get; set; }
+        [ForeignKey(nameof(ParentId))]
+        public virtual Project? Parent { get; set; }
+
+        // Обратная навигация к дочерним проектам
+        public virtual ICollection<Project> Children { get; set; } = new List<Project>();
+
+        // Обратная навигация к компонентам в проекте
+        public virtual ICollection<ProjectComponent> ProjectComponents { get; set; } = new List<ProjectComponent>();
+    }
+}
+
+
+
+--- Файл: ProjectComponent.cs ---
+==============================================================
+// File: DAL/Entities/Projects/ProjectComponent.cs
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Projects;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace AgroventInfrastructure.Entities.Projects
+{
+    [Table("ProjectComponents")]
+    public class ProjectComponent
+    {
+        [Key]
+        public int Id { get; set; }
+
+        // Внешний ключ на проект
+        [Required]
+        public int ProjectId { get; set; }
+        [ForeignKey(nameof(ProjectId))]
+        public virtual Project Project { get; set; } = null!;
+
+        // Внешний ключ на версию компонента
+        [Required]
+        public int ComponentVersionId { get; set; }
+        [ForeignKey(nameof(ComponentVersionId))]
+        public virtual ComponentVersion ComponentVersion { get; set; } = null!;
+    }
+}
+
+
+
+--- Файл: Operation.cs ---
+==============================================================
+using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Interfaces.Entities.TechProcess;
+
+namespace AgroventInfrastructure.Entities.TechProcess
+{
+    [Table("Operations")]
+    public class Operation : DateStampEntity
+    {
+        public string WorkstationName { get; set; }
+        public string Name { get; set; } = string.Empty;
+
+        [Column(TypeName = "decimal(10,4)")]
+        public decimal CostPerHour { get; set; }
+
+        [Required]
+        public int SequenceNumber { get; set; }
+
+        // Внешний ключ на техпроцесс
+        [Required]
+        public int TechnologicalProcessId { get; set; }
+        [ForeignKey(nameof(TechnologicalProcessId))]
+        public virtual TechnologicalProcess TechnologicalProcess { get; set; } = null!;
+    }
+}
+
+
+
+--- Файл: TechnologicalProcess.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Entities.Base;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.TechProcess;
+
+namespace AgroventInfrastructure.Entities.TechProcess
+{
+    [Table("TechnologicalProcesses")]
+    public class TechnologicalProcess : DateStampEntity
+    {
+
+        // Внешний ключ на компонент по PartNumber
+        public string PartNumber { get; set; } = string.Empty;
+
+        // Навигационное свойство к компоненту
+        [ForeignKey(nameof(PartNumber))]
+        public virtual Component Component { get; set; } = null!;
+
+        // Коллекция операций
+        public virtual ICollection<Operation> Operations { get; set; } = new List<Operation>();
+    }
+}
+
+
+
+--- Файл: TemplateOperation.cs ---
+==============================================================
+// File: DAL/Entities/TechProcess/TemplateOperation.cs
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using AgroventInfrastructure.Entities.Base;
+
+namespace AgroventInfrastructure.Entities.TechProcess
+{
+    [Table("TemplateOperations")]
+    public class TemplateOperation : BaseEntity
+    {
+        public int? AvaId { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+
+        // Внешний ключ на участок
+        public int WorkstationId { get; set; }
+        [ForeignKey(nameof(WorkstationId))]
+        public virtual Workstation Workstation { get; set; } = null!;
+
+        [Column(TypeName = "decimal(10,4)")]
+        public decimal CostPerHour { get; set; }
+
+    }
+}
+
+
+
+--- Файл: Workstation.cs ---
+==============================================================
+// File: DAL/Entities/TechProcess/Workstation.cs
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using AgroventInfrastructure.Entities.Base;
+
+namespace AgroventInfrastructure.Entities.TechProcess
+{
+    [Table("Workstations")]
+    public class Workstation : BaseEntity
+    {
+        public string Name { get; set; } = string.Empty;
+        public int AvaId { get; set; }
+
+        // Обратная навигация к операциям
+        public virtual ICollection<TemplateOperation> TemplateOperations { get; set; } = new List<TemplateOperation>();
+    }
+}
+
+
+
+--- Файл: IAGR_Assembly.cs ---
+==============================================================
+using System.Collections.Generic;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Properties;
+using Agrovent.Infrastructure.Interfaces.Specification;
+
+namespace Agrovent.Infrastructure.Interfaces.Components
+{
+    public interface IAGR_Assembly : IAGR_BaseComponent
+    {
+        IEnumerable<IAGR_SpecificationItem> GetChildComponents();
+        //abstract IAGR_BasePropertiesCollection PropertiesCollection { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_ComponentRegistryItemVM.cs ---
+==============================================================
+using System;
+using System.Windows.Media.Imaging;
+
+namespace Agrovent.ViewModels.Components
+{
+    public interface IAGR_ComponentRegistryItemVM
+    {
+        string AvaTypeDisplay { get; }
+        string ComponentTypeDisplay { get; }
+        DateTime CreatedAt { get; }
+        int Id { get; }
+        string Name { get; }
+        string PartNumber { get; }
+        BitmapImage? Preview { get; }
+        string SavedByUserInitials { get; }
+        string StoragePath { get; }
+        int Version { get; }
+    }
+}
+
+
+
+--- Файл: IAGR_HasFile.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Interfaces.Components
+{
+
+public interface IAGR_HasFile
+{
+    abstract string? CurrentModelFilePath { get; set; }
+    abstract string? CurrentDrawFilePath { get; set; }
+    abstract string? StorageModelFilePath { get; set; }
+    abstract string? StorageDrawFilePath { get; set; }
+    abstract string? ProductionModelFilePath { get; set; }
+    abstract string? ProductionDrawFilePath { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_HasMaterial.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Interfaces.Components
+{
+    public interface IAGR_HasMaterial
+    {
+        abstract IAGR_Material BaseMaterial { get; }
+        abstract decimal BaseMaterialCount { get; }
+    }
+}
+
+
+
+
+--- Файл: IAGR_HasPaint.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Interfaces.Components
+{
+    public interface IAGR_HasPaint
+    {
+        abstract IAGR_Material? Paint { get; set; }
+        abstract decimal? PaintCount { get; set; }
+    }
+}
+
+
+
+
+
+--- Файл: IAGR_Material.cs ---
+==============================================================
+
+using AgroventInfrastructure.Entities.Components;
+
+namespace Agrovent.Infrastructure.Interfaces
+{
+    public interface IAGR_Material
+    {
+        abstract string Name { get; set; }
+        abstract string Article { get; set; }
+        abstract string UOM { get; set; }
+        abstract AvaArticleModel AvaModel { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_Part.cs ---
+==============================================================
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Agrovent.Infrastructure.Interfaces.Properties;
+using System.Collections.Generic;
+using Xarial.XCad.Data;
+
+namespace Agrovent.Infrastructure.Interfaces.Components
+{
+    public interface IAGR_Part : IAGR_BaseComponent
+    {
+        abstract IAGR_Material BaseMaterial { get; set; }
+        abstract decimal BaseMaterialCount { get; set; }
+        abstract IAGR_Material? Paint { get; set; }
+        abstract decimal? PaintCount { get; set; }
+    }
+}
+
+
+
+
+--- Файл: IAGR_BaseEntity.cs ---
+==============================================================
+namespace AgroventInfrastructure.Interfaces.Entities
+{
+    public interface IAGR_BaseEntity
+    {
+        int Id { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_DateStampEntity.cs ---
+==============================================================
+using System;
+
+namespace AgroventInfrastructure.Interfaces.Entities
+{
+    public interface IAGR_DateStampEntity : IAGR_BaseEntity
+    {
+        DateTime CreatedAt { get; set; }
+        DateTime? UpdatedAt { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_UserEntity.cs ---
+==============================================================
+using System.Collections.Generic;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+
+namespace AgroventInfrastructure.Interfaces.Entities
+{
+    public interface IAGR_UserEntity : IAGR_BaseEntity
+    {
+        string FirstName { get; set; }
+        string FullName { get; }
+        string Initials { get; }
+        string LastName { get; set; }
+        string Patronymic { get; set; }
+        ICollection<IAGR_ComponentVersionEntity> SavedComponentVersions { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_BasePropertiesCollection.cs ---
+==============================================================
+using Xarial.XCad.Data;
+
+namespace Agrovent.Infrastructure.Interfaces.Properties
+{
+    public interface IAGR_BasePropertiesCollection : IAGR_PropertiesCollection
+    {
+        abstract IXProperty Volume { get; set; }
+        abstract IXProperty Mass { get; set; }
+        abstract IXProperty SurfaceArea { get; set; }
+    }
+}
+
+
+
+
+--- Файл: IAGR_PartPropertiesCollection.cs ---
+==============================================================
+using Xarial.XCad.Data;
+
+namespace Agrovent.Infrastructure.Interfaces.Properties
+{
+    public interface IAGR_PartPropertiesCollection : IAGR_PropertiesCollection
+    {
+        abstract IXProperty Length { get; set; }
+        abstract IXProperty Width { get; set; }
+    }
+}
+
+
+
+
+--- Файл: IAGR_PropertiesCollection.cs ---
+==============================================================
+using System.Collections.Generic;
+using Xarial.XCad.Data;
+
+namespace Agrovent.Infrastructure.Interfaces.Properties
+{
+    public interface IAGR_PropertiesCollection
+    {
+        abstract ICollection<IXProperty> Properties { get; set; }
+
+        abstract void UpdateProperties();
+
+    }
+}
+
+
+
+
+--- Файл: IAGR_SheetMetallPropertiesCollection.cs ---
+==============================================================
+using Xarial.XCad.Data;
+
+namespace Agrovent.Infrastructure.Interfaces.Properties
+{
+    public interface IAGR_SheetMetallPropertiesCollection : IAGR_PropertiesCollection
+    {
+        abstract IXProperty SheetMetall_Length { get; set; }
+        abstract IXProperty SheetMetall_Width { get; set; }
+        abstract IXProperty SheetMetall_Thickness { get; set; }
+        abstract IXProperty SheetMetall_Holes { get; set; }
+        abstract IXProperty SheetMetall_SurfaceArea { get; set; }
+        abstract IXProperty SheetMetall_PlateArea { get; set; }
+        abstract IXProperty SheetMetall_OuterContour { get; set; }
+        abstract IXProperty SheetMetall_InnerContour { get; set; }
+        abstract IXProperty SheetMetall_Bends { get; set; }
+    }
+}
+
+
+
+
+--- Файл: IAGR_CommandService.cs ---
+==============================================================
+// File: Infrastructure/Interfaces/IAGR_CommandService.cs
+using System.Threading.Tasks;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+using Xarial.XCad.SolidWorks.Documents;
+
+namespace Agrovent.Infrastructure.Interfaces
+{
+    public interface IAGR_CommandService
+    {
+        Task<bool> UpdatePropertiesAsync();
+        Task<bool> OpenComponentRegistryAsync();
+        Task<bool> OpenProjectExplorerWindowAsync();
+        Task<bool> SaveActiveComponentAsync();
+        Task<bool> CopyFilesToStorageAsync();
+        Task<bool> CopyFilesToProdAsync();
+        Task<bool> UpdateDrawingsAsync();
+        Task<bool> GetSheetMetallPartsAssmbly();
+        Task<bool> PackNGoAsync();
+    }
+}
+
+
+
+--- Файл: IAGR_SpecificationItem.cs ---
+==============================================================
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces.Components.Base;
+
+namespace Agrovent.Infrastructure.Interfaces.Specification
+{
+    public interface IAGR_SpecificationItem
+    {
+        public string Name { get; }
+        public string ConfigName { get; }
+        public string PartNumber { get; }
+        public int Quantity { get; }
+        public IAGR_BaseComponent Component { get; }
+        public AGR_ComponentType_e ComponentType { get; }
+
+        // Свойства для материалов (только для деталей)
+        public string? MaterialName { get; }
+        public decimal? MaterialCount { get; }
+
+        // Свойства для краски
+        public string? PaintName { get; }
+        //public decimal? PaintCount { get; }
+
+    }
+}
+
+
+
+--- Файл: IAGR_BaseComponent.cs ---
+==============================================================
+using System;
+using System.Collections.Generic;
+using System.Windows.Documents;
+using System.Windows.Forms.Design;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces.Properties;
+using Agrovent.ViewModels.Components;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+using Xarial.XCad.SolidWorks.Documents;
+
+namespace Agrovent.Infrastructure.Interfaces.Components.Base
+{
+    public interface IAGR_BaseComponent : IAGR_BaseObject, IAGR_PageView
+    {
+        abstract ISwDocument3D SwDocument { get; }
+        abstract string Name { get; }
+        abstract string ConfigName { get; }
+        abstract string Extension { get; }
+        abstract string PartNumber { get; set; }
+        abstract string Article { get; set; }
+        abstract int Version { get; set; }
+        abstract int? HashSum { get; set; }
+        abstract byte[] Preview { get; }
+        abstract IAGR_AvaArticleModel? AvaArticle { get; set; }
+        abstract AGR_ComponentType_e ComponentType { get; set; }
+        abstract AGR_AvaType_e AvaType { get; set; }
+        abstract IAGR_PropertiesCollection PropertiesCollection { get; set; }
+        abstract AGR_ComponentDatabaseState_e IsInDatabase { get; set; }
+        abstract ComponentVersion? ComponentVersion { get; set; }
+
+        abstract ICollection<IAGR_ComponentRegistryItemVM>? ParentAssemblies { get; set; }
+        abstract int ParentAssembliesCount { get; }
+
+        abstract bool CanUserEdit { get; }
+        abstract int CalculateComponentHash();
+        abstract void PrecomputePreview();
+
+        abstract bool IsPurchased { get; }
+
+        event EventHandler? PartnumberChanged;
+    }
+}
+
+
+
+
+--- Файл: IAGR_BaseObject.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Interfaces.Components.Base
+{
+    public interface IAGR_BaseObject
+    {
+    }
+}
+
+
+
+
+--- Файл: IAGR_PageView.cs ---
+==============================================================
+namespace Agrovent.Infrastructure.Interfaces.Components.Base
+{
+    public interface IAGR_PageView
+    {
+    }
+}
+
+
+
+--- Файл: IAGR_ComponentEntity.cs ---
+==============================================================
+using System.Collections.Generic;
+using AgroventInfrastructure.Interfaces.Entities.TechProcess;
+
+namespace AgroventInfrastructure.Interfaces.Entities.Components
+{
+    public interface IAGR_ComponentEntity : IAGR_DateStampEntity
+    {
+        string PartNumber { get; set; }
+        IAGR_TechnologicalProcessEntity? TechnologicalProcess { get; set; }
+        abstract ICollection<IAGR_ComponentVersionEntity> Versions { get; set; }
+
+        IAGR_ComponentVersionEntity? GetLatestVersion();
+    }
+}
+
+
+
+--- Файл: IAGR_ComponentFileEntity.cs ---
+==============================================================
+using System;
+using Agrovent.Infrastructure.Enums;
+
+namespace AgroventInfrastructure.Interfaces.Entities.Components
+{
+    public interface IAGR_ComponentFileEntity : IAGR_DateStampEntity
+    {
+        IAGR_ComponentVersionEntity ComponentVersion { get; set; }
+        int ComponentVersionId { get; set; }
+        string FilePath { get; set; }
+        long? FileSize { get; set; }
+        AGR_FileType_e FileType { get; set; }
+        DateTime? LastModified { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_ComponentMaterialEntity.cs ---
+==============================================================
+using Agrovent.Infrastructure.Interfaces;
+
+namespace AgroventInfrastructure.Interfaces.Entities.Components
+{
+    public interface IAGR_ComponentMaterialEntity : IAGR_DateStampEntity
+    {
+        string? BaseMaterial { get; set; }
+        decimal BaseMaterialCount { get; set; }
+        IAGR_ComponentVersionEntity ComponentVersion { get; set; }
+        int ComponentVersionId { get; set; }
+        bool HasMaterial { get; }
+        bool HasPaint { get; }
+        IAGR_AvaArticleModel? MaterialAvaArticle { get; set; }
+        int? MaterialAvaArticleID { get; set; }
+        string? Paint { get; set; }
+        IAGR_AvaArticleModel? PaintAvaArticle { get; set; }
+        int? PaintAvaArticleID { get; set; }
+        decimal? PaintCount { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_ComponentPropertyEntity.cs ---
+==============================================================
+namespace AgroventInfrastructure.Interfaces.Entities.Components
+{
+    public interface IAGR_ComponentPropertyEntity : IAGR_DateStampEntity
+    {
+        IAGR_ComponentVersionEntity ComponentVersion { get; set; }
+        int ComponentVersionId { get; set; }
+        string Name { get; set; }
+        string Value { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_ComponentVersionEntity.cs ---
+==============================================================
+using System.Collections.Generic;
+using Agrovent.Infrastructure.Enums;
+using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces.Entities.Projects;
+
+namespace AgroventInfrastructure.Interfaces.Entities.Components
+{
+    public interface IAGR_ComponentVersionEntity : IAGR_DateStampEntity
+    {
+        IAGR_AvaArticleModel? AvaArticle { get; set; }
+        int? AvaArticleArticle { get; set; }
+        AGR_AvaType_e AvaType { get; set; }
+        IAGR_ComponentEntity Component { get; set; }
+        int ComponentId { get; set; }
+        AGR_ComponentType_e ComponentType { get; set; }
+        string ConfigName { get; set; }
+        ICollection<IAGR_ComponentFileEntity> Files { get; set; }
+        int HashSum { get; set; }
+        IAGR_ComponentMaterialEntity? Material { get; set; }
+        string Name { get; set; }
+        byte[] PreviewImage { get; set; }
+        ICollection<IAGR_ProjectComponentEntity> ProjectComponents { get; set; }
+        ICollection<IAGR_ComponentPropertyEntity> Properties { get; set; }
+        IAGR_UserEntity SavedByUser { get; set; }
+        int SavedByUserId { get; set; }
+        int Version { get; set; }
+
+        bool IsLatestVersion();
+    }
+}
+
+
+
+--- Файл: IAGR_ProjectComponentEntity.cs ---
+==============================================================
+using AgroventInfrastructure.Interfaces.Entities.Components;
+
+namespace AgroventInfrastructure.Interfaces.Entities.Projects
+{
+    public interface IAGR_ProjectComponentEntity
+    {
+        IAGR_ComponentVersionEntity ComponentVersion { get; set; }
+        int ComponentVersionId { get; set; }
+        int Id { get; set; }
+        IAGR_ProjectEntity Project { get; set; }
+        int ProjectId { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_ProjectEntity.cs ---
+==============================================================
+using System.Collections.Generic;
+
+namespace AgroventInfrastructure.Interfaces.Entities.Projects
+{
+    public interface IAGR_ProjectEntity
+    {
+        ICollection<IAGR_ProjectEntity> Children { get; set; }
+        int Id { get; set; }
+        string Name { get; set; }
+        IAGR_ProjectEntity? Parent { get; set; }
+        int? ParentId { get; set; }
+        ICollection<IAGR_ProjectComponentEntity> ProjectComponents { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_OperationEntity.cs ---
+==============================================================
+namespace AgroventInfrastructure.Interfaces.Entities.TechProcess
+{
+    public interface IAGR_OperationEntity : IAGR_DateStampEntity
+    {
+        decimal CostPerHour { get; set; }
+        string Name { get; set; }
+        int SequenceNumber { get; set; }
+        IAGR_TechnologicalProcessEntity TechnologicalProcess { get; set; }
+        int TechnologicalProcessId { get; set; }
+        string WorkstationName { get; set; }
+    }
+}
+
+
+
+--- Файл: IAGR_TechnologicalProcessEntity.cs ---
+==============================================================
+using System.Collections.Generic;
+using AgroventInfrastructure.Interfaces.Entities.Components;
+
+namespace AgroventInfrastructure.Interfaces.Entities.TechProcess
+{
+    public interface IAGR_TechnologicalProcessEntity : IAGR_DateStampEntity
+    {
+        IAGR_ComponentEntity Component { get; set; }
+        ICollection<IAGR_OperationEntity> Operations { get; set; }
+        string PartNumber { get; set; }
+    }
+}
+
+
+
+--- Файл: .NETCoreApp,Version=v6.0.AssemblyAttributes.cs ---
+==============================================================
+// <autogenerated />
+using System;
+using System.Reflection;
+[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETCoreApp,Version=v6.0", FrameworkDisplayName = ".NET 6.0")]
+
+
+
+
+--- Файл: Agrovent.Infrastructure.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent.Infrastructure")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d05a9a921819f31109a40e5ddf4e0e0ca4a84d35")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent.Infrastructure")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent.Infrastructure")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: AgroventInfrastructure.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("AgroventInfrastructure")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a86c6284b51441cd558af6a9c822f35d246e78e")]
+[assembly: System.Reflection.AssemblyProductAttribute("AgroventInfrastructure")]
+[assembly: System.Reflection.AssemblyTitleAttribute("AgroventInfrastructure")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: .NETStandard,Version=v2.1.AssemblyAttributes.cs ---
+==============================================================
+// <autogenerated />
+using System;
+using System.Reflection;
+[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETStandard,Version=v2.1", FrameworkDisplayName = ".NET Standard 2.1")]
+
+
+
+
+--- Файл: Agrovent.Infrastructure.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent.Infrastructure")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1db1b41b18fa310ccbdc0a6ef9a8292f388ed227")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent.Infrastructure")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent.Infrastructure")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+
+--- Файл: .NETCoreApp,Version=v6.0.AssemblyAttributes.cs ---
+==============================================================
+// <autogenerated />
+using System;
+using System.Reflection;
+[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETCoreApp,Version=v6.0", FrameworkDisplayName = ".NET 6.0")]
+
+
+
+
+--- Файл: Agrovent.Infrastructure.AssemblyInfo.cs ---
+==============================================================
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Этот код создан программой.
+//     Исполняемая версия:4.0.30319.42000
+//
+//     Изменения в этом файле могут привести к неправильной работе и будут потеряны в случае
+//     повторной генерации кода.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent.Infrastructure")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1db1b41b18fa310ccbdc0a6ef9a8292f388ed227")]
+[assembly: System.Reflection.AssemblyProductAttribute("Agrovent.Infrastructure")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Agrovent.Infrastructure")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
+
+// Создано классом WriteCodeFragment MSBuild.
+
+
+
+
+==============================================================
+--- Конец проекта ---

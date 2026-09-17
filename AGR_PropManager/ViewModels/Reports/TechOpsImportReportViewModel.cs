@@ -13,7 +13,7 @@ using AGR_PropManager.ViewModels.Base;
 using AGR_PropManager.ViewModels.Components;
 using AGR_PropManager.ViewModels.Reports.Interfaces;
 using AGR_PropManager.ViewModels.TechProcess; // For TechOperationViewModel
-using Agrovent.Infrastructure.Enums; // Assuming AGR_ComponentType_e is here
+using AgroventInfrastructure.Enums; // Assuming AGR_ComponentType_e is here
 using Microsoft.Win32; // For SaveFileDialog
 using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
@@ -28,11 +28,12 @@ namespace AGR_PropManager.ViewModels.Reports
         public string ComponentName { get; set; }
         public int? Article { get; set; } // Может быть null для не-главного изделия
         public string Partnumber { get; set; }
+        public string OperationName { get; set; }
+        public string WorkstationName { get; set; }
         public decimal LabourIntensity { get; set; } // Трудоемкость
         public string Availability { get; set; } // Всегда "1"
         public int Order { get; set; } // Порядок (SequenceNumber)
         public string Additional { get; set; } // Добавочная (всегда пусто)
-        public string OperationName { get; set; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected virtual void OnPropertyChanged(string propertyName)
@@ -125,6 +126,7 @@ namespace AGR_PropManager.ViewModels.Reports
                             reportItem.Partnumber = component.PartNumber ?? "";
                             reportItem.LabourIntensity = operation.CostPerHour;
                             reportItem.OperationName = operation.Name;
+                            reportItem.WorkstationName = operation.WorkstationName;
                             reportItem.Availability = "1";
                             reportItem.Order = operation.SequenceNumber;
                             reportItem.Additional = "";
@@ -175,16 +177,18 @@ namespace AGR_PropManager.ViewModels.Reports
 
                         // Create header row
                         IRow headerRow = sheet.CreateRow(0);
-                        headerRow.CreateCell(0).SetCellValue("Артикул");
+                        headerRow.CreateCell(0).SetCellValue("//Артикул");
                         headerRow.CreateCell(1).SetCellValue("Partnumber");
-                        headerRow.CreateCell(2).SetCellValue(""); // Пусто
-                        headerRow.CreateCell(3).SetCellValue(""); // Пусто
-                        headerRow.CreateCell(4).SetCellValue("Трудоемкость");
+                        headerRow.CreateCell(2).SetCellValue("Операция"); // Пусто
+                        headerRow.CreateCell(3).SetCellValue("Участок"); // Пусто
+                        headerRow.CreateCell(4).SetCellValue(""); // Пусто
                         headerRow.CreateCell(5).SetCellValue(""); // Пусто
-                        headerRow.CreateCell(6).SetCellValue(""); // Пусто
-                        headerRow.CreateCell(7).SetCellValue("Доступность");
-                        headerRow.CreateCell(8).SetCellValue("Порядок");
-                        headerRow.CreateCell(9).SetCellValue("Добавочная");
+                        headerRow.CreateCell(6).SetCellValue("Трудоемкость");
+                        headerRow.CreateCell(7).SetCellValue(""); // Пусто
+                        headerRow.CreateCell(8).SetCellValue(""); // Пусто
+                        headerRow.CreateCell(9).SetCellValue("Доступность");
+                        headerRow.CreateCell(10).SetCellValue("Порядок");
+                        headerRow.CreateCell(11).SetCellValue("Добавочная");
 
                         // Style for PartNumber column to preserve leading zeros
                         ICellStyle partNumberStyle = workbook.CreateCellStyle();
@@ -211,21 +215,23 @@ namespace AGR_PropManager.ViewModels.Reports
                             partNumberCell.SetCellValue(item.Partnumber);
                             partNumberCell.CellStyle = partNumberStyle;
 
-                            // Columns 2-3: Empty
-                            row.CreateCell(2).SetCellValue("");
-                            row.CreateCell(3).SetCellValue("");
-
-                            row.CreateCell(4).SetCellValue(item.LabourIntensity.ToString()); // Labour Intensity
-
-                            // Columns 5-6: Empty
+                            row.CreateCell(2).SetCellValue(item.OperationName);
+                            row.CreateCell(3).SetCellValue(item.WorkstationName);
+                            
+                            // Columns 4-5: Empty
+                            row.CreateCell(4).SetCellValue("");
                             row.CreateCell(5).SetCellValue("");
-                            row.CreateCell(6).SetCellValue("");
 
-                            row.CreateCell(7).SetCellValue(item.Availability); // Availability ("1")
+                            row.CreateCell(6).SetCellValue(item.LabourIntensity.ToString()); // Labour Intensity
+                            // Columns 7-8: Empty
+                            row.CreateCell(7).SetCellValue("");
+                            row.CreateCell(8).SetCellValue("");
 
-                            row.CreateCell(8).SetCellValue(item.Order); // Order (Sequence Number)
+                            row.CreateCell(9).SetCellValue(item.Availability); // Availability ("1")
 
-                            row.CreateCell(9).SetCellValue(item.Additional); // Additional (empty)
+                            row.CreateCell(10).SetCellValue(item.Order); // Order (Sequence Number)
+
+                            row.CreateCell(11).SetCellValue(item.Additional); // Additional (empty)
                         }
 
                         // Optional: Auto-size columns after populating data

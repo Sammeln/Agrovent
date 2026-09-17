@@ -1,4 +1,4 @@
-﻿namespace Agrovent.Infrastructure.Interfaces.Components
+﻿namespace AgroventInfrastructure.Interfaces.Components
 {
 
 public interface IAGR_HasFile

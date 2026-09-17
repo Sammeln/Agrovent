@@ -1,7 +1,7 @@
 ﻿using System.Windows;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using Agrovent.Infrastructure.Helpers;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Agrovent.Services;
 using Agrovent.ViewModels.Components;
 using Microsoft.VisualStudio.Shell.Interop;

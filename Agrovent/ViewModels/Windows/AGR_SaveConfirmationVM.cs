@@ -1,9 +1,9 @@
 // File: ViewModels/Windows/AGR_SaveConfirmationVM.cs
 using Agrovent.Infrastructure.Commands;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Interfaces.Components;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Interfaces.Components;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Agrovent.Services;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
@@ -20,10 +20,11 @@ using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
 using Agrovent.DAL;
 using Agrovent.Views.Windows;
-using Agrovent.Infrastructure.Interfaces.Properties;
+using AgroventInfrastructure.Interfaces.Properties;
 using Xarial.XCad.Data;
 using System.ComponentModel;
 using System.Windows.Data;
+using AgroventInfrastructure.Interfaces;
 
 namespace Agrovent.ViewModels.Windows
 {

@@ -1,6 +1,6 @@
-﻿using Agrovent.Infrastructure.Enums;
+﻿using AgroventInfrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
-using Agrovent.Infrastructure.Interfaces.Properties;
+using AgroventInfrastructure.Interfaces.Properties;
 using Xarial.XCad.Data;
 using Xarial.XCad.SolidWorks.Documents;
 

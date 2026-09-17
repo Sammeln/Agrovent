@@ -1,8 +1,8 @@
 ﻿using System.Collections.ObjectModel;
-using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
-using Agrovent.Infrastructure.Interfaces.Properties;
 using Agrovent.ViewModels.Base;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Properties;
 using Xarial.XCad.Data;
 using Xarial.XCad.SolidWorks.Data;
 using Xarial.XCad.SolidWorks.Documents;

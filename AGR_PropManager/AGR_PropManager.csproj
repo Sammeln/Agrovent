@@ -32,6 +32,9 @@
     <Compile Update="Views\AGR_SelectAvaArticleView.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="Views\Reports\ImportFullClassifierReportWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>

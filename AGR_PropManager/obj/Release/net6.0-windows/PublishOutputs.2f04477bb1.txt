@@ -1,4 +1,5 @@
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\AGR_PropManager.exe
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\AgroventInfrastructure.comhost.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\appsettings.json
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\AGR_PropManager.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\AGR_PropManager.runtimeconfig.json
@@ -73,7 +74,7 @@ C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\pu
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\runtimes\win\lib\net6.0\System.Drawing.Common.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\runtimes\win\lib\net6.0\System.Security.Cryptography.Pkcs.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\Agrovent.DAL.dll
-C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\Agrovent.Infrastructure.dll
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\AgroventInfrastructure.dll
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\Agrovent.DAL.pdb
-C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\Agrovent.Infrastructure.pdb
+C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\AgroventInfrastructure.pdb
 C:\Users\Usr\source\repos\Agrovent\AGR_PropManager\bin\Release\net6.0-windows\publish\AGR_PropManager.deps.json

@@ -1,40 +1,30 @@
 ﻿// File: ViewModels/TaskPane/AGR_ComponentRegistryTaskPaneVM.cs
-using Agrovent.DAL;
-using Agrovent.DAL.Services.Repositories;
-using Agrovent.Infrastructure;
-using AgroventInfrastructure.AGR_Converters;
-using Agrovent.Infrastructure.Commands; // Для RelayCommand
-using Agrovent.Infrastructure.Converters;
-using Agrovent.Infrastructure.Enums;
-using Agrovent.ViewModels.Base;
-using Agrovent.ViewModels.Components;
-using Agrovent.ViewModels.Windows.Details;
-using Agrovent.Views.Windows.Details;
-using AgroventInfrastructure.Entities.Components;
-using AgroventInfrastructure.Interfaces.Entities.Components;
-using Microsoft.Extensions.Logging;
-using SolidWorks.Interop.swconst;
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO; // Для File.Exists
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input; // Для CollectionViewSource
+using Agrovent.DAL;
+using Agrovent.DAL.Services.Repositories;
+using Agrovent.Infrastructure.Commands; // Для RelayCommand
+using Agrovent.Infrastructure.Helpers;
+using Agrovent.ViewModels.Base;
+using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.Specification;
+using Agrovent.ViewModels.Windows;
+using Agrovent.Views.Windows;
+using AgroventInfrastructure;
+using AgroventInfrastructure.AGR_Converters;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Enums;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Xarial.XCad.Base;
 using Xarial.XCad.Documents;
 using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
-using AgroventInfrastructure.Enums;
-using Agrovent.Infrastructure.Helpers;
-using Agrovent.ViewModels.Specification;
-using Agrovent.ViewModels.Windows;
-using Agrovent.Views.Windows;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Agrovent.ViewModels.TaskPane
 {
@@ -412,7 +402,7 @@ namespace Agrovent.ViewModels.TaskPane
             {
                 if (Set(ref _searchText, value))
                 {
-                    RegistryItemsView.Refresh(); // Обновляем фильтр при изменении текста
+                    //RegistryItemsView.Refresh(); // Обновляем фильтр при изменении текста
                 }
             }
         }
@@ -434,7 +424,7 @@ namespace Agrovent.ViewModels.TaskPane
                     {
                         SelectedAvaType = AGR_AvaTypeNames.AllTypes;
                     }
-                    RegistryItemsView.Refresh(); // Обновляем фильтр при изменении типа
+                    //RegistryItemsView.Refresh(); // Обновляем фильтр при изменении типа
                 }
             }
         }
@@ -459,7 +449,7 @@ namespace Agrovent.ViewModels.TaskPane
                     }
 
 
-                    RegistryItemsView.Refresh(); // Обновляем фильтр при изменении AvaType
+                    //RegistryItemsView.Refresh(); // Обновляем фильтр при изменении AvaType
                 }
             }
         }

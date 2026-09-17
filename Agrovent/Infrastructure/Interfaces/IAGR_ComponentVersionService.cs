@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using System.Threading.Tasks;
 using Agrovent.ViewModels.Components;
 using AgroventInfrastructure.Interfaces.Entities.Components;

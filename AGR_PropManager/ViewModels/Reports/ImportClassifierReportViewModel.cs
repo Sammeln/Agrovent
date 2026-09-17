@@ -9,7 +9,7 @@ using System.Windows.Input;
 using AGR_PropManager.Infrastructure.Commands; // Assuming RelayCommand is here
 using AGR_PropManager.ViewModels.Base;
 using AGR_PropManager.ViewModels.Components;
-using Agrovent.Infrastructure.Enums; // Assuming AGR_ComponentType_e is defined here
+using AgroventInfrastructure.Enums; // Assuming AGR_ComponentType_e is defined here
 using Microsoft.Win32; // For SaveFileDialog
 using NPOI.HSSF.UserModel; // For older .xls format if needed
 using NPOI.SS.UserModel; // Core interfaces
@@ -17,7 +17,7 @@ using NPOI.XSSF.UserModel; // For .xlsx format
 using System.IO;
 using System.Diagnostics;
 using AGR_PropManager.ViewModels.Reports.Interfaces;
-using Agrovent.Infrastructure;
+using AgroventInfrastructure;
 
 namespace AGR_PropManager.ViewModels.Reports
 {
@@ -117,7 +117,7 @@ namespace AGR_PropManager.ViewModels.Reports
 
                         // Create header row
                         IRow headerRow = sheet.CreateRow(0);
-                        headerRow.CreateCell(0).SetCellValue("Наименование");
+                        headerRow.CreateCell(0).SetCellValue("//Наименование");
                         headerRow.CreateCell(1).SetCellValue(""); // Пусто
                         headerRow.CreateCell(2).SetCellValue(""); // Пусто
                         headerRow.CreateCell(3).SetCellValue(""); // Пусто
@@ -137,6 +137,8 @@ namespace AGR_PropManager.ViewModels.Reports
                         foreach (var repotItem in ReportData) // Iterate over prepared data
                         {
                             var item = repotItem as ReportRowItem;
+                            if (!string.IsNullOrEmpty(item.Article)) continue;
+
 
                             IRow row = sheet.CreateRow(rowIndex++);
                             row.CreateCell(0).SetCellValue(item.Name);

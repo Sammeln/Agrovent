@@ -1,23 +1,20 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.IO;
+using Agrovent.DAL;
+using Agrovent.DAL.Services;
+using Agrovent.DAL.Services.Repositories;
+using Agrovent.Infrastructure.Interfaces;
+using Agrovent.Infrastructure.Services;
+using Agrovent.Models;
+using Agrovent.Services;
+using Agrovent.ViewModels.TaskPane;
+using Agrovent.ViewModels.Windows;
+using AgroventInfrastructure;
+using AgroventInfrastructure.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Agrovent.DAL;
-using Agrovent.Services;
-using Microsoft.EntityFrameworkCore;
-using Agrovent.Infrastructure.Interfaces;
-using System.Reflection;
-using System.IO;
-using Xarial.XCad.Documents;
-using Agrovent.ViewModels.TaskPane;
-using Agrovent.DAL.Services;
-using Agrovent.Infrastructure.Services;
 using Microsoft.Extensions.Options;
-using Agrovent.ViewModels.Windows;
-using Agrovent.ViewModels;
-using Agrovent.DAL.Services.Repositories;
-using Agrovent.Models;
-using System.Runtime.CompilerServices;
-using Agrovent.Infrastructure;
 using Xarial.XCad.SolidWorks;
 
 namespace Agrovent
@@ -86,7 +83,6 @@ namespace Agrovent
             // 7. ViewModels (если нужно)
             services.AddSingleton<AGR_TaskPaneViewModel>();
             services.AddTransient<AGR_ComponentRegistryVM>();
-            services.AddTransient<AGR_ProjectExplorerVM>();
             services.AddSingleton<IAGR_SaveProgressVM, AGR_SaveProgressVM>();
             services.AddTransient<AGR_ComponentRegistryTaskPaneVM>();
 

@@ -5,22 +5,19 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using Agrovent.DAL;
-using Agrovent.Infrastructure;
 using Agrovent.Infrastructure.Commands;
-using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Services;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
-using Agrovent.ViewModels.Properties;
 using Agrovent.Views.Windows;
+using AgroventInfrastructure;
 using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces;
 using Microsoft.Extensions.Logging;
-using Xarial.XCad.SolidWorks.Documents;
-using Xarial.XCad.SolidWorks;
 using Xarial.XCad.Documents.Extensions;
-using Agrovent.ViewModels.Windows;
+using Xarial.XCad.SolidWorks;
+using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Windows
 {

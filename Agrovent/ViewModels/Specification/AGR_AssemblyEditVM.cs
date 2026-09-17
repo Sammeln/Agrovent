@@ -1,21 +1,20 @@
 ﻿// File: ViewModels/Specification/AGR_AssemblyEditVM.cs
-using AGR_PropManager.ViewModels.Windows;
-using Agrovent.DAL;
-using Agrovent.Infrastructure;
-using Agrovent.Infrastructure.Commands;
-using Agrovent.Infrastructure.Enums;
-using Agrovent.Infrastructure.Interfaces;
-using Agrovent.ViewModels.Base;
-using Agrovent.ViewModels.Components;
-using Agrovent.Views.Windows;
-using AgroventInfrastructure.Entities.Components;
-using AgroventInfrastructure.Enums;
-using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
+using Agrovent.DAL;
+using Agrovent.Infrastructure.Commands;
+using Agrovent.Infrastructure.Interfaces;
+using Agrovent.ViewModels.Base;
+using Agrovent.ViewModels.Components;
+using Agrovent.ViewModels.Windows;
+using Agrovent.Views.Windows;
+using AgroventInfrastructure.Entities.Components;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace Agrovent.ViewModels.Specification
 {
@@ -427,7 +426,7 @@ namespace Agrovent.ViewModels.Specification
                 var dataContext = AGR_ServiceContainer.GetService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
-                var selectVm = new AGR_SelectAvaArticleVM(dataContext) { SelectedAvaType = "Товар" };
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger) { SelectedAvaType = "Товар" };
                 var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm, ShowActivated = true };
                 selectView.ShowDialog();
 
@@ -479,7 +478,7 @@ namespace Agrovent.ViewModels.Specification
                 var dataContext = AGR_ServiceContainer.GetService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
-                var selectVm = new AGR_SelectAvaArticleVM(dataContext)
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger)
                 {
                     SearchText = "Краска порошковая",
                     SelectedAvaType = "Товар"
@@ -522,7 +521,7 @@ namespace Agrovent.ViewModels.Specification
                 var dataContext = AGR_ServiceContainer.GetService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
-                var selectVm = new AGR_SelectAvaArticleVM(dataContext);
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger);
                 if (comp.ComponentType != AGR_ComponentType_e.Purchased)
                 {
                     selectVm.SelectedAvaType = AGR_AvaTypeNames.Component;
@@ -587,7 +586,7 @@ namespace Agrovent.ViewModels.Specification
                 var dataContext = AGR_ServiceContainer.GetService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
-                var selectVm = new AGR_SelectAvaArticleVM(dataContext) { SearchText = BaseAssemblyName };
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger) { SearchText = BaseAssemblyName };
                 var selectView = new AGR_SelectAvaArticleView { DataContext = selectVm, ShowActivated = true };
                 selectView.ShowDialog();
 
@@ -615,7 +614,7 @@ namespace Agrovent.ViewModels.Specification
                 var dataContext = AGR_ServiceContainer.GetService<DataContext>();
                 var logger = AGR_ServiceContainer.GetService<ILogger<AGR_SelectAvaArticleVM>>();
 
-                var selectVm = new AGR_SelectAvaArticleVM(dataContext)
+                var selectVm = new AGR_SelectAvaArticleVM(dataContext, logger)
                 {
                     SearchText = "Краска порошковая",
                     SelectedAvaType = "Товар"

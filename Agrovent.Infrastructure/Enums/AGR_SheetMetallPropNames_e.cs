@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Agrovent.Infrastructure.Enums
+namespace AgroventInfrastructure.Enums
 {
     public static class AGR_SheetMetallPropNames
     {

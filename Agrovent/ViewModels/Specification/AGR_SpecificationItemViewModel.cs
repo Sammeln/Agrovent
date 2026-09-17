@@ -1,15 +1,11 @@
-﻿using System.Drawing;
-using Agrovent.Infrastructure.Enums;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Infrastructure.Interfaces.Specification;
+﻿using System.Diagnostics;
+using Agrovent.Infrastructure.Interfaces;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
-using Xarial.XCad.SolidWorks.Documents;
-using Xarial.XCad.SolidWorks;
-using System.Diagnostics;
-using System.Windows.Input;
-using AGR_PropManager.Infrastructure.Commands;
-using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Interfaces.Specification;
 
 namespace Agrovent.ViewModels.Specification
 {

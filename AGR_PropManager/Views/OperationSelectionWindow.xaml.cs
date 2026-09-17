@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using AGR_PropManager.ViewModels.Windows;
+using NPOI.HSSF.Record.Chart;
 
 namespace AGR_PropManager.Views
 {
@@ -29,14 +30,15 @@ namespace AGR_PropManager.Views
         {
             InitializeComponent();
             DataContext = viewModel;
-            this.ShowDialog();
 
             // Подписываемся на событие закрытия
             if (viewModel != null)
             {
                 viewModel.CloseRequested += (s, e) => this.Close();
             }
+            this.ShowDialog();
         }
+
     }
 
 }

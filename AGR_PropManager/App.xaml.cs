@@ -8,6 +8,7 @@ using AGR_PropManager.Views;
 using Agrovent.DAL;
 using AGR_PropManager.ViewModels.Windows;
 using Agrovent.DAL.Services.Repositories;
+using AgroventInfrastructure;
 
 namespace AGR_PropManager
 {
@@ -19,15 +20,19 @@ namespace AGR_PropManager
         {
                 var builder = Host.CreateApplicationBuilder(); // Создаем Builder
                 // Настройка конфигурации (если используете appsettings.json)
-                builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                var configuration = builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
+
+                //services.AddSingleton<IConfiguration>(configuration);
+                AGR_Options.Initialize(configuration.Build());
 
                 // Настройка сервисов
                 builder.Services.AddDbContext<DataContext>(options =>
                     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-                builder.Services.AddTransient<UnitOfWork>();
-                builder.Services.AddTransient<IAGR_ComponentRepository, ComponentRepository>();
-                builder.Services.AddTransient<IAGR_TechnologicalProcessRepository, AGR_TechnologicalProcessRepository>();
+                builder.Services.AddScoped<UnitOfWork>();
+                builder.Services.AddScoped<IAGR_ComponentRepository, ComponentRepository>();
+                builder.Services.AddScoped<IAGR_TechnologicalProcessRepository, AGR_TechnologicalProcessRepository>();
 
                 builder.Services.AddTransient<MainWindowViewModel>();
                 builder.Services.AddTransient<MainWindow>();

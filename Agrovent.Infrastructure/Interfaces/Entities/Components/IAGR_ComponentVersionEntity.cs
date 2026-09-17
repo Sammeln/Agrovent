@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-using Agrovent.Infrastructure.Enums;
-using Agrovent.Infrastructure.Interfaces;
+using AgroventInfrastructure.Enums;
 using AgroventInfrastructure.Interfaces.Entities.Projects;
 
 namespace AgroventInfrastructure.Interfaces.Entities.Components

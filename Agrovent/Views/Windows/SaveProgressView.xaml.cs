@@ -22,6 +22,7 @@ namespace Agrovent.Views.Windows
         public SaveProgressView()
         {
             InitializeComponent();
+            Topmost = true;
         }
     }
 }

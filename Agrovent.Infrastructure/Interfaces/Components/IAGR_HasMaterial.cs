@@ -1,4 +1,6 @@
-﻿namespace Agrovent.Infrastructure.Interfaces.Components
+﻿using Agrovent.Infrastructure.Interfaces;
+
+namespace AgroventInfrastructure.Interfaces.Components
 {
     public interface IAGR_HasMaterial
     {

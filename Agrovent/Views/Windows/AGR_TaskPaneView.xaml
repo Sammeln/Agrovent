@@ -66,7 +66,14 @@
                 </Border>
             </Grid>
         </Border>
-        <ContentControl Content="{Binding ActiveView, UpdateSourceTrigger=PropertyChanged}"/>
+        <StackPanel Orientation="Vertical">
+            <ContentControl Content="{Binding ActiveView, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Text="{Binding ActiveUser.Initials}" 
+                       Foreground="Gray" 
+                       FontSize="12" 
+                       Margin="0,5,0,0"
+                       HorizontalAlignment="Left"/>
+        </StackPanel>
         <!-- Индикатор загрузки -->
         <Border Background="#80000000" 
                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">

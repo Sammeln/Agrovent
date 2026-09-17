@@ -8,6 +8,12 @@
         MinWidth="600" MinHeight="400"
         WindowStartupLocation="CenterOwner">
     <Window.Resources>
+        <ResourceDictionary>
+            
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="../Style/PartComponentStyle.xaml"/>
+            <ResourceDictionary Source="../Style/SpecificationStyle.xaml"/>
+        </ResourceDictionary.MergedDictionaries>
         <!-- BoolToVisibilityConverter уже объявлен глобально в App.xaml (используется по всему
              Agrovent, см. AGR_InverseBooleanConverter/оверлеи загрузки). Здесь объявляем только
              два новых конвертера, специфичных для дерева Pack'n'Go. -->
@@ -23,6 +29,20 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Покупные компоненты нельзя переименовывать - блокируем редактирование ячейки
+             "Сохранить как" целиком (IsEnabled=False не даёт войти в режим редактирования)
+             и слегка затемняем её, чтобы было видно, что поле недоступно. -->
+        <Style x:Key="SaveAsNameCellStyle" TargetType="DataGridCell">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ComponentVM.IsPurchased}" Value="True">
+                    <Setter Property="IsEnabled" Value="False"/>
+                    <Setter Property="Background" Value="#F0F0F0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid Margin="10">
@@ -34,6 +54,7 @@
         </Grid.RowDefinitions>
 
         <!-- Табличное представление дерева сборки -->
+        <!-- Табличное представление дерева сборки -->
         <DataGrid Grid.Row="0"
                   ItemsSource="{Binding VisibleNodes}"
                   AutoGenerateColumns="False"
@@ -43,43 +64,48 @@
                   HeadersVisibility="Column"
                   GridLinesVisibility="Horizontal"
                   RowHeaderWidth="0"
+                  
                   SelectionUnit="Cell">
             <DataGrid.Columns>
 
                 <!-- Чекбокс "копировать" -->
-                <DataGridTemplateColumn Header="" Width="34">
+                <!--<DataGridTemplateColumn Header="" Width="34">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="{x:Type vm:AGR_PackNGoNodeVM}">
                             <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
                                       IsChecked="{Binding ComponentVM.IsChecked, Mode=TwoWay}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
+                </DataGridTemplateColumn>-->
 
                 <!-- "Компонент" - имя, с отступом по уровню вложенности и кнопкой раскрытия -->
-                <DataGridTemplateColumn Header="Компонент" Width="260" IsReadOnly="True">
+                <DataGridTemplateColumn Header="Компонент" Width="*" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="{x:Type vm:AGR_PackNGoNodeVM}">
                             <StackPanel Orientation="Horizontal" Margin="{Binding Indent, Converter={StaticResource LeftMarginConverter}}">
-                                <ToggleButton Width="16" Height="16" Margin="0,0,4,0"
+                                <!--<ToggleButton Width="16" Height="16" Margin="0,0,4,0"
                                               Visibility="{Binding HasChildren, Converter={StaticResource BoolToVisibilityConverter}}"
                                               IsChecked="{Binding IsExpanded, Mode=TwoWay}"
-                                              Content="{Binding IsExpanded, Converter={StaticResource ExpandGlyphConverter}}"/>
-                                <TextBlock Text="{Binding ComponentVM.Name}" VerticalAlignment="Center"/>
+                                              Content="{Binding IsExpanded, Converter={StaticResource ExpandGlyphConverter}}"/>-->
+                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <!-- "Сохранить как" - редактируемое имя файла без расширения -->
-                <DataGridTextColumn Header="Сохранить как" Width="260"
+                <!-- "Сохранить как" - редактируемое имя файла без расширения. Для покупных
+                     компонентов ячейка неактивна (см. SaveAsNameCellStyle) - их нельзя переименовывать. -->
+                <DataGridTextColumn Header="Сохранить как" Width="*"
+                                     CellStyle="{StaticResource SaveAsNameCellStyle}"
                                      Binding="{Binding ComponentVM.SaveAsName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
 
-                <!-- PartNumber - только отображение + контекстное меню "Новый" -->
-                <DataGridTemplateColumn Header="PartNumber" Width="140" CellStyle="{StaticResource PartNumberCellStyle}" IsReadOnly="True">
+                <!-- PartNumber - только отображение + контекстное меню "Новый". Для покупных
+                     компонентов значение не показывается вообще (DisplayPartNumber - пустая строка
+                     для них), а пункт "Новый" неактивен (см. SetNewCommand.CanExecute). -->
+                <DataGridTemplateColumn Header="PartNumber" Width="2*" CellStyle="{StaticResource PartNumberCellStyle}" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="{x:Type vm:AGR_PackNGoNodeVM}">
-                            <TextBlock Text="{Binding ComponentVM.PartNumber}" VerticalAlignment="Center" Margin="4,0">
+                            <TextBlock Text="{Binding ComponentVM.DisplayPartNumber}" VerticalAlignment="Center" Margin="4,0">
                                 <TextBlock.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Новый"

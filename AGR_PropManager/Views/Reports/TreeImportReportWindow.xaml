@@ -46,7 +46,7 @@
                   ItemsSource="{Binding ReportData, Mode=OneWay}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
-                  SelectionUnit="Cell"
+                  SelectionMode="Single"
                   VerticalGridLinesBrush="LightGray" GridLinesVisibility="Vertical"
                   Style="{StaticResource PropertiesDataGrid}"
                   HeadersVisibility="Column">

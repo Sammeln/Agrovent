@@ -7,7 +7,7 @@
         xmlns:local="clr-namespace:Agrovent.Views.Windows"
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Windows"
         xmlns:AGR_converter="clr-namespace:AgroventInfrastructure.AGR_Converters;assembly=AgroventInfrastructure"
-        xmlns:enum="clr-namespace:Agrovent.Infrastructure.Enums;assembly=AgroventInfrastructure"
+        xmlns:enum="clr-namespace:AgroventInfrastructure.Enums;assembly=AgroventInfrastructure"
         xmlns:system="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:AGR_SaveConfirmationVM, IsDesignTimeCreatable=False}"

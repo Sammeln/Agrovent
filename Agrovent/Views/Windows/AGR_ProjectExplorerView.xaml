@@ -1,4 +1,4 @@
-﻿<Window x:Class="Agrovent.Views.Windows.AGR_ProjectExplorerView"
+<Window x:Class="Agrovent.Views.Windows.AGR_ProjectExplorerView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -7,11 +7,13 @@
         xmlns:local="clr-namespace:Agrovent.Views.Windows"
         xmlns:tree="clr-namespace:Agrovent.ViewModels.Tree"
         xmlns:vm="clr-namespace:Agrovent.ViewModels.Windows"
-        xmlns:bb="clr-namespace:Agrovent.Infrastructure.Behaviours"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:AGR_ProjectExplorerVM, IsDesignTimeCreatable=True}"
         Title="Проводник проектов" Height="600" Width="800"
         ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -20,38 +22,44 @@
 
         <!-- Панель инструментов -->
         <ToolBar Grid.Row="0" ToolBarTray.IsLocked="True">
-            <Button Content="Загрузить" Command="{Binding LoadProjectsCommand}" />
-            <Button Content="Добавить папку" Command="{Binding AddFolderCommand}"/>
+            <Button Content="Обновить" Command="{Binding LoadProjectsCommand}" />
             <Separator />
-            <Button Content="Удалить" Command="{Binding DeleteNodeCommand}"/>
-            <Button Content="Переименовать" Command="{Binding RenameNodeCommand}"/>
+            <Button Content="Новый проект" Command="{Binding AddFolderCommand}"
+                    ToolTip="Создать проект в выбранной папке (или в корне, если ничего не выбрано)"/>
+            <Button Content="Переименовать" Command="{Binding RenameNodeCommand}" CommandParameter="{Binding SelectedNode}"/>
+            <Button Content="Удалить" Command="{Binding DeleteNodeCommand}" CommandParameter="{Binding SelectedNode}"/>
         </ToolBar>
 
         <!-- TreeView -->
-        <TreeView Grid.Row="1" x:Name="ProjectsTreeView" ItemsSource="{Binding RootNodes}">
+        <TreeView Grid.Row="1" x:Name="ProjectsTreeView" ItemsSource="{Binding RootNodes}"
+                  AllowDrop="True">
             <i:Interaction.Triggers>
-                <!-- Привязываем событие SelectedItemChanged к команде в VM -->
                 <i:EventTrigger EventName="SelectedItemChanged">
                     <i:InvokeCommandAction Command="{Binding SelectNodeCommand}" PassEventArgsToCommand="True" />
                 </i:EventTrigger>
             </i:Interaction.Triggers>
             <TreeView.Resources>
-                <!-- Template для ProjectNode -->
+                <!-- Template для ProjectNode (в т.ч. виртуального корня "Несортированное") -->
                 <HierarchicalDataTemplate DataType="{x:Type tree:AGR_ProjectNode}" ItemsSource="{Binding Children}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="📁 " />
-                        <!-- Иконка папки -->
-                        <TextBlock Text="{Binding DatabaseId}"/>
-                        <TextBlock Text=" "/>
-                        <TextBlock Text="{Binding Name}" />
+                        <TextBlock x:Name="FolderIcon" Text="📁 " />
+                        <TextBlock x:Name="FolderName" Text="{Binding Name}" />
                     </StackPanel>
+                    <HierarchicalDataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsUnsortedRoot}" Value="True">
+                            <Setter TargetName="FolderIcon" Property="Text" Value="🗂 "/>
+                            <Setter TargetName="FolderName" Property="FontStyle" Value="Italic"/>
+                        </DataTrigger>
+                    </HierarchicalDataTemplate.Triggers>
                 </HierarchicalDataTemplate>
                 <!-- Template для ComponentNode -->
                 <DataTemplate DataType="{x:Type tree:AGR_ComponentNode}">
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" ToolTip="{Binding PartNumber}">
                         <TextBlock Text="🧩 " />
-                        <!-- Иконка компонента -->
                         <TextBlock Text="{Binding Name}" />
+                        <TextBlock Text=" (вер. " Foreground="Gray"/>
+                        <TextBlock Text="{Binding Version}" Foreground="Gray"/>
+                        <TextBlock Text=")" Foreground="Gray"/>
                     </StackPanel>
                 </DataTemplate>
             </TreeView.Resources>
@@ -59,9 +67,41 @@
                 <Style TargetType="{x:Type TreeViewItem}">
                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
                     <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
-                    <!-- Контекстное меню можно добавить здесь -->
+                    <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TreeViewItem_PreviewMouseLeftButtonDown"/>
+                    <EventSetter Event="PreviewMouseMove" Handler="TreeViewItem_PreviewMouseMove"/>
+                    <EventSetter Event="Drop" Handler="TreeViewItem_Drop"/>
+                    <EventSetter Event="DragOver" Handler="TreeViewItem_DragOver"/>
+                    <EventSetter Event="MouseDoubleClick" Handler="TreeViewItem_MouseDoubleClick"/>
+                    <Setter Property="AllowDrop" Value="True"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background" Value="#DCE8F5"/>
+                        </Trigger>
+                    </Style.Triggers>
                 </Style>
             </TreeView.ItemContainerStyle>
+            <TreeView.ContextMenu>
+                <!-- ContextMenu - отдельный визуальный корень, DataContext через PlacementTarget -->
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <MenuItem Header="Открыть" Command="{Binding OpenComponentCommand}" CommandParameter="{Binding SelectedNode}" FontWeight="Bold"/>
+                    <MenuItem Header="Скопировать в проект..." Command="{Binding CopyToProjectCommand}" CommandParameter="{Binding SelectedNode}"/>
+                    <Separator/>
+                    <MenuItem Header="Новый проект" Command="{Binding AddFolderCommand}"/>
+                    <MenuItem Header="Переименовать" Command="{Binding RenameNodeCommand}" CommandParameter="{Binding SelectedNode}"/>
+                    <MenuItem Header="Удалить" Command="{Binding DeleteNodeCommand}" CommandParameter="{Binding SelectedNode}"/>
+                    <Separator/>
+                    <MenuItem Header="Обновить" Command="{Binding LoadProjectsCommand}"/>
+                </ContextMenu>
+            </TreeView.ContextMenu>
         </TreeView>
+
+        <!-- Оверлей загрузки: окно открывается сразу, дерево грузится асинхронно -->
+        <Grid Grid.Row="0" Grid.RowSpan="2" Background="#AAFFFFFF"
+              Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="12" Margin="0,0,0,8"/>
+                <TextBlock Text="{Binding LoadingStatus}" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

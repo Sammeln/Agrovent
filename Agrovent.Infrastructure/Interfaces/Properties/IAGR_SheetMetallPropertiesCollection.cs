@@ -1,6 +1,6 @@
 ﻿using Xarial.XCad.Data;
 
-namespace Agrovent.Infrastructure.Interfaces.Properties
+namespace AgroventInfrastructure.Interfaces.Properties
 {
     public interface IAGR_SheetMetallPropertiesCollection : IAGR_PropertiesCollection
     {

@@ -1,19 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO;
 using System.Windows.Media.Imaging;
 using Agrovent.ViewModels.Base;
-using System.Runtime.InteropServices;
-using System.Windows.Input;
-using System.Windows;
-using Agrovent.Infrastructure.Commands;
-using AgroventInfrastructure.Interfaces.Entities.Components;
+using AgroventInfrastructure;
 using AgroventInfrastructure.Entities.Components;
-using Agrovent.Infrastructure;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Components;
+using AgroventInfrastructure.Interfaces.Entities.Components;
 
 namespace Agrovent.ViewModels.Components
 {
@@ -67,8 +59,8 @@ namespace Agrovent.ViewModels.Components
         {
             get
             {
-                if (_entity?.AvaType == Infrastructure.Enums.AGR_AvaType_e.Component
-                    || _entity?.AvaType == Infrastructure.Enums.AGR_AvaType_e.Production) return _entity.Component?.PartNumber;
+                if (_entity?.AvaType == AGR_AvaType_e.Component
+                    || _entity?.AvaType == AGR_AvaType_e.Production) return _entity.Component?.PartNumber;
                 return "";
             }
         }

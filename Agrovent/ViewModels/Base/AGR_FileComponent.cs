@@ -1,7 +1,8 @@
 ﻿using System.IO;
 using Agrovent.Infrastructure;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Interfaces.Components;
+using AgroventInfrastructure;
+using AgroventInfrastructure.Interfaces.Components;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Base

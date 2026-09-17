@@ -1,8 +1,8 @@
 ﻿using Xarial.XCad.Documents.Enums;
 using Xarial.XCad.Documents;
 using Xarial.XCad.Data;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Enums;
 
 namespace Agrovent.Infrastructure.Extensions
 {
@@ -14,7 +14,7 @@ namespace Agrovent.Infrastructure.Extensions
 
             try
             {
-                enumer = repo.GetEnumerator();
+                enumer = repo?.GetEnumerator();
             }
             catch
             {
@@ -49,6 +49,7 @@ namespace Agrovent.Infrastructure.Extensions
                 if (!state.HasFlag(ComponentState_e.Suppressed) &&
                     !state.HasFlag(ComponentState_e.SuppressedIdMismatch) &&
                     !state.HasFlag(ComponentState_e.ExcludedFromBom) &&
+                    !state.HasFlag(ComponentState_e.Envelope) &&
                     !state.HasFlag(ComponentState_e.Embedded)
                     )
                 {
@@ -81,11 +82,20 @@ namespace Agrovent.Infrastructure.Extensions
                     children = null;
                 }
 
-                if (children != null)
+
+                if (!state.HasFlag(ComponentState_e.Suppressed) &&
+                    !state.HasFlag(ComponentState_e.SuppressedIdMismatch) &&
+                    !state.HasFlag(ComponentState_e.ExcludedFromBom) &&
+                    !state.HasFlag(ComponentState_e.Envelope) &&
+                    !state.HasFlag(ComponentState_e.Embedded)
+                    )
                 {
-                    foreach (var subComp in AGR_TryFlatten(children))
+                    if (children != null && children?.Count != 0)
                     {
-                        yield return subComp;
+                        foreach (var subComp in AGR_TryFlatten(children))
+                        {
+                            yield return subComp;
+                        }
                     }
                 }
             }

@@ -8,8 +8,8 @@
         xmlns:vmComp="clr-namespace:AGR_PropManager.ViewModels.Components"
         xmlns:vmWindows="clr-namespace:AGR_PropManager.ViewModels.Windows"
         xmlns:b="clr-namespace:AGR_PropManager.Infrastructure.Behaviors"
-        xmlns:AGR_Behavors="clr-namespace:Agrovent.Infrastructure.Behaviors;assembly=AgroventInfrastructure"
-        xmlns:enums="clr-namespace:Agrovent.Infrastructure.Enums;assembly=AgroventInfrastructure"
+        xmlns:AGR_Behavors="clr-namespace:AgroventInfrastructure.Behaviors;assembly=AgroventInfrastructure"
+        xmlns:enums="clr-namespace:AgroventInfrastructure.Enums;assembly=AgroventInfrastructure"
         xmlns:AGR_converter="clr-namespace:AgroventInfrastructure.AGR_Converters;assembly=AgroventInfrastructure"
         mc:Ignorable="d"
         Title="Редактор технологического процесса"
@@ -121,9 +121,12 @@
                 </Menu>
                 <Menu Grid.Row="0">
                     <MenuItem Header="_Отчеты">
-                        <MenuItem Header="Отчет импорта классификатора" Command="{Binding ShowImportClassifierReportCommand}" />
-                        <MenuItem Header="Отчет импорта дерева" Command="{Binding ShowTreeImportReportCommand}" />
-                        <MenuItem Header="Отчет импорта техопераций" Command="{Binding ShowTechOpsImportReportCommand}" />
+                        <MenuItem Header="Импорт классификатора" Command="{Binding ShowImportClassifierReportCommand}" />
+                        <MenuItem Header="Импорт полного классификатора" Command="{Binding ShowImportFullClassifierReportCommand}" />
+                        <MenuItem Header="Импорт дерева" Command="{Binding ShowTreeImportReportCommand}" />
+                        <MenuItem Header="Импорт техопераций" Command="{Binding ShowTechOpsImportReportCommand}" />
+
+                        
                     </MenuItem>
                 </Menu>
             </ToolBar>

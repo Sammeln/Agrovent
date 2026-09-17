@@ -2,7 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 
-namespace Agrovent.Infrastructure.Behaviors
+namespace AgroventInfrastructure.Behaviors
 {
     public static class AGR_DataGridSelectedItemsBehavior
     {

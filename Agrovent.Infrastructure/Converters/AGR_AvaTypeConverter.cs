@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Data;
-using Agrovent.Infrastructure.Enums;
 using AgroventInfrastructure.Enums;
 
 namespace AgroventInfrastructure.AGR_Converters

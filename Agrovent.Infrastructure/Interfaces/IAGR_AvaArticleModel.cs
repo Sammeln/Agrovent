@@ -1,4 +1,4 @@
-﻿namespace Agrovent.Infrastructure.Interfaces
+﻿namespace AgroventInfrastructure.Interfaces
 {
     public interface IAGR_AvaArticleModel
     {

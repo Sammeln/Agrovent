@@ -1,5 +1,5 @@
 ﻿using Agrovent.DAL;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.ViewModels.Base;

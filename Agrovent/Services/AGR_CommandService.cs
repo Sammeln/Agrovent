@@ -1,29 +1,29 @@
 ﻿// File: Services/AGR_CommandService.cs
+using System.IO;
+using System.Windows;
+using System.Windows.Threading;
 using Agrovent.DAL; // Для IUnitOfWork
-using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions; // Для AGR_TryGetProp и т.д.
 using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.PackNGo;
 using Agrovent.ViewModels.Specification; // Для AGR_SpecificationViewModel
-using Agrovent.ViewModels.TaskPane;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
+using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
-using System.IO;
-using System.Reflection;
-using System.Threading;
-using System.Windows;
 using Xarial.XCad.Base;
 using Xarial.XCad.Data;
 using Xarial.XCad.Documents;
 using Xarial.XCad.Documents.Extensions;
+using Xarial.XCad.Documents.Structures;
 using Xarial.XCad.SolidWorks;
 using Xarial.XCad.SolidWorks.Documents;
 
@@ -212,35 +212,33 @@ namespace Agrovent.Services
         {
             try
             {
-                _logger.LogDebug("Открытие окна проводника компонентов");
+                _logger.LogDebug("Открытие окна проводника проектов");
 
-                // Получаем ViewModel из DI контейнера
-                var projectTreeVM = AGR_ServiceContainer.GetService<AGR_ProjectExplorerVM>();
-                if (projectTreeVM == null)
-                {
-                    _logger.LogError("Не удалось получить AGR_ComponentRegistryVM из DI контейнера.");
-                    return false;
-                }
-                projectTreeVM.LoadProjectsCommand.Execute(null);
+                var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+                var vmLogger = _serviceProvider.GetRequiredService<ILogger<AGR_ProjectExplorerVM>>();
 
-                // Создаем View и устанавливаем DataContext
+                var projectTreeVM = new AGR_ProjectExplorerVM(scopeFactory, vmLogger);
+                _ = projectTreeVM.LoadProjectsAsync();
+
                 var projectTreeView = new AGR_ProjectExplorerView
                 {
                     DataContext = projectTreeVM,
-                    Title = "Дерево компонентов",
+                    Title = "Проводник проектов",
                     Width = 1200,
                     Height = 800,
                     ResizeMode = ResizeMode.CanResizeWithGrip
                 };
+                projectTreeVM.CloseRequested += (s, e) => projectTreeView.Close();
 
-                // Открываем окно (модально или немодально)
-                projectTreeView.ShowDialog(); // или window.Show(); для немодального окна
+                projectTreeView.ShowDialog();
 
+
+                projectTreeView.ShowDialog();
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при открытии окна проводника компонентов");
+                _logger.LogError(ex, "Ошибка при открытии окна проводника проектов");
                 return false;
             }
         }
@@ -324,7 +322,7 @@ namespace Agrovent.Services
                         DataContext = confirmationVM,
                         ShowInTaskbar = true,
                         Title = $"Сохранение {component.Name}"
-                        
+
                     };
 
 
@@ -492,12 +490,8 @@ namespace Agrovent.Services
 
                 IAGR_BaseComponent component = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
 
-                if (activeDoc is ISwAssembly)
-                {
                     await _componentVersionService.CopyFilesToProdAsync(component, component.CalculateComponentHash());
                     return true;
-                }
-                return false;
 
             }
             catch (Exception ex)
@@ -567,10 +561,11 @@ namespace Agrovent.Services
 
                 // 1. Создаем источник токена отмены
                 using var cts = new CancellationTokenSource();
-                progressVM.CancelationToken = cts;
 
                 // --- Показываем окно прогресса ---
                 progressVM.LogMessages.Clear();
+                progressVM.IsFinished = false;
+                progressVM.CancelationToken = cts;
                 progressVM.AddLogMessage($"Начало обновления чертежей. Компонентов для проверки: {distinctModelPaths.Count}");
 
                 var progressDialog = new SaveProgressView
@@ -591,7 +586,7 @@ namespace Agrovent.Services
                 {
                     foreach (var modelPath in distinctModelPaths)
                     {
-                        if (cts.Token.IsCancellationRequested)
+                        if (progressVM.CancelationToken.IsCancellationRequested)
                         {
                             isCanceled = true;
                             break; // Выходим из цикла
@@ -632,7 +627,13 @@ namespace Agrovent.Services
 
                         // 3. ВАЖНО: Возвращаем управление UI-потоку, чтобы окно могло обработать нажатие кнопки "Закрыть"
                         // и обновить интерфейс. Без этого цикл может "заморозить" окно.
-                        await Task.Delay(1, cts.Token);
+                        await Dispatcher.Yield(DispatcherPriority.Input);
+
+                        if (cts.Token.IsCancellationRequested)
+                        {
+                            isCanceled = true;
+                            break;
+                        }
                     }
 
                     // 4. Формируем итоговый отчет
@@ -785,6 +786,60 @@ namespace Agrovent.Services
                     return false;
                 }
 
+                model.Extension.LoadDraftingStandard(@"\\192.168.10.1\kd\DataFiles\Форматки\Агровент.sldstd");
+
+                var sheetCollection = (drawingDoc as ISwDrawing)?.Sheets;
+
+                if (sheetCollection != null && sheetCollection.Count > 0)
+                {
+                    foreach (var sheet in sheetCollection)
+                    {
+                        var width = sheet.PaperSize.Width;
+                        var height = sheet.PaperSize.Height;
+                        bool isFirstSheet = sheet.Name.Contains("Лист1") || sheet.Name.Contains("Sheet1");
+                        string templateName = string.Empty;
+
+                        switch (sheet.PaperSize.StandardPaperSize)
+                        {
+                            case Xarial.XCad.Documents.Enums.StandardPaperSize_e.A4Landscape:
+                                templateName = "А4-1 (Альбомный).slddrt";
+                            break;
+                            case Xarial.XCad.Documents.Enums.StandardPaperSize_e.A4Portrait:
+                                if (isFirstSheet) templateName = "А4-1 (1С).slddrt";
+                                else templateName = "А4-2 (1С).slddrt";
+                            break;
+                            case Xarial.XCad.Documents.Enums.StandardPaperSize_e.A3Landscape:
+                                if (isFirstSheet) templateName = "А3-1 (1С).slddrt";
+                                else templateName = "А3-2 (1С).slddrt";
+                            break;
+                            case Xarial.XCad.Documents.Enums.StandardPaperSize_e.A2Landscape:
+                                if (isFirstSheet) templateName = "А2-1 (1С).slddrt";
+                                else templateName = "А2-2 (1С).slddrt";
+                            break;
+                            case Xarial.XCad.Documents.Enums.StandardPaperSize_e.A1Landscape:
+                                if (isFirstSheet) templateName = "А1-1 (1С).slddrt";
+                                else templateName = "А1-2 (1С).slddrt";
+                            break;
+                            default:
+                            break;
+                        }
+
+                            (model as DrawingDoc).SetupSheet5(
+                                Name: sheet.Name,
+                                PaperSize: 12,
+                                TemplateIn: 12,
+                                Scale1: sheet.Scale.Numerator,
+                                Scale2: sheet.Scale.Denominator,
+                                FirstAngle: true,
+                                TemplateName: templateName,
+                                Width: width,
+                                Height: height,
+                                PropertyViewName: "По умолчанию",
+                                RemoveModifiedNotes: true
+                                );
+                    }
+                }
+
                 model.ForceRebuild3(false);
 
                 int errors = 0;
@@ -844,7 +899,7 @@ namespace Agrovent.Services
             var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
             var vmLogger = _serviceProvider.GetRequiredService<ILogger<AGR_PackNGoVM>>();
 
-            var vm = new AGR_PackNGoVM(rootComponent, _swApp, scopeFactory, vmLogger);
+            var vm = new AGR_PackNGoVM(rootComponent, _swApp, vmLogger);
             var window = new AGR_PackNGoWindow
             {
                 DataContext = vm

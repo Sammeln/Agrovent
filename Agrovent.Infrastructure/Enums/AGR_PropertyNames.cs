@@ -1,4 +1,4 @@
-﻿namespace Agrovent.Infrastructure.Enums
+﻿namespace AgroventInfrastructure.Enums
 {
     public static class AGR_PropertyNames
     {

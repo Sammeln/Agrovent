@@ -1,14 +1,7 @@
 ﻿// File: ViewModels/Reports/TreeImportReportViewModel.cs
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Input;
 using AGR_PropManager.Infrastructure.Commands;
@@ -16,21 +9,12 @@ using AGR_PropManager.ViewModels.Base;
 using AGR_PropManager.ViewModels.Components;
 using AGR_PropManager.ViewModels.Reports.Interfaces;
 using Agrovent.DAL;
-using Agrovent.Infrastructure;
-using Agrovent.Infrastructure.Enums;
+using AgroventInfrastructure.Enums;
 using AgroventInfrastructure.Entities.Components;
-using AgroventInfrastructure.Interfaces.Entities.Components;
-using MathNet.Numerics;
-using MathNet.Numerics.LinearAlgebra.Factorization;
-
-
-
-//using Microsoft.Win32;
 using NPOI.HSSF.UserModel;
-using NPOI.POIFS.FileSystem;
-using NPOI.POIFS.Properties;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
+using AgroventInfrastructure;
 
 namespace AGR_PropManager.ViewModels.Reports
 {
@@ -63,6 +47,19 @@ namespace AGR_PropManager.ViewModels.Reports
         private readonly string _mainProductName; // Name for the filename
         private string FilePath = string.Empty;
 
+        #endregion
+
+        #region IsExcelSaved
+
+        /// <summary>
+        /// Свойство для отображения сохранен ли отчет в эксель
+        /// </summary>
+        private bool _IsExcelSaved = false;
+        public bool IsExcelSaved
+        {
+            get => _IsExcelSaved;
+            set => Set(ref _IsExcelSaved, value);
+        }
         #endregion
 
         #region Constructor
@@ -102,6 +99,7 @@ namespace AGR_PropManager.ViewModels.Reports
         private void OnExportToExcelCommandExecuted(object p)
         {
             GenerateAndSaveExcel();
+            IsExcelSaved = true;
             CloseWindow();
         }
         #endregion 
@@ -140,7 +138,7 @@ namespace AGR_PropManager.ViewModels.Reports
                         MainArtName = parent.Name,
                         ChildName = child.Name,
                         MainPartNumber = parent.Component.PartNumber ?? "",
-                        MainArticleAVA = parent.AvaArticle?.Article.ToString() ?? "",
+                        MainArticleAVA = parent.AvaArticleArticle.ToString() ?? "",
                         Quantity = entry.Quantity,
 
                         ChildPartNumber = child.ComponentType == AGR_ComponentType_e.Purchased ? "" : child.Component.PartNumber,
@@ -148,7 +146,15 @@ namespace AGR_PropManager.ViewModels.Reports
                     };
                     if (reportItem.Child.ComponentType == AGR_ComponentType_e.Purchased)
                     {
-                        reportItem.ChildUnit = child.AvaArticle?.MainUOM ?? "";
+                        if (child.AvaArticle?.MainUOM == "Штука" || child.AvaArticle?.SecondaryUOM == "Штука")
+                        {
+                            reportItem.ChildUnit = "Штука";
+                        }
+                        else
+                        {
+                            reportItem.ChildUnit = child.AvaArticle?.MainUOM ?? "";
+                        }
+
                         reportItem.ChildType = "";
                     }
                     else
@@ -218,7 +224,7 @@ namespace AGR_PropManager.ViewModels.Reports
 
                     }
                     // 4. Проверка наличия операции "покраска" в техпроцессе
-                    bool hasPainting = HasPaintingOperation(part);
+                    bool hasPainting = HasPaintingOperation(part) || part.Material?.HasPaint == true;
 
                     // Если есть покраска, добавляем дополнительную строку
                     if (hasPainting)
@@ -334,7 +340,7 @@ namespace AGR_PropManager.ViewModels.Reports
 
                 }
                 // 4. Проверка наличия операции "покраска" в техпроцессе
-                bool hasPainting = HasPaintingOperation(part);
+                bool hasPainting = HasPaintingOperation(part) || part.Material?.HasPaint == true;
 
                 // Если есть покраска, добавляем дополнительную строку
                 if (hasPainting)
@@ -421,7 +427,7 @@ namespace AGR_PropManager.ViewModels.Reports
 
                         // Create header row
                         IRow headerRow = sheet.CreateRow(0);
-                        headerRow.CreateCell(0).SetCellValue("Наименование главного артикула");
+                        headerRow.CreateCell(0).SetCellValue("//Наименование главного артикула");
                         headerRow.CreateCell(1).SetCellValue("Part Number главного артикула");
                         headerRow.CreateCell(2).SetCellValue("Part Number child");
                         headerRow.CreateCell(3).SetCellValue("Наименование child");

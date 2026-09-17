@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Infrastructure.Interfaces.Properties;
-using Agrovent.Infrastructure.Interfaces.Specification;
+using AgroventInfrastructure.Interfaces.Components.Base;
+using AgroventInfrastructure.Interfaces.Properties;
+using AgroventInfrastructure.Interfaces.Specification;
 
-namespace Agrovent.Infrastructure.Interfaces.Components
+namespace AgroventInfrastructure.Interfaces.Components
 {
     public interface IAGR_Assembly : IAGR_BaseComponent
     {

@@ -4,27 +4,19 @@ using System.IO;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
-using AGR_PropManager;
-using AGR_PropManager.ViewModels.Components;
 using Agrovent.DAL;
 using Agrovent.Infrastructure.Commands;
-using Agrovent.Infrastructure.Enums;
 using Agrovent.Infrastructure.Extensions;
-using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Interfaces.Components;
-using Agrovent.Infrastructure.Interfaces.Components.Base;
-using Agrovent.Infrastructure.Interfaces.Specification;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
 using AgroventInfrastructure.Enums;
-using ICSharpCode.SharpZipLib.Zip;
+using AgroventInfrastructure.Interfaces;
+using AgroventInfrastructure.Interfaces.Components.Base;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Xarial.XCad.Base.Enums;
-using Xarial.XCad.Documents;
 using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Specification
@@ -633,7 +625,9 @@ namespace Agrovent.ViewModels.Specification
                 // 2. Для каждого компонента, выполнить поиск по Article и обновить VM
                 foreach (var specItem in componentsToSearch)
                 {
-                    int articleNumber = int.Parse(specItem.Component.Article); // Уже проверено на HasValue
+                    int articleNumber;
+                    int.TryParse(specItem.Component.Article, out articleNumber); // Уже проверено на HasValue
+
                     //_logger.LogDebug($"Поиск AvaArticle для компонента {specItem.PartNumber} по Article {articleNumber}.");
 
                     var avaArticleModel = await _unitOfWork.ComponentRepository.GetAvaArticleByArticleNumberAsync(articleNumber);

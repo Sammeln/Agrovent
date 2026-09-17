@@ -1,25 +1,19 @@
-﻿using Agrovent.Infrastructure.Commands;
-using System.Diagnostics;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Windows.Input;
-using Agrovent.Infrastructure.Enums;
+using Agrovent.DAL;
+using Agrovent.Infrastructure.Commands;
+using Agrovent.Infrastructure.Extensions;
 using Agrovent.Infrastructure.Interfaces;
-using Agrovent.Infrastructure.Interfaces.Components;
-using Agrovent.Infrastructure.Interfaces.Properties;
-using Agrovent.Services;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Properties;
-using Xarial.XCad.Data;
-using Xarial.XCad.SolidWorks.Documents;
-using System.IO;
-using Xarial.XCad.Documents;
-using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.Extensions.Logging;
-using System.Globalization;
-using Agrovent.DAL;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
-using Agrovent.Infrastructure.Extensions;
 using AgroventInfrastructure.Enums;
+using AgroventInfrastructure.Interfaces.Components;
+using Microsoft.Extensions.Logging;
+using Xarial.XCad.Data;
+using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.ViewModels.Components
 {
