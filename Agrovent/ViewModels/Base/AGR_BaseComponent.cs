@@ -453,7 +453,7 @@ namespace Agrovent.ViewModels.Base
                     {
                         foreach (var item in assembly.GetChildComponents())
                         {
-                            hash += item.Component.CalculateComponentHash();
+                            hash += item.Component.CalculateComponentHash() * item.Quantity;
                         }
                     }
                 }

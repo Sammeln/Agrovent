@@ -20,6 +20,7 @@ using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SolidWorks.Interop.sldworks;
 using Xarial.XCad.Base;
 using Xarial.XCad.Documents;
 using Xarial.XCad.Documents.Extensions;
@@ -35,6 +36,8 @@ namespace Agrovent.ViewModels.TaskPane
         private readonly IServiceScopeFactory _scopeFactory;
         private static readonly AGR_AvaTypeConverter _avaTypeConverter = new AGR_AvaTypeConverter();
         private static readonly AGR_ComponentTypeConverter _componentTypeConverter = new AGR_ComponentTypeConverter();
+        private readonly ISwApplication _app;
+
 
         #region CTOR
         public AGR_ComponentRegistryTaskPaneVM(
@@ -45,6 +48,9 @@ namespace Agrovent.ViewModels.TaskPane
             _componentRepository = componentRepository ?? throw new ArgumentNullException(nameof(componentRepository));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
+            _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
+
+            (_app.Sw as SldWorks).ReferenceNotFoundNotify += AGR_ComponentRegistryTaskPaneVM_ReferenceNotFoundNotify;
 
             // Инициализация CollectionViewSource
             RegistryItemsView = CollectionViewSource.GetDefaultView(RegistryItems);
@@ -72,6 +78,11 @@ namespace Agrovent.ViewModels.TaskPane
 
             // Загружаем данные при создании VM (или вызывайте LoadDataCommand извне)
             // Task.Run(async () => await LoadDataAsync()); // Не рекомендуется запускать асинхронный код в конструкторе
+        }
+
+        private int AGR_ComponentRegistryTaskPaneVM_ReferenceNotFoundNotify(string FileName)
+        {
+            return 0;
         }
 
         public AGR_ComponentRegistryTaskPaneVM()
@@ -117,6 +128,7 @@ namespace Agrovent.ViewModels.TaskPane
 
                 // Обновляем фильтр, если был текст поиска
                 RegistryItemsView.Refresh();
+
             }
             catch (Exception ex)
             {
@@ -389,6 +401,18 @@ namespace Agrovent.ViewModels.TaskPane
         // Коллекция для хранения данных
         private ObservableCollection<AGR_ComponentRegistryItemVM> _registryItems = new();
         public ObservableCollection<AGR_ComponentRegistryItemVM> RegistryItems => _registryItems;
+
+        private AGR_ComponentRegistryItemVM _SelectedItem;
+
+        public AGR_ComponentRegistryItemVM SelectedItem
+        {
+            get => _SelectedItem;
+            set 
+            {
+                Set(ref _SelectedItem, value); 
+            }
+        }
+
 
         // View для фильтрации
         public ICollectionView RegistryItemsView { get; }

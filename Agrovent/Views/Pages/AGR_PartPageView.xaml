@@ -92,20 +92,6 @@
                                 </ComboBox>
                             </DockPanel>
 
-                            <!-- Partnumber -->
-                            <DockPanel Style="{StaticResource PropertyGroupStyle}"
-                               Visibility="{Binding ComponentType,Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
-                                <TextBlock Text="Partnumber:" Style="{StaticResource PropertyLabelStyle}"/>
-                                <TextBox Text="{Binding PartNumber, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ModernTextBox}">
-                                    <TextBox.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Создать новый" Command="{Binding SetNewPartnumberCommand}"/>
-                                        </ContextMenu>
-                                    </TextBox.ContextMenu>
-                                </TextBox>
-                            </DockPanel>
-
                             <!-- Артикул -->
                             <DockPanel Style="{StaticResource PropertyGroupStyle}">
                                 <TextBlock Text="Артикул:" Style="{StaticResource PropertyLabelStyle}"/>
@@ -126,6 +112,20 @@
                                         <Button Grid.Column="1" Content=". . ." Command="{Binding SelectAvaArticleCommand}"/>
                                     </Grid>
                                 </Border>
+                            </DockPanel>
+
+                            <!-- Partnumber -->
+                            <DockPanel Style="{StaticResource PropertyGroupStyle}"
+                               Visibility="{Binding ComponentType,Converter={StaticResource ComponentTypeToVisibilityConverter}, ConverterParameter=False}">
+                                <TextBlock Text="Partnumber:" Style="{StaticResource PropertyLabelStyle}"/>
+                                <TextBox Text="{Binding PartNumber, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ModernTextBox}">
+                                    <TextBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Создать новый" Command="{Binding SetNewPartnumberCommand}"/>
+                                        </ContextMenu>
+                                    </TextBox.ContextMenu>
+                                </TextBox>
                             </DockPanel>
 
                             <!-- Версия -->

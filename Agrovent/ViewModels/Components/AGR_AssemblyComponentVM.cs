@@ -15,6 +15,7 @@ using AgroventInfrastructure.Interfaces.Components;
 using AgroventInfrastructure.Interfaces.Components.Base;
 using AgroventInfrastructure.Interfaces.Specification;
 using Microsoft.Extensions.Logging;
+using Xarial.XCad.Documents;
 using Xarial.XCad.Documents.Enums;
 using Xarial.XCad.SolidWorks.Documents;
 
@@ -134,9 +135,10 @@ namespace Agrovent.ViewModels.Components
             {
                 // Получаем все компоненты (плоский список)
                 //var flatComponents = (mDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents();
-                var flatComponents = (SwDocument as ISwAssembly).Configurations.Active.Components.AGR_TryFlatten().AGR_BaseComponents(onlyActive);
+                var flatComponents = (SwDocument as ISwAssembly).Configurations.Active.Components.TryFlatten();
+                var flatBaseComponents = flatComponents.AGR_BaseComponents(onlyActive);
                 // Группируем и создаем SpecificationItemVM для плоского списка
-                var groupedFlat = flatComponents
+                var groupedFlat = flatBaseComponents
                     .GroupBy(c => new { c.Name, c.ConfigName, c.Extension })
                     .Select(g => new AGR_SpecificationItemVM(g.First(), g.Count()));
                 return groupedFlat;

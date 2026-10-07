@@ -442,7 +442,9 @@ namespace Agrovent.Services
                 if (activeDoc is ISwAssembly)
                 {
                     await _componentVersionService.CopyFilesToStorageAsync(component, component.CalculateComponentHash());
+                    AGR_Helper.ShowMessage($"Копирование успешно выполнено", Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info, Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
                     return true;
+
                 }
                 return false;
 
@@ -450,6 +452,7 @@ namespace Agrovent.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Неожиданная ошибка при вызове CopyFilesToStorageAsync");
+                AGR_Helper.ShowMessage("Неожиданная ошибка при вызове CopyFilesToStorageAsync", Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error, Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
                 var swAppFallback = AGR_ServiceContainer.GetService<ISwApplication>();
                 if (swAppFallback != null)
                 {

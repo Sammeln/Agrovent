@@ -513,6 +513,16 @@ namespace Agrovent.ViewModels.Specification
 
         private void OnSetAvaArticleExecuted(object p)
         {
+            if (p.ToString() == "NoArticle")
+            {
+                foreach (var item in SelectedComponents)
+                {
+                    item.AvaArticle = null;
+                }
+                DeselectAllComponents();
+                return;
+            }
+
             var comp = SelectedComponents.FirstOrDefault() ?? Components.FirstOrDefault(x => x.IsSelected);
             if (comp == null) return;
 

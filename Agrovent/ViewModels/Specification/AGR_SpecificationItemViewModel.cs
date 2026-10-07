@@ -40,6 +40,7 @@ namespace Agrovent.ViewModels.Specification
             }
             _AvaArticle = _component.AvaArticle;
             _ComponentAvaType = _component.AvaType;
+            _PartNumber = _component.PartNumber;
         }
 
         #region Property - IsSelected
@@ -52,7 +53,26 @@ namespace Agrovent.ViewModels.Specification
         #endregion 
         public string Name => _component.Name;
         public string ConfigName => _component.ConfigName;
-        public string PartNumber => _component.PartNumber;
+        //public string PartNumber => _component.PartNumber;
+        #region PartNumber
+
+        private string _PartNumber;
+        public string PartNumber
+        {
+            get => _PartNumber;
+            set 
+            {
+                if( Set(ref _PartNumber, value))
+                {
+                    _component.PartNumber = value;
+                    OnPropertyChanged(nameof(PartNumber));
+                   OnPropertyChanged(nameof(PartnumberOrArticle));
+                }
+            }
+        }
+
+        #endregion
+
         public int Quantity => _quantity;
         public AGR_ComponentType_e ComponentType
         {

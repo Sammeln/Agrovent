@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Collections.Specialized;
+using Microsoft.Xaml.Behaviors;
 
 
 namespace Agrovent.Infrastructure.Behaviours
@@ -62,4 +63,5 @@ namespace Agrovent.Infrastructure.Behaviours
             }
         }
     }
+
 }

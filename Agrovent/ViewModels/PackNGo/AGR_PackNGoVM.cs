@@ -743,6 +743,7 @@ namespace Agrovent.ViewModels.PackNGo
             }
 
             copyComponent.PartNumber = targetPn;
+            copyComponent.Article = null;
             return true;
         }
 

@@ -319,7 +319,10 @@ namespace Agrovent.ViewModels.Windows
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(Article)) errors.Add(AGR_SaveConfirmationErrors.NoArticle);
+                if (!NoArticle)
+                {
+                    if (string.IsNullOrWhiteSpace(Article)) errors.Add(AGR_SaveConfirmationErrors.NoArticle);
+                }
             }
 
             HasErrors = errors.Any();

@@ -69,8 +69,14 @@
 
                 </MenuItem>
                 <MenuItem 
-                     Header="Установить артикул" CommandParameter="{Binding}"
-                     Command="{Binding DataContext.SetAvaArticleCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                     Header="Установить артикул...">
+                        <MenuItem 
+                         Header="Найти артикул" CommandParameter="{Binding}"
+                         Command="{Binding DataContext.SetAvaArticleCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}" />
+                    <MenuItem 
+                         Header="Очистить артикул" CommandParameter="NoArticle"
+                         Command="{Binding DataContext.SetAvaArticleCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}}"/>
+                </MenuItem>
                 <MenuItem 
                      Header="Установить тип...">
                     <MenuItem Header="Покупное" CommandParameter="20021" 
@@ -273,7 +279,7 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Name, Mode=OneWay}" Visibility="{Binding Material, Converter={StaticResource NullToVisibilityConverter}}" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding ArticleName}" 
                                                Visibility="{Binding Paint, Converter={StaticResource NullToVisibilityConverter}}" 
                                                VerticalAlignment="Center" Foreground="BlueViolet"/>
@@ -291,7 +297,7 @@
                                         ElementStyle="{StaticResource DGCell_LeftAlignedAndWrapping}"
                                         Binding="{Binding PartnumberOrArticle}">
                         </DataGridTextColumn>
-
+                       
                         <!-- Количество -->
                         <DataGridTextColumn Header=" Количество " 
                                         Binding="{Binding Quantity}" 
@@ -384,7 +390,11 @@
                         CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                         Command="{Binding MatchArticlesCommand}"
                         Padding="8,4"/>
-                </StackPanel>
+                    <Button Content="Экспорт в Excel..."
+                        Command="{Binding ExportToExcelCommand}"
+                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                        Padding="8,4" Margin="8,0,0,0"/>
+                    </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <CheckBox IsChecked="{Binding IgnoreErrors}" Content="Игнорировать ошибки"/>
                     <Button Content="Сохранить" 

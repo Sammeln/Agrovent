@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Data;
@@ -881,6 +882,17 @@ namespace Agrovent.ViewModels.Specification
         }
         private void OnSetAvaArticleCommandExecuted(object p)
         {
+
+            if (p.ToString() == "NoArticle")
+            {
+                foreach (var item in SelectedComponents)
+                {
+                    item.AvaArticle = null;
+                    item.Component.AvaArticle = null;
+                }
+                DeselectAllComponents();
+                return;
+            }
             var comp = SelectedComponents.FirstOrDefault();
 
             try
@@ -915,6 +927,10 @@ namespace Agrovent.ViewModels.Specification
                 if (selectVm.IsDialogResultAccepted == true && selectVm.SelectedArticle != null)
                 {
                     comp.AvaArticle = selectVm.SelectedArticle;
+                    if (string.IsNullOrEmpty(comp.PartNumber) || string.IsNullOrWhiteSpace(comp.PartNumber))
+                    {
+                        comp.PartNumber = selectVm.SelectedArticle.PartNumber;
+                    }
                 }
                 else
                 {
@@ -1100,7 +1116,57 @@ namespace Agrovent.ViewModels.Specification
                 _logger?.LogError(ex, "Ошибка при выборе покрытия для главной сборки.");
             }
         }
-        #endregion 
+        #endregion
+
+        #region ExportToExcelCommand
+        private ICommand _ExportToExcelCommand;
+        public ICommand ExportToExcelCommand => _ExportToExcelCommand
+            ??= new RelayCommand(OnExportToExcelCommandExecuted, CanExportToExcelCommandExecute);
+        private bool CanExportToExcelCommandExecute(object p) => Components != null && Components.Count > 0;
+        private void OnExportToExcelCommandExecuted(object p)
+        {
+            try
+            {
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Сохранить спецификацию",
+                    Filter = "Excel (*.xlsx)|*.xlsx",
+                    DefaultExt = ".xlsx",
+                    AddExtension = true,
+                    FileName = MakeSafeFileName($"Спецификация {BaseAssemblyPartNumber} {BaseAssemblyName}") + ".xlsx"
+                };
+
+                var owner = p as Window;
+                var ok = owner != null ? dialog.ShowDialog(owner) : dialog.ShowDialog();
+                if (ok != true) return;
+
+                var articleText = NoArticle ? "Без артикула" : ArticleString;
+
+                AGR_SpecificationExcelExporter.Export(
+                    dialog.FileName, BaseAssemblyName, ConfigName,
+                    BaseAssemblyPartNumber, articleText, Components);
+
+                Process.Start(new ProcessStartInfo(dialog.FileName) { UseShellExecute = true });
+            }
+            catch (IOException ex)
+            {
+                _logger?.LogError(ex, "Ошибка записи Excel-файла спецификации.");
+                MessageBox.Show("Не удалось сохранить файл. Возможно, он открыт в Excel.", "Экспорт в Excel",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Ошибка при экспорте спецификации в Excel.");
+                MessageBox.Show("Ошибка при экспорте: " + ex.Message, "Экспорт в Excel",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        private static string MakeSafeFileName(string name)
+        {
+            foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+            return name.Trim();
+        }
+        #endregion
 
         #endregion
     }

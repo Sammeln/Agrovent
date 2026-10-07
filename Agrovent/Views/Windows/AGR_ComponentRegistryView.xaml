@@ -166,7 +166,8 @@
                             ItemsSource="{Binding RegistryItemsView}" 
                             ItemTemplate="{StaticResource ComponentListItemTemplate}"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                            ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                            SelectedItem="{Binding SelectedItem, Mode=OneWay}">
                     <ListView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel Orientation="Vertical" />
