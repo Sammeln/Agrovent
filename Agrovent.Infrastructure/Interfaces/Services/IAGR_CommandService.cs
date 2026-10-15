@@ -16,5 +16,7 @@ namespace AgroventInfrastructure.Interfaces
         Task<bool> UpdateDrawingsAsync();
         Task<bool> GetSheetMetallPartsAssmbly();
         Task<bool> PackNGoAsync();
+        Task<bool> EditActiveComponentAsync();
+        Task<bool> CancelEditingAsync();
     }
 }

@@ -29,6 +29,8 @@ namespace Agrovent.DAL.Services.Repositories
         Task<Component?> GetComponentByPartNumber(string partNumber);
         Task<ComponentVersion?> GetComponentVersion(string partNumber, int version);
         Task<ComponentVersion?> GetLatestComponentVersion(string partNumber);
+        Task<string?> GetLatestComponentVersionByName(string name);
+
 
         // Создание/обновление компонента (без транзакций - Unit of Work управляет транзакциями)
         Task<Component> CreateNewComponent(IAGR_BaseComponent component);
@@ -187,6 +189,32 @@ namespace Agrovent.DAL.Services.Repositories
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Ошибка при получении последней версии компонента: {partNumber}");
+                throw;
+            }
+        }
+        public async Task<string?> GetLatestComponentVersionByName(string name)
+        {
+            try
+            {
+                _logger.LogDebug($"Запрос последней версии компонента: {name}");
+                string fileModel = string.Empty;
+
+                var cv = _context.ComponentVersions
+                    .Include(cv => cv.Files)
+                    .Where(v => v.Name == name)
+                    .OrderByDescending(v => v.Version)
+                    .FirstOrDefault();
+
+                if (cv != null)
+                {
+                    fileModel = cv.Files.FirstOrDefault(x => x.FileType == AGR_FileType_e.StorageModel).FilePath;
+                }
+
+                return fileModel ?? null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Ошибка при получении последней версии компонента: {name}");
                 throw;
             }
         }

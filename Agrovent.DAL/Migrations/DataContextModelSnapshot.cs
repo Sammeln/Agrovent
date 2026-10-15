@@ -22,7 +22,7 @@ namespace Agrovent.DAL.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.AssemblyStructure", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Base.UserEntity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -30,22 +30,41 @@ namespace Agrovent.DAL.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AssemblyVersionId")
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Patronymic")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.AssemblyStructure", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
-                    b.Property<int>("ComponentVersionId")
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChildComponentVersionId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("Level")
+                    b.Property<int>("Order")
                         .HasColumnType("integer");
 
-                    b.Property<int>("OrderIndex")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("ParentStructureId")
+                    b.Property<int>("ParentComponentVersionId")
                         .HasColumnType("integer");
 
                     b.Property<int>("Quantity")
@@ -56,22 +75,23 @@ namespace Agrovent.DAL.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AssemblyVersionId");
+                    b.HasIndex("ChildComponentVersionId");
 
-                    b.HasIndex("ComponentVersionId");
-
-                    b.HasIndex("ParentStructureId");
+                    b.HasIndex("ParentComponentVersionId");
 
                     b.ToTable("AssemblyStructures");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.AvaArticleModel", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.AvaArticleModel", b =>
                 {
                     b.Property<int>("Article")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Article"));
+
+                    b.Property<string>("ArchiveType")
+                        .HasColumnType("text");
 
                     b.Property<string>("Brand")
                         .HasColumnType("text");
@@ -105,7 +125,7 @@ namespace Agrovent.DAL.Migrations
                     b.ToTable("AvaArticles");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.Component", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.Component", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -118,7 +138,9 @@ namespace Agrovent.DAL.Migrations
 
                     b.Property<string>("PartNumber")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValueSql("get_next_formatted_part_number()");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -131,7 +153,44 @@ namespace Agrovent.DAL.Migrations
                     b.ToTable("Components");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentFile", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentEditLock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BaseVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ComponentId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MachineName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComponentId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ComponentEditLocks");
+                });
+
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentFile", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -168,7 +227,7 @@ namespace Agrovent.DAL.Migrations
                     b.ToTable("ComponentFiles");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentMaterial", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentMaterial", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -188,8 +247,14 @@ namespace Agrovent.DAL.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("MaterialAvaArticleID")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Paint")
                         .HasColumnType("text");
+
+                    b.Property<int?>("PaintAvaArticleID")
+                        .HasColumnType("integer");
 
                     b.Property<decimal?>("PaintCount")
                         .HasColumnType("numeric");
@@ -202,10 +267,14 @@ namespace Agrovent.DAL.Migrations
                     b.HasIndex("ComponentVersionId")
                         .IsUnique();
 
+                    b.HasIndex("MaterialAvaArticleID");
+
+                    b.HasIndex("PaintAvaArticleID");
+
                     b.ToTable("ComponentMaterials");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentProperty", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentProperty", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -223,9 +292,6 @@ namespace Agrovent.DAL.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -240,7 +306,7 @@ namespace Agrovent.DAL.Migrations
                     b.ToTable("ComponentProperties");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentVersion", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentVersion", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -252,6 +318,9 @@ namespace Agrovent.DAL.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("AvaType")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("BasedOnVersion")
                         .HasColumnType("integer");
 
                     b.Property<int>("ComponentId")
@@ -278,6 +347,9 @@ namespace Agrovent.DAL.Migrations
                         .IsRequired()
                         .HasColumnType("bytea");
 
+                    b.Property<int>("SavedByUserId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -288,8 +360,9 @@ namespace Agrovent.DAL.Migrations
 
                     b.HasIndex("AvaArticleArticle");
 
-                    b.HasIndex("HashSum")
-                        .IsUnique();
+                    b.HasIndex("HashSum");
+
+                    b.HasIndex("SavedByUserId");
 
                     b.HasIndex("ComponentId", "Version")
                         .IsUnique();
@@ -297,7 +370,7 @@ namespace Agrovent.DAL.Migrations
                     b.ToTable("ComponentVersions");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.Project", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Projects.Project", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -320,7 +393,7 @@ namespace Agrovent.DAL.Migrations
                     b.ToTable("Projects");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.ProjectComponent", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Projects.ProjectComponent", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -343,7 +416,7 @@ namespace Agrovent.DAL.Migrations
                     b.ToTable("ProjectComponents");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.Operation", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.TechProcess.Operation", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -351,35 +424,28 @@ namespace Agrovent.DAL.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("CostPerHour")
+                        .HasColumnType("decimal(10,4)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<decimal>("LaborIntensityMinutes")
-                        .HasColumnType("numeric")
-                        .HasColumnName("labor_intensity_minutes");
-
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Section")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("section");
+                        .HasColumnType("text");
 
                     b.Property<int>("SequenceNumber")
-                        .HasColumnType("integer")
-                        .HasColumnName("sequence_number");
+                        .HasColumnType("integer");
 
                     b.Property<int>("TechnologicalProcessId")
-                        .HasColumnType("integer")
-                        .HasColumnName("technological_process_id");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WorkstationName")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -388,10 +454,10 @@ namespace Agrovent.DAL.Migrations
                     b.HasIndex("TechnologicalProcessId", "SequenceNumber")
                         .IsUnique();
 
-                    b.ToTable("operations");
+                    b.ToTable("Operations");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.TechProcess.TechnologicalProcess", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -404,9 +470,7 @@ namespace Agrovent.DAL.Migrations
 
                     b.Property<string>("PartNumber")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("part_number");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -416,38 +480,98 @@ namespace Agrovent.DAL.Migrations
                     b.HasIndex("PartNumber")
                         .IsUnique();
 
-                    b.ToTable("technological_processes");
+                    b.ToTable("TechnologicalProcesses");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.AssemblyStructure", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.TechProcess.TemplateOperation", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.Components.ComponentVersion", "AssemblyVersion")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AvaId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("CostPerHour")
+                        .HasColumnType("decimal(10,4)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("WorkstationId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkstationId");
+
+                    b.ToTable("TemplateOperations");
+                });
+
+            modelBuilder.Entity("AgroventInfrastructure.Entities.TechProcess.Workstation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AvaId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Workstations");
+                });
+
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.AssemblyStructure", b =>
+                {
+                    b.HasOne("AgroventInfrastructure.Entities.Components.ComponentVersion", "ChildComponentVersion")
                         .WithMany()
-                        .HasForeignKey("AssemblyVersionId")
+                        .HasForeignKey("ChildComponentVersionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Agrovent.DAL.Entities.Components.ComponentVersion", "ComponentVersion")
+                    b.HasOne("AgroventInfrastructure.Entities.Components.ComponentVersion", "ParentComponentVersion")
                         .WithMany()
-                        .HasForeignKey("ComponentVersionId")
+                        .HasForeignKey("ParentComponentVersionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Agrovent.DAL.Entities.Components.AssemblyStructure", "ParentStructure")
-                        .WithMany("ChildStructures")
-                        .HasForeignKey("ParentStructureId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                    b.Navigation("ChildComponentVersion");
 
-                    b.Navigation("AssemblyVersion");
-
-                    b.Navigation("ComponentVersion");
-
-                    b.Navigation("ParentStructure");
+                    b.Navigation("ParentComponentVersion");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentFile", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentEditLock", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.Components.ComponentVersion", "ComponentVersion")
+                    b.HasOne("AgroventInfrastructure.Entities.Components.Component", "Component")
+                        .WithMany()
+                        .HasForeignKey("ComponentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AgroventInfrastructure.Entities.Base.UserEntity", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Component");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentFile", b =>
+                {
+                    b.HasOne("AgroventInfrastructure.Entities.Components.ComponentVersion", "ComponentVersion")
                         .WithMany("Files")
                         .HasForeignKey("ComponentVersionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -456,20 +580,32 @@ namespace Agrovent.DAL.Migrations
                     b.Navigation("ComponentVersion");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentMaterial", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentMaterial", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.Components.ComponentVersion", "ComponentVersion")
+                    b.HasOne("AgroventInfrastructure.Entities.Components.ComponentVersion", "ComponentVersion")
                         .WithOne("Material")
-                        .HasForeignKey("Agrovent.DAL.Entities.Components.ComponentMaterial", "ComponentVersionId")
+                        .HasForeignKey("AgroventInfrastructure.Entities.Components.ComponentMaterial", "ComponentVersionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("AgroventInfrastructure.Entities.Components.AvaArticleModel", "MaterialAvaArticle")
+                        .WithMany()
+                        .HasForeignKey("MaterialAvaArticleID");
+
+                    b.HasOne("AgroventInfrastructure.Entities.Components.AvaArticleModel", "PaintAvaArticle")
+                        .WithMany()
+                        .HasForeignKey("PaintAvaArticleID");
+
                     b.Navigation("ComponentVersion");
+
+                    b.Navigation("MaterialAvaArticle");
+
+                    b.Navigation("PaintAvaArticle");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentProperty", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentProperty", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.Components.ComponentVersion", "ComponentVersion")
+                    b.HasOne("AgroventInfrastructure.Entities.Components.ComponentVersion", "ComponentVersion")
                         .WithMany("Properties")
                         .HasForeignKey("ComponentVersionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -478,27 +614,35 @@ namespace Agrovent.DAL.Migrations
                     b.Navigation("ComponentVersion");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentVersion", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentVersion", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.Components.AvaArticleModel", "AvaArticle")
+                    b.HasOne("AgroventInfrastructure.Entities.Components.AvaArticleModel", "AvaArticle")
                         .WithMany()
                         .HasForeignKey("AvaArticleArticle")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Agrovent.DAL.Entities.Components.Component", "Component")
+                    b.HasOne("AgroventInfrastructure.Entities.Components.Component", "Component")
                         .WithMany("Versions")
                         .HasForeignKey("ComponentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("AgroventInfrastructure.Entities.Base.UserEntity", "SavedByUser")
+                        .WithMany("SavedComponentVersions")
+                        .HasForeignKey("SavedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("AvaArticle");
 
                     b.Navigation("Component");
+
+                    b.Navigation("SavedByUser");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.Project", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Projects.Project", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.Projects.Project", "Parent")
+                    b.HasOne("AgroventInfrastructure.Entities.Projects.Project", "Parent")
                         .WithMany("Children")
                         .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Cascade);
@@ -506,15 +650,15 @@ namespace Agrovent.DAL.Migrations
                     b.Navigation("Parent");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.ProjectComponent", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Projects.ProjectComponent", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.Components.ComponentVersion", "ComponentVersion")
+                    b.HasOne("AgroventInfrastructure.Entities.Components.ComponentVersion", "ComponentVersion")
                         .WithMany("ProjectComponents")
                         .HasForeignKey("ComponentVersionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Agrovent.DAL.Entities.Projects.Project", "Project")
+                    b.HasOne("AgroventInfrastructure.Entities.Projects.Project", "Project")
                         .WithMany("ProjectComponents")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -525,40 +669,53 @@ namespace Agrovent.DAL.Migrations
                     b.Navigation("Project");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.Operation", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.TechProcess.Operation", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", "TechnologicalProcess")
+                    b.HasOne("AgroventInfrastructure.Entities.TechProcess.TechnologicalProcess", "TechnologicalProcess")
                         .WithMany("Operations")
                         .HasForeignKey("TechnologicalProcessId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Operation_TechnologicalProcess");
 
                     b.Navigation("TechnologicalProcess");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.TechProcess.TechnologicalProcess", b =>
                 {
-                    b.HasOne("Agrovent.DAL.Entities.Components.Component", "Component")
-                        .WithMany()
-                        .HasForeignKey("PartNumber")
-                        .HasPrincipalKey("PartNumber")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("AgroventInfrastructure.Entities.Components.Component", "Component")
+                        .WithOne("TechnologicalProcess")
+                        .HasForeignKey("AgroventInfrastructure.Entities.TechProcess.TechnologicalProcess", "PartNumber")
+                        .HasPrincipalKey("AgroventInfrastructure.Entities.Components.Component", "PartNumber")
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologicalProcess_Component");
 
                     b.Navigation("Component");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.AssemblyStructure", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.TechProcess.TemplateOperation", b =>
                 {
-                    b.Navigation("ChildStructures");
+                    b.HasOne("AgroventInfrastructure.Entities.TechProcess.Workstation", "Workstation")
+                        .WithMany("TemplateOperations")
+                        .HasForeignKey("WorkstationId")
+                        .IsRequired()
+                        .HasConstraintName("FK_TemplateOperation_Workstation");
+
+                    b.Navigation("Workstation");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.Component", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Base.UserEntity", b =>
                 {
+                    b.Navigation("SavedComponentVersions");
+                });
+
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.Component", b =>
+                {
+                    b.Navigation("TechnologicalProcess");
+
                     b.Navigation("Versions");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Components.ComponentVersion", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Components.ComponentVersion", b =>
                 {
                     b.Navigation("Files");
 
@@ -569,16 +726,21 @@ namespace Agrovent.DAL.Migrations
                     b.Navigation("Properties");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.Projects.Project", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.Projects.Project", b =>
                 {
                     b.Navigation("Children");
 
                     b.Navigation("ProjectComponents");
                 });
 
-            modelBuilder.Entity("Agrovent.DAL.Entities.TechnologicalProcess.TechnologicalProcess", b =>
+            modelBuilder.Entity("AgroventInfrastructure.Entities.TechProcess.TechnologicalProcess", b =>
                 {
                     b.Navigation("Operations");
+                });
+
+            modelBuilder.Entity("AgroventInfrastructure.Entities.TechProcess.Workstation", b =>
+                {
+                    b.Navigation("TemplateOperations");
                 });
 #pragma warning restore 612, 618
         }

@@ -32,6 +32,7 @@ namespace Agrovent.DAL
         public DbSet<Operation> Operations { get; set; }
         public DbSet<TemplateOperation> TemplateOperations { get; set; }
         public DbSet<TechnologicalProcess> TechProcesses { get; set; }
+        public DbSet<ComponentEditLock> ComponentEditLocks { get; set; }
 
         #endregion
 
@@ -212,6 +213,15 @@ namespace Agrovent.DAL
                     .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_TemplateOperation_Workstation");
             });
+            modelBuilder.Entity<ComponentEditLock>()
+                .HasIndex(l => l.ComponentId)
+                .IsUnique();                       // гарантия "двое не возьмут" на уровне БД
+            modelBuilder.Entity<ComponentEditLock>()
+                .HasOne(l => l.Component).WithMany().HasForeignKey(l => l.ComponentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ComponentEditLock>()
+                .HasOne(l => l.User).WithMany().HasForeignKey(l => l.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
         }
 

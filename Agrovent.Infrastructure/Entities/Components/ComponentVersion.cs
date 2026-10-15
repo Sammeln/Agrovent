@@ -54,6 +54,7 @@ namespace AgroventInfrastructure.Entities.Components
 
         [NotMapped]
         public List<ComponentVersion> ParentAssemblies { get; set; } = new List<ComponentVersion>();
+        public int? BasedOnVersion { get; set; }
 
         public int ParentAssembliesCount => ParentAssemblies.Count;
 

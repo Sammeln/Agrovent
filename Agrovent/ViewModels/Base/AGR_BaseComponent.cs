@@ -316,6 +316,33 @@ namespace Agrovent.ViewModels.Base
         }
 
         #endregion
+
+        #region EditState
+        private AGR_EditState_e _EditState = AGR_EditState_e.Unknown;
+        public AGR_EditState_e EditState
+        {
+            get => _EditState;
+            set => Set(ref _EditState, value);
+        }
+        #endregion
+
+        #region EditLockedBy
+        private string? _EditLockedBy;
+        public string? EditLockedBy
+        {
+            get => _EditLockedBy;
+            set => Set(ref _EditLockedBy, value);
+        }
+        #endregion
+
+        #region HasMyLocks
+        private bool _HasMyLocks;
+        public bool HasMyLocks
+        {
+            get => _HasMyLocks;
+            set => Set(ref _HasMyLocks, value);
+        }
+        #endregion
         public IAGR_PropertiesCollection PropertiesCollection { get; set; }
 
         public AGR_ComponentType_e ComponentType

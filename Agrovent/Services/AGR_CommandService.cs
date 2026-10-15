@@ -912,6 +912,26 @@ namespace Agrovent.Services
 
             return vm.DialogResult == true;
         }
+        public async Task<bool> EditActiveComponentAsync()
+        {
+            return true;
+           //     1.Активный документ->VM->дерево изделия(для сборки: GetSimpleTopComponentsList + пакетный запрос БД
+     
+           //        по ComponentId: версия из маркера, замки через GetLocksAsync).
+           //2.Окно AGR_EditSelectionWindow.Отмена-> return false.
+           //3.items = отмеченные(ComponentId, версия из маркера файла).
+           //   conflicts = await _editLocks.TryTakeAsync(items, userId, Environment.MachineName);
+           //     conflicts.Count > 0->показать "занято: <Initials> с <TakenAt>", return false.
+           //4.Копирование всей сборки в TargetFolder(ваш PackNGo-механизм). Маркеры копируются вместе с файлами.
+           //   Ошибка копирования -> _editLocks.ReleaseAsync(items)(компенсация), сообщить, return false.
+           //5.Открыть локальную копию, обновить VM(EditState = EditingByMe), return true.
+        }
+        public async Task<bool> CancelEditingAsync()
+        {
+            return true;
+
+            //Окно со списком моих замков в этой сборке(чекбоксы) -> ReleaseAsync->обновить VM.Локальные файлы не удаляем.
+        }
         private async Task UpdateMassPropertyAsync(ISwConfiguration configuration)
         {
             ISwDocument3D document3D = configuration.OwnerDocument as ISwDocument3D;

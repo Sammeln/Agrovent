@@ -188,6 +188,11 @@ namespace Agrovent.Infrastructure.Handlers
                 $"Вы использовали команду 'сохранить как'.\nОчистить идентификаторы?",
                 "Сохранить как",
                 MessageBoxButtons.YesNoCancel);
+
+            if (_BaseComponent == null)
+            {
+                _BaseComponent = _viewModelCache.GetOrCreate(m_Doc as ISwDocument3D, d => _viewModelFactory.CreateComponent(d));
+            }
             if (askDialog == DialogResult.Yes)
             {
                 m_AddIn.NeedClearId = true;

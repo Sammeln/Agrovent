@@ -25,6 +25,7 @@ namespace Agrovent.ViewModels.TaskPane
         private readonly ILogger<AGR_TaskPaneViewModel> _logger;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IAGR_ViewModelCacheService _viewModelCache;
+        private readonly IAGR_EditLockService _editLocks;
 
         private bool Initialized = false;
         private CancellationTokenSource _cancellationTokenSource;
@@ -111,7 +112,8 @@ namespace Agrovent.ViewModels.TaskPane
             IAGR_ComponentRepository componentRepo,
             IUnitOfWork unitOfWork,
             IAGR_ViewModelCacheService cacheService,
-            IAGR_User activeUser)
+            IAGR_User activeUser,
+            IAGR_EditLockService editLocks)
         {
             _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
             _viewModelFactory = viewModelFactory;
@@ -120,6 +122,7 @@ namespace Agrovent.ViewModels.TaskPane
             _viewModelCache = cacheService;
             _cancellationTokenSource = new CancellationTokenSource();
             ActiveUser = activeUser;
+            _editLocks = editLocks;
             if (!Initialized)
             {
                 _app.Documents.DocumentActivated += OnDocumentActivatedAsync;
@@ -366,8 +369,8 @@ namespace Agrovent.ViewModels.TaskPane
                     fileComponent.StorageDrawFilePath = latestVersion.Files.FirstOrDefault(f => f.FileType == AGR_FileType_e.StorageDrawing)?.FilePath ?? "";
                     fileComponent.ProductionModelFilePath = latestVersion.Files.FirstOrDefault(f => f.FileType == AGR_FileType_e.ProductionModel)?.FilePath ?? "";
                     fileComponent.ProductionDrawFilePath = latestVersion.Files.FirstOrDefault(f => f.FileType == AGR_FileType_e.ProductionDrawing)?.FilePath ?? "";
+                    await _editLocks.RefreshEditStateAsync(component);
                     var parentAssemblies = await _unitOfWork.ComponentRepository.GetRootAssembliesForChildAsync(latestVersion);
-
                     foreach (var prop in latestVersion.Properties)
                     {
                         var compProp = component.PropertiesCollection.Properties.FirstOrDefault(p => p.Name == prop.Name);
@@ -388,6 +391,9 @@ namespace Agrovent.ViewModels.TaskPane
                 else
                 {
                     component.IsInDatabase = AGR_ComponentDatabaseState_e.NotSavedInDB;
+                    component.EditState = AGR_EditState_e.Unknown;
+                    component.HasMyLocks = false;
+
                     _logger.LogDebug($"Component {partNumber} not found in database");
                 }
             }
