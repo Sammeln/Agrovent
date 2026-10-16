@@ -71,6 +71,8 @@ namespace Agrovent
             services.AddScoped<IComponentDataService, ComponentDataService>();
             services.AddSingleton<IAGR_ViewModelCacheService, AGR_ViewModelCacheService>();
             services.AddSingleton<IAGR_EditLockService, AGR_EditLockService>();
+            services.AddSingleton<IAGR_MarkerService, AGR_MarkerService>();
+            services.AddSingleton<IAGR_MarkerService, AGR_MarkerService>();
             services.AddSingleton<IAGR_CommandService, AGR_CommandService>(provider =>
                new AGR_CommandService(
                    provider.GetRequiredService<ILogger<AGR_CommandService>>(),
@@ -78,7 +80,8 @@ namespace Agrovent
                    provider, // Передаем IServiceProvider
                    provider.GetRequiredService<IAGR_ViewModelCacheService>(),
                    provider.GetRequiredService<IAGR_ComponentViewModelFactory>(),
-                   provider.GetRequiredService<ISwApplication>()
+                   provider.GetRequiredService<ISwApplication>(),
+                   provider.GetRequiredService<IAGR_EditLockService>()
                ));
 
             // 7. ViewModels (если нужно)

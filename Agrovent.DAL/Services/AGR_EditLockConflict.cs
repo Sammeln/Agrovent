@@ -22,8 +22,23 @@
         public DateTime TakenAt { get; set; }
     }
 
+    /// <summary>Состояние компонента для окна выбора: Id, версия и замок.</summary>
+    public class AGR_EditComponentInfo
+    {
+        public int ComponentId { get; set; }
+        public string PartNumber { get; set; } = "";
+        public int Version { get; set; }
+        public AGR_EditState_e State { get; set; }
+        public string? LockedBy { get; set; }
+        public DateTime? LockedAt { get; set; }
+    }
+
     public interface IAGR_EditLockService
     {
+        /// <summary>Пакетно: по PartNumber возвращает Id, последнюю версию и замок.
+        /// Отсутствующих в БД в словаре нет.</summary>
+        Task<Dictionary<string, AGR_EditComponentInfo>> GetEditInfoAsync(IEnumerable<string> partNumbers);
+
         Task<int> GetCurrentUserIdAsync();
 
         /// <summary>Берёт замки одной транзакцией (всё или ничего). Свои замки конфликтом не считаются
@@ -177,6 +192,61 @@
                 .Include(l => l.User)
                 .Where(l => ids.Contains(l.ComponentId))
                 .ToDictionaryAsync(l => l.ComponentId);
+        }
+
+        public async Task<Dictionary<string, AGR_EditComponentInfo>> GetEditInfoAsync(IEnumerable<string> partNumbers)
+        {
+            var pns = partNumbers
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct()
+                .ToList();
+            var result = new Dictionary<string, AGR_EditComponentInfo>();
+            if (pns.Count == 0) return result;
+
+            var userId = await GetCurrentUserIdAsync();
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+            // TODO этап 4/5: версия из маркера файла, а не последняя в БД
+            var components = await db.Components
+                .AsNoTracking()
+                .Where(c => pns.Contains(c.PartNumber))
+                .Select(c => new
+                {
+                    c.Id,
+                    c.PartNumber,
+                    Version = c.Versions.Max(v => (int?)v.Version)
+                })
+                .ToListAsync();
+
+            var ids = components.Select(c => c.Id).ToList();
+            var locks = await db.ComponentEditLocks
+                .AsNoTracking()
+                .Where(l => ids.Contains(l.ComponentId))
+                .Select(l => new { l.ComponentId, l.UserId, Name = l.User.LastName + " " + l.User.FirstName, l.CreatedAt })
+                .ToDictionaryAsync(l => l.ComponentId);
+
+            foreach (var c in components)
+            {
+                if (c.Version == null) continue; // компонент без версий для редактирования не годится
+
+                var info = new AGR_EditComponentInfo
+                {
+                    ComponentId = c.Id,
+                    PartNumber = c.PartNumber,
+                    Version = c.Version.Value,
+                    State = AGR_EditState_e.Free
+                };
+                if (locks.TryGetValue(c.Id, out var l))
+                {
+                    info.State = l.UserId == userId ? AGR_EditState_e.EditingByMe : AGR_EditState_e.EditingByOther;
+                    info.LockedBy = l.Name;
+                    info.LockedAt = l.CreatedAt;
+                }
+                result[c.PartNumber] = info;
+            }
+            return result;
         }
 
         public async Task RefreshEditStateAsync(IAGR_BaseComponent vm)

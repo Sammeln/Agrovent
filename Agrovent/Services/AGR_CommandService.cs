@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using Agrovent.DAL; // Для IUnitOfWork
+using Agrovent.DAL.Services;
 using Agrovent.Infrastructure.Extensions; // Для AGR_TryGetProp и т.д.
 using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces;
@@ -22,6 +23,7 @@ using SolidWorks.Interop.swconst;
 using Xarial.XCad.Base;
 using Xarial.XCad.Data;
 using Xarial.XCad.Documents;
+using Xarial.XCad.Documents.Enums;
 using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.Documents.Structures;
 using Xarial.XCad.SolidWorks;
@@ -37,6 +39,7 @@ namespace Agrovent.Services
         private readonly IAGR_ViewModelCacheService _viewModelCache;
         private readonly IAGR_ComponentViewModelFactory _ComponentViewModelFactory;
         private readonly ISwApplication _swApp;
+        private readonly IAGR_EditLockService _editLocks;
 
         public AGR_CommandService(
             ILogger<AGR_CommandService> logger,
@@ -44,8 +47,10 @@ namespace Agrovent.Services
             IServiceProvider serviceProvider,
             IAGR_ViewModelCacheService viewModelCache,
             IAGR_ComponentViewModelFactory viewModelFactory,
-            ISwApplication swApp) // Принимаем IServiceProvider
+            ISwApplication swApp, // Принимаем IServiceProvider
+            IAGR_EditLockService editLocks)
         {
+            _editLocks = editLocks ?? throw new ArgumentNullException(nameof(editLocks));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _componentVersionService = componentVersionService ?? throw new ArgumentNullException(nameof(componentVersionService));
             _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -912,26 +917,337 @@ namespace Agrovent.Services
 
             return vm.DialogResult == true;
         }
+        #region Редактирование (замки + локальная копия)
+
+        /// <summary>
+        /// «Взять на редактирование»: окно выбора → замки (всё или ничего) → копирование всей сборки
+        /// в локальную папку → открытие копии. Если активный документ уже в LocalWorkFolder,
+        /// только берём замки на новые отмеченные компоненты.
+        /// </summary>
         public async Task<bool> EditActiveComponentAsync()
         {
+            EnsureUiSynchronizationContext();
+
+            var swDoc = GetActiveDocument3D();
+            if (swDoc == null) return false;
+
+            var root = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
+            if (root == null) return false;
+
+            AGR_EditSelectionViewModel vm;
+            try
+            {
+                vm = await AGR_EditSelectionViewModel.CreateAsync(AGR_EditSelectionMode_e.Edit, root, _editLocks, _logger);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Редактирование: не удалось построить дерево компонентов.");
+                ShowError($"Не удалось загрузить состав изделия: {ex.Message}");
+                return false;
+            }
+
+            new AGR_EditSelectionWindow { DataContext = vm }.ShowDialog();
+            if (vm.DialogResult != true) return false;
+
+            var newItems = vm.GetCheckedComponents()
+                .Where(n => n.State != AGR_EditState_e.EditingByMe)
+                .ToList();
+            if (newItems.Count == 0) return false;
+
+            var rootPath = swDoc.Path;
+            List<(string Source, string Target)>? files = null;
+
+            // Всё, что может отменить операцию, спрашиваем ДО взятия замков
+            if (vm.IsCopyRequired)
+            {
+                files = CollectFilesForLocalCopy(rootPath, vm.TargetFolder, out var error);
+                if (files == null)
+                {
+                    ShowError(error);
+                    return false;
+                }
+                if (!ConfirmCloseDirtyDocuments()) return false;
+            }
+
+            var conflicts = await _editLocks.TryTakeAsync(
+                newItems.Select(n => (n.ComponentId, n.Version)).ToList(),
+                System.Environment.MachineName);
+            if (conflicts.Count > 0)
+            {
+                var lines = conflicts.Select(c => $"{c.PartNumber}: {c.UserName} с {c.TakenAt.ToLocalTime():dd.MM.yyyy HH:mm}");
+                AGR_Helper.ShowMessage("Компоненты уже взяты на редактирование другим пользователем:\n" + string.Join("\n", lines),
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            var takenIds = newItems.Select(n => n.ComponentId).ToList();
+
+            if (vm.IsCopyRequired)
+            {
+                var targetRoot = files!.First(f => string.Equals(f.Source, rootPath, StringComparison.OrdinalIgnoreCase)).Target;
+
+                if (!CopyToLocalFolder(rootPath, targetRoot, files!, vm.TargetFolder))
+                {
+                    // Компенсация: снимаем только что взятые замки, возвращаем исходный документ
+                    await _editLocks.ReleaseAsync(takenIds);
+                    TryOpenDocument(rootPath);
+                    ShowError("Не удалось скопировать файлы в локальную папку. Замки сняты. Подробности в логе.");
+                    return false;
+                }
+
+                TryOpenDocument(targetRoot);
+            }
+            else
+            {
+                // Документы не переоткрывались: обновляем состояние кэшированных VM на месте
+                var allMine = vm.GetCheckedComponents().Select(n => n.ComponentId).ToHashSet();
+                foreach (var cached in GetCachedViewModels())
+                {
+                    var id = cached.ComponentVersion?.ComponentId;
+                    if (id == null || !allMine.Contains(id.Value)) continue;
+                    cached.EditState = AGR_EditState_e.EditingByMe;
+                    cached.EditLockedBy = null;
+                    cached.HasMyLocks = true;
+                }
+                root.HasMyLocks = true;
+            }
+
+            _logger.LogInformation($"Редактирование: взято {takenIds.Count} компонентов ({string.Join(", ", newItems.Select(n => n.PartNumber))}).");
+            AGR_Helper.ShowMessage(
+                $"Взято на редактирование: {takenIds.Count}." + (vm.IsCopyRequired ? $"\nЛокальная копия: {vm.TargetFolder}" : ""),
+                Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info,
+                Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
             return true;
-           //     1.Активный документ->VM->дерево изделия(для сборки: GetSimpleTopComponentsList + пакетный запрос БД
-     
-           //        по ComponentId: версия из маркера, замки через GetLocksAsync).
-           //2.Окно AGR_EditSelectionWindow.Отмена-> return false.
-           //3.items = отмеченные(ComponentId, версия из маркера файла).
-           //   conflicts = await _editLocks.TryTakeAsync(items, userId, Environment.MachineName);
-           //     conflicts.Count > 0->показать "занято: <Initials> с <TakenAt>", return false.
-           //4.Копирование всей сборки в TargetFolder(ваш PackNGo-механизм). Маркеры копируются вместе с файлами.
-           //   Ошибка копирования -> _editLocks.ReleaseAsync(items)(компенсация), сообщить, return false.
-           //5.Открыть локальную копию, обновить VM(EditState = EditingByMe), return true.
         }
+
+        /// <summary>«Отменить редактирование»: окно со своими замками в этой сборке → снятие.
+        /// Локальные файлы не трогаем.</summary>
         public async Task<bool> CancelEditingAsync()
         {
-            return true;
+            EnsureUiSynchronizationContext();
 
-            //Окно со списком моих замков в этой сборке(чекбоксы) -> ReleaseAsync->обновить VM.Локальные файлы не удаляем.
+            var swDoc = GetActiveDocument3D();
+            if (swDoc == null) return false;
+
+            var root = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
+            if (root == null) return false;
+
+            AGR_EditSelectionViewModel vm;
+            try
+            {
+                vm = await AGR_EditSelectionViewModel.CreateAsync(AGR_EditSelectionMode_e.Cancel, root, _editLocks, _logger);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Отмена редактирования: не удалось построить дерево компонентов.");
+                ShowError($"Не удалось загрузить состав изделия: {ex.Message}");
+                return false;
+            }
+
+            if (!vm.Flatten().Any(n => n.State == AGR_EditState_e.EditingByMe))
+            {
+                AGR_Helper.ShowMessage("В этом изделии нет компонентов, взятых вами на редактирование.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return false;
+            }
+
+            new AGR_EditSelectionWindow { DataContext = vm }.ShowDialog();
+            if (vm.DialogResult != true) return false;
+
+            var released = vm.GetCheckedComponents().Select(n => n.ComponentId).ToHashSet();
+            if (released.Count == 0) return false;
+
+            await _editLocks.ReleaseAsync(released);
+
+            // Снятые компоненты свободны; HasMyLocks сборок пересчитываем (у них могли остаться другие замки)
+            foreach (var cached in GetCachedViewModels())
+            {
+                var id = cached.ComponentVersion?.ComponentId;
+                if (id != null && released.Contains(id.Value))
+                {
+                    cached.EditState = AGR_EditState_e.Free;
+                    cached.EditLockedBy = null;
+                    cached.HasMyLocks = false;
+                }
+                if (cached.HasMyLocks && cached.ComponentType == AGR_ComponentType_e.Assembly)
+                    await _editLocks.RefreshEditStateAsync(cached);
+            }
+            await _editLocks.RefreshEditStateAsync(root);
+
+            _logger.LogInformation($"Отмена редактирования: снято {released.Count} замков.");
+            return true;
         }
+
+        /// <summary>
+        /// Полный список файлов изделия для CopyDocument: все зависимости (включая подавленные,
+        /// ExcludedFromBom, Envelope и содержимое покупных сборок) + чертежи с тем же именем рядом с моделью.
+        /// Все файлы кладутся плоско в targetFolder. null = ошибка (текст в error).
+        /// </summary>
+        private List<(string Source, string Target)>? CollectFilesForLocalCopy(string rootPath, string targetFolder, out string error)
+        {
+            error = "";
+            var models = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { rootPath };
+
+            try
+            {
+                // CHECK: формат результата GetDocumentDependencies2 (пары «имя, путь»). Берём из массива
+                // только полные пути к существующим файлам, поэтому порядок элементов не важен.
+                var deps = _swApp.Sw.GetDocumentDependencies2(rootPath, true, true, false) as object[];
+                if (deps != null)
+                {
+                    foreach (var d in deps.OfType<string>())
+                    {
+                        if (Path.IsPathRooted(d) && File.Exists(d)) models.Add(d);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Редактирование: GetDocumentDependencies2 для {rootPath}.");
+                error = $"Не удалось получить список файлов изделия: {ex.Message}";
+                return null;
+            }
+
+            // Встроенные/виртуальные компоненты лежат во временной папке, их не копируем
+            models.RemoveWhere(p => p.Contains("Local\\Temp", StringComparison.OrdinalIgnoreCase));
+
+            var sources = new List<string>(models);
+            foreach (var model in models)
+            {
+                var drawing = Path.ChangeExtension(model, ".slddrw");
+                if (File.Exists(drawing)) sources.Add(drawing);
+            }
+
+            // Копия плоская: одинаковые имена из разных папок затрут друг друга
+            var duplicates = sources
+                .GroupBy(s => Path.GetFileName(s), StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+                .ToList();
+            if (duplicates.Count > 0)
+            {
+                error = "Файлы с одинаковыми именами в разных папках, копирование в одну папку невозможно:\n"
+                    + string.Join("\n", duplicates.SelectMany(g => g));
+                return null;
+            }
+
+            _logger.LogDebug($"Редактирование: к копированию {sources.Count} файлов из {rootPath}.");
+            return sources
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(s => (s, Path.Combine(targetFolder, Path.GetFileName(s))))
+                .ToList();
+        }
+
+        /// <summary>Есть несохранённые документы → спросить «закрыть без сохранения / отмена».
+        /// true = можно закрывать всё.</summary>
+        private bool ConfirmCloseDirtyDocuments()
+        {
+            var dirty = new List<string>();
+            foreach (var doc in _swApp.Documents)
+            {
+                try
+                {
+                    if (doc is ISwDocument sw && sw.Model.GetSaveFlag()) dirty.Add(doc.Title);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Редактирование: не удалось проверить флаг сохранения документа.");
+                }
+            }
+            if (dirty.Count == 0) return true;
+
+            var answer = MessageBox.Show(
+                "Перед копированием все документы будут закрыты. Несохранённые документы:\n"
+                + string.Join("\n", dirty)
+                + "\n\nЗакрыть БЕЗ сохранения? Изменения будут потеряны.",
+                "Взять на редактирование", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            return answer == MessageBoxResult.Yes;
+        }
+
+        /// <summary>CloseAllDocuments + CopyDocument (ссылки переназначаются на копии) + снятие ReadOnly.</summary>
+        private bool CopyToLocalFolder(string rootSource, string rootTarget, List<(string Source, string Target)> files, string targetFolder)
+        {
+            try
+            {
+                Directory.CreateDirectory(targetFolder);
+
+                _swApp.Sw.CloseAllDocuments(true); // true - без запросов на сохранение (спросили раньше)
+
+                var errors = _swApp.Sw.CopyDocument(
+                    rootSource,
+                    rootTarget,
+                    files.Select(f => f.Source).ToArray(),
+                    files.Select(f => f.Target).ToArray(),
+                    (int)swMoveCopyOptions_e.swMoveCopyOptionsOverwriteExistingDocs);
+
+                if (errors != 0)
+                {
+                    _logger.LogError($"Редактирование: CopyDocument вернул код {errors} ({rootSource} -> {rootTarget}).");
+                    return false;
+                }
+
+                // Файлы из хранилища только для чтения: в локальной копии снимаем атрибут
+                foreach (var (_, target) in files)
+                {
+                    if (File.Exists(target) && File.GetAttributes(target).HasFlag(FileAttributes.ReadOnly))
+                        File.SetAttributes(target, File.GetAttributes(target) & ~FileAttributes.ReadOnly);
+                }
+
+                _logger.LogInformation($"Редактирование: скопировано {files.Count} файлов в {targetFolder}.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Редактирование: ошибка копирования в {targetFolder}.");
+                return false;
+            }
+        }
+
+        private void TryOpenDocument(string path)
+        {
+            try
+            {
+                _swApp.Documents.Open(path, DocumentState_e.Default);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Не удалось открыть {path}.");
+                ShowError($"Не удалось открыть {path}: {ex.Message}");
+            }
+        }
+
+        private ISwDocument3D? GetActiveDocument3D()
+        {
+            if (_swApp?.Documents.Active is ISwDocument3D doc) return doc;
+
+            AGR_Helper.ShowMessage("Активный документ не является деталью или сборкой.",
+                Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning,
+                Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+            return null;
+        }
+
+        private IEnumerable<IAGR_BaseComponent> GetCachedViewModels() => _viewModelCache.ViewModelsDictonary.Values
+            .Select(v => v.ViewModel)
+            .Where(v => v != null)
+            .ToList();
+
+        private static void ShowError(string message) => AGR_Helper.ShowMessage(message,
+            Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
+            Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+
+        /// <summary>
+        /// CHECK: команда SolidWorks приходит на главный поток; если на нём нет SynchronizationContext,
+        /// продолжение после await уйдёт в пул потоков, а SolidWorks нужно вызывать с главного.
+        /// Ставим контекст WPF-диспетчера этого потока (он прокачивается циклом сообщений SolidWorks).
+        /// </summary>
+        private static void EnsureUiSynchronizationContext()
+        {
+            if (SynchronizationContext.Current == null)
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+        }
+
+        #endregion
         private async Task UpdateMassPropertyAsync(ISwConfiguration configuration)
         {
             ISwDocument3D document3D = configuration.OwnerDocument as ISwDocument3D;
