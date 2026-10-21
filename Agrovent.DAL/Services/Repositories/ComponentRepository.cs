@@ -36,15 +36,20 @@ namespace Agrovent.DAL.Services.Repositories
         Task<Component> CreateNewComponent(IAGR_BaseComponent component);
         Task<bool> CreateNewComponents(List<IAGR_BaseComponent> components);
 
-        Task<ComponentVersion> SaveComponent(IAGR_BaseComponent component, int hashSum);
+        // Сохранение (этап 4): решение «новая / существующая версия» принимает AGR_SavePlan, не хеш
+        Task<ComponentVersion> ResolvePlannedVersion(IAGR_BaseComponent component, AGR_SavePlan plan);
+        Task<ComponentVersion> CreateNewVersion(IAGR_BaseComponent component, int hashSum, int? basedOnVersion);
+        Task<ComponentVersion> GetVersionForReference(IAGR_BaseComponent component, int componentId, int version);
+        Task RemoveEditLocksAsync(IEnumerable<int> componentIds, int userId);
+        Task<int> UpdateReferencedVersionPropertiesAsync(ComponentVersion componentVersion, IAGR_BaseComponent component);
 
-        // Поиск компонента по хешу
+        // Поиск компонента по хешу (идентификация при открытии, не для сохранения)
         Task<ComponentVersion?> FindComponentByHash(int hashSum);
         Task<ComponentVersion?> FindComponentByHash(int hashSum, string partnumber);
 
         // Получение структуры сборки
         Task<List<AssemblyStructure>> GetAssemblyStructure(string assemblyPartNumber, int version);
-        Task SaveAssemblyStructure(IAGR_BaseComponent assembly, IEnumerable<IAGR_SpecificationItem> components);
+        Task<ComponentVersion> SaveAssemblyStructure(IAGR_BaseComponent assembly, IEnumerable<IAGR_SpecificationItem> components, AGR_SavePlan plan);
         Task<List<AssemblyStructure>> GetAssemblyStructureRecursive(string assemblyPartNumber, int version);
         Task<AssemblyStructure?> GetExistingAssemblyStructure(ComponentVersion parentComponentVersion, ComponentVersion childComponentVersion, int quantity);
         Task<List<ComponentVersion>> GetRootAssembliesForChildAsync(ComponentVersion childCV);
@@ -56,8 +61,6 @@ namespace Agrovent.DAL.Services.Repositories
 
 
         // Управление версиями
-        Task<bool> HasComponentChanged(IAGR_BaseComponent component);
-        Task<ComponentVersion?> GetExistingVersion(IAGR_BaseComponent component);
         Task<IEnumerable<ComponentVersion>> GetAllLatestComponentVersionsAsync();
 
         //Проекты
@@ -296,107 +299,74 @@ namespace Agrovent.DAL.Services.Repositories
             return true;
         }
 
-        public async Task<ComponentVersion> SaveComponent(IAGR_BaseComponent component, int hashSum)
+        /// <summary>Версия компонента по плану: новая (max+1) или существующая.</summary>
+        public async Task<ComponentVersion> ResolvePlannedVersion(IAGR_BaseComponent component, AGR_SavePlan plan)
+        {
+            var item = plan.Get(component);
+            item.Saved = item.Action == AGR_VersionAction_e.NewVersion
+                ? await CreateNewVersion(component, component.CalculateComponentHash(), item.BasedOnVersion)
+                : await GetVersionForReference(component, item.ComponentId, item.Version);
+            return item.Saved;
+        }
+
+        /// <summary>
+        /// Новая версия компонента: всегда max+1, даже если хеш не изменился.
+        /// Компонент (по PartNumber) создаётся, если его ещё нет. Повторный вызов в том же контексте
+        /// для того же компонента возвращает уже созданную версию (компонент встречается в нескольких подсборках).
+        /// </summary>
+        public async Task<ComponentVersion> CreateNewVersion(IAGR_BaseComponent component, int hashSum, int? basedOnVersion)
         {
             try
             {
-                var pn = component.PartNumber;
-                Component existingComponent = default;
-                _logger.LogInformation($"Подготовка к сохранению компонента: {component.Name} {component.PartNumber}, HashSum: {hashSum}");
-                _saveProgress.AddLogMessage($"Подготовка к сохранению компонента: {component.Name} {component.PartNumber}, HashSum: {hashSum}");
-                // Генерация PartNumber, если он пуст 
                 if (string.IsNullOrWhiteSpace(component.PartNumber))
+                    throw new InvalidOperationException($"У компонента {component.Name} нет PartNumber: его нужно сгенерировать до сохранения.");
+
+                var pn = component.PartNumber;
+
+                var created = _context.ComponentVersions.Local
+                    .FirstOrDefault(v => v.Id == 0 && v.Component?.PartNumber == pn && v.ConfigName == component.ConfigName);
+                if (created != null)
                 {
-                    _logger.LogDebug("PartNumber компонента пуст. Генерация нового...");
-                    _saveProgress.AddLogMessage("PartNumber компонента пуст. Генерация нового...");
-
-                    //existingComponent = await CreateNewComponent(component);
-
-                    //component.PartNumber = await GenerateNewPartNumberAsync_Seq();
-                    _logger.LogInformation($"Сгенерирован PartNumber: {component.PartNumber}");
-                    _saveProgress.AddLogMessage($"Сгенерирован PartNumber: {component.PartNumber}");
-
-                    //component.SwDocument.Save();
+                    component.Version = created.Version;
+                    component.HashSum = created.HashSum;
+                    return created;
                 }
-                else
-                {
-                    existingComponent = await GetComponentByPartNumber(component.PartNumber);
-                }
-                // 1. Проверяем существование компонента по PartNumber
+
+                var existingComponent = _context.Components.Local.FirstOrDefault(c => c.PartNumber == pn)
+                    ?? await _context.Components.FirstOrDefaultAsync(c => c.PartNumber == pn);
 
                 if (existingComponent == null)
                 {
-
-                    // Проверяем, нет ли компонента с таким PartNumber в локальном контексте
-                    var localComponent = _context.Components.Local
-                        .FirstOrDefault(c => c.PartNumber == component.PartNumber);
-
-                    if (localComponent != null)
+                    _logger.LogInformation($"Создание нового компонента: {pn}");
+                    _saveProgress.AddLogMessage($"Создание нового компонента: {pn}");
+                    existingComponent = new Component
                     {
-                        _logger.LogInformation($"Компонент найден в локальном контексте: {component.PartNumber}");
-                        _saveProgress.AddLogMessage($"Компонент найден в локальном контексте: {component.PartNumber}");
-                        existingComponent = localComponent;
-                    }
-                    else
-                    {
-                        _logger.LogInformation($"Создание нового компонента: {component.PartNumber}");
-                        _saveProgress.AddLogMessage($"Создание нового компонента: {component.PartNumber}");
-                        existingComponent = new Component
-                        {
-                            PartNumber = component.PartNumber,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        _context.Components.Add(existingComponent);
-                        // Сохраняем сразу, чтобы получить Id
-                        //await _context.SaveChangesAsync();
-                        _logger.LogInformation($"Создан компонент: {existingComponent.PartNumber}");
-                        _saveProgress.AddLogMessage($"Создан компонент: {existingComponent.PartNumber}");
-                    }
+                        PartNumber = pn,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.Components.Add(existingComponent);
                 }
 
-                // 2. Проверяем существование версии по хешу
-                var existingVersion = await FindComponentByHash(hashSum, component.PartNumber);
-                if (existingVersion != null)
-                {
-                    _logger.LogInformation($"Версия уже существует: {component.Name} {component.PartNumber} v{existingVersion.Version}");
-                    _saveProgress.AddLogMessage($"Версия уже существует: {component.Name} {component.PartNumber} v{existingVersion.Version}");
-                    _saveProgress.AddLogMessage("============================================================");
+                var maxInDb = existingComponent.Id == 0
+                    ? null
+                    : await _context.ComponentVersions
+                        .Where(v => v.ComponentId == existingComponent.Id)
+                        .MaxAsync(v => (int?)v.Version);
+                var maxLocal = _context.ComponentVersions.Local
+                    .Where(v => v.Component == existingComponent)
+                    .Max(v => (int?)v.Version);
+                var nextVersion = Math.Max(maxInDb ?? 0, maxLocal ?? 0) + 1;
 
-                    return existingVersion;
-                }
-                if (existingVersion == null)
-                {
-                    existingVersion = existingComponent.Versions
-                        .OrderByDescending(x => x.Version)
-                        .FirstOrDefault(x => x.HashSum == hashSum);
+                _logger.LogInformation($"Создание новой версии: {component.Name}_{pn} v{nextVersion} (основа v{basedOnVersion?.ToString() ?? "-"})");
+                _saveProgress.AddLogMessage($"Создание новой версии: {component.Name}_{pn} v{nextVersion}");
 
-                    if (existingVersion != null)
-                    {
-                        _logger.LogInformation($"Версия уже существует: {component.Name} {component.PartNumber} v{existingVersion.Version}");
-                        _saveProgress.AddLogMessage($"Версия уже существует: {component.Name} {component.PartNumber} v{existingVersion.Version}");
-                        _saveProgress.AddLogMessage("============================================================");
-                        return existingVersion;
-                    }
-                }
-
-                // 3. Определяем следующую версию
-                var nextVersion = existingComponent.Versions.Any()
-                    ? existingComponent.Versions.Max(v => v.Version) + 1
-                    : 1;
-
-                _logger.LogInformation($"Создание новой версии: {component.Name}_{component.PartNumber} v{nextVersion}");
-                _saveProgress.AddLogMessage($"Создание новой версии: {component.Name}_{component.PartNumber} v{nextVersion}");
-
-                // 4. Создаем новую версию компонента
-                if (_currentUser == null)
-                {
-                }
                 var mAvaArticle = component.AvaArticle as AvaArticleModel;
 
                 var componentVersion = new ComponentVersion
                 {
                     Component = existingComponent,
                     Version = nextVersion,
+                    BasedOnVersion = basedOnVersion,
                     HashSum = hashSum,
                     PreviewImage = component.Preview,
                     Name = component.Name,
@@ -412,30 +382,40 @@ namespace Agrovent.DAL.Services.Repositories
 
                 _context.ComponentVersions.Add(componentVersion);
 
-                // 5. Сохраняем свойства компонента
                 await SaveComponentProperties(componentVersion, component);
-
-                // 6. Сохраняем материал и покраску для деталей
                 await SaveMaterialData(componentVersion, component);
-
-                // 7. Сохраняем информацию о файлах
-                await SaveFileData(componentVersion, component);
+                await SaveFileData(componentVersion, component); // путь hash\версия: версия уже известна
 
                 component.HashSum = hashSum;
+                component.Version = nextVersion;
 
-                //await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Компонент сохранен: {component.PartNumber} v{nextVersion}");
-                _saveProgress.AddLogMessage($"Компонент сохраненен: {component.PartNumber} v{nextVersion}");
                 _saveProgress.AddLogMessage("============================================================");
                 return componentVersion;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Ошибка при сохранении компонента: {component.PartNumber}");
-                _saveProgress.AddLogMessage($"Ошибка при сохранении компонента: {component.PartNumber}.\n{ex.InnerException}");
+                _logger.LogError(ex, $"Ошибка при создании версии компонента: {component.PartNumber}");
+                _saveProgress.AddLogMessage($"Ошибка при создании версии компонента: {component.PartNumber}.\n{ex.InnerException}");
                 throw;
             }
+        }
+
+        /// <summary>Существующая версия для ссылки из структуры (неотмеченный компонент). Ничего не меняет.</summary>
+        public async Task<ComponentVersion> GetVersionForReference(IAGR_BaseComponent component, int componentId, int version)
+        {
+            var cv = _context.ComponentVersions.Local.FirstOrDefault(v => v.ComponentId == componentId && v.Version == version)
+                ?? await _context.ComponentVersions
+                    .Include(v => v.Component)
+                    .FirstOrDefaultAsync(v => v.ComponentId == componentId && v.Version == version);
+
+            if (cv == null)
+                throw new InvalidOperationException(
+                    $"Версия v{version} компонента {component.Name} (Id {componentId}) не найдена в БД.");
+
+            component.Version = cv.Version;
+            component.HashSum = cv.HashSum;
+            _saveProgress.AddLogMessage($"Без изменений, ссылка на версию: {component.Name} {component.PartNumber} v{cv.Version}");
+            return cv;
         }
 
         #endregion
@@ -666,21 +646,26 @@ namespace Agrovent.DAL.Services.Repositories
             return allEntries;
         }
 
-        public async Task SaveAssemblyStructure(IAGR_BaseComponent assembly, IEnumerable<IAGR_SpecificationItem> components)
+        public async Task<ComponentVersion> SaveAssemblyStructure(
+            IAGR_BaseComponent assembly, IEnumerable<IAGR_SpecificationItem> components, AGR_SavePlan plan)
         {
-
             try
             {
                 _logger.LogInformation($"Подготовка к сохранению структуры сборки: {assembly.PartNumber}");
 
-                // 1. Сохраняем сборку как компонент
-                var assemblyHash = assembly.CalculateComponentHash(); //(assembly as IAGR_BaseComponent);
-                var assemblyVersion = await SaveComponent(assembly, assemblyHash);
+                var assemblyVersion = await ResolvePlannedVersion(assembly, plan);
+                if (plan.Get(assembly).Action != AGR_VersionAction_e.NewVersion)
+                {
+                    // Структура существующей версии уже в БД и меняться не должна
+                    _logger.LogInformation($"Сборка {assembly.PartNumber} не на редактировании: структура не сохраняется.");
+                    return assemblyVersion;
+                }
 
-                // 3. Сохраняем новую структуру рекурсивно
-                await SaveAssemblyStructureRecursive(assemblyVersion, components.ToList(), null, 0);
+                var expanded = new HashSet<ComponentVersion> { assemblyVersion };
+                await SaveAssemblyStructureRecursive(assemblyVersion, components.ToList(), plan, expanded);
 
                 _logger.LogInformation($"Структура сборки подготовлена к сохранению: {assemblyVersion.Name} v{assemblyVersion.Version}");
+                return assemblyVersion;
             }
             catch (Exception ex)
             {
@@ -689,56 +674,44 @@ namespace Agrovent.DAL.Services.Repositories
             }
         }
 
+        /// <summary>Строки структуры пишутся только для НОВЫХ версий сборок (каждая один раз).
+        /// Неотмеченные дочерние сборки ссылаются на свою версию, их структура не трогается.</summary>
         private async Task SaveAssemblyStructureRecursive(
             ComponentVersion assemblyVersion,
             IList<IAGR_SpecificationItem> components,
-            AssemblyStructure? parent,
-            int orderIndex)
+            AGR_SavePlan plan,
+            HashSet<ComponentVersion> expanded)
         {
+            int orderIndex = 0;
             foreach (var item in components)
             {
-                // Сохраняем компонент
-                var componentHash = item.Component.CalculateComponentHash();
-                var componentVersion = await SaveComponent(item.Component, componentHash);
+                var componentVersion = await ResolvePlannedVersion(item.Component, plan);
 
-                var existStructure = await GetExistingAssemblyStructure(assemblyVersion, componentVersion, item.Quantity);
-
-                if (existStructure == null)
+                var existStructure = _context.AssemblyStructures.Local
+                    .FirstOrDefault(s => s.ParentComponentVersion == assemblyVersion
+                                      && s.ChildComponentVersion == componentVersion);
+                if (existStructure != null)
                 {
-
-                    var localStructure = _context.AssemblyStructures.Local
-                        .FirstOrDefault(c => c.ParentComponentVersion.Name == assemblyVersion.Name
-                                        && c.ChildComponentVersion.Name == componentVersion.Name
-                                        && c.Quantity == item.Quantity);
-
-                    if (localStructure == null)
+                    // Один и тот же компонент дважды в списке (разные конфигурации одного PartNumber и т.п.)
+                    existStructure.Quantity += item.Quantity;
+                }
+                else
+                {
+                    _context.AssemblyStructures.Add(new AssemblyStructure
                     {
-                        _logger.LogInformation($"Создание новой структуры: {assemblyVersion.Component.PartNumber}");
-                        _saveProgress.AddLogMessage($"Создание новой структуры: {assemblyVersion.Component.PartNumber}");
-                        existStructure = new AssemblyStructure
-                        {
-                            ParentComponentVersion = assemblyVersion,
-                            ChildComponentVersion = componentVersion,
-                            Quantity = item.Quantity,
-                            Order = orderIndex++
-                        };
-                        _context.AssemblyStructures.Add(existStructure);
-                    }
-                    else
-                    {
-                        _logger.LogInformation($"Структура найдена в локальном контексте: {assemblyVersion.Component.PartNumber}");
-                        _saveProgress.AddLogMessage($"Структура найдена в локальном контексте: {assemblyVersion.Component.PartNumber}");
-                        existStructure = localStructure;
-                    }
+                        ParentComponentVersion = assemblyVersion,
+                        ChildComponentVersion = componentVersion,
+                        Quantity = item.Quantity,
+                        Order = orderIndex++
+                    });
                 }
 
-
-
-                // Если компонент - сборка, рекурсивно обрабатываем его структуру
-                if (item.Component is IAGR_Assembly childAssembly)
+                if (item.Component is IAGR_Assembly childAssembly
+                    && plan.Get(item.Component).Action == AGR_VersionAction_e.NewVersion
+                    && expanded.Add(componentVersion))
                 {
                     var childComponents = childAssembly.GetChildComponents().ToList();
-                    await SaveAssemblyStructureRecursive(componentVersion, childComponents, existStructure, 0);
+                    await SaveAssemblyStructureRecursive(componentVersion, childComponents, plan, expanded);
                 }
             }
         }
@@ -838,55 +811,20 @@ namespace Agrovent.DAL.Services.Repositories
 
         #endregion
 
-        #region Управление версиями
+        #region Замки редактирования (в транзакции сохранения)
 
-        public async Task<bool> HasComponentChanged(IAGR_BaseComponent component)
+        /// <summary>Помечает к удалению замки текущего пользователя на указанных компонентах.
+        /// Удаляются вместе с новыми версиями при CompleteAsync/Commit (одна транзакция).</summary>
+        public async Task RemoveEditLocksAsync(IEnumerable<int> componentIds, int userId)
         {
-            try
-            {
-                Component existingComponent = default;
-                _logger.LogDebug($"Проверка изменений компонента: {component.PartNumber}");
-                var partnumber = component.PartNumber;
-                if (!string.IsNullOrEmpty(partnumber))
-                {
-                    existingComponent = await GetComponentByPartNumber(partnumber);
-                    if (existingComponent != null)
-                    {
-                        var hash = component.CalculateComponentHash();
-                        var existingVersion = await FindComponentByHash(hash, partnumber);
-                        return existingVersion != null;
-                    }
-                    else return false;
-                }
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Ошибка при проверке изменений компонента: {component.PartNumber}");
-                throw;
-            }
-        }
-        public async Task<ComponentVersion?> GetExistingVersion(IAGR_BaseComponent component)
-        {
-            try
-            {
-                _logger.LogDebug($"Поиск существующей версии компонента: {component.PartNumber}");
+            var ids = componentIds.Distinct().ToList();
+            if (ids.Count == 0) return;
 
-                var componentVersions = await _context.ComponentVersions
-                    .Include(c => c.Component)
-                    .Where(c => c.Component.PartNumber == component.PartNumber)
-                    .ToListAsync();
-
-                if (componentVersions.Count == 0) return null;
-
-                var hash = component.CalculateComponentHash();
-                return componentVersions.FirstOrDefault(c => c.HashSum == hash);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Ошибка при поиске существующей версии компонента: {component.PartNumber}");
-                throw;
-            }
+            var locks = await _context.ComponentEditLocks
+                .Where(l => ids.Contains(l.ComponentId) && l.UserId == userId)
+                .ToListAsync();
+            _context.ComponentEditLocks.RemoveRange(locks);
+            _logger.LogInformation($"Снятие замков в транзакции сохранения: {locks.Count} шт.");
         }
 
         #endregion
@@ -913,6 +851,52 @@ namespace Agrovent.DAL.Services.Repositories
 
             _logger.LogDebug($"Сохранено {component.PropertiesCollection.Properties.Count} свойств");
         }
+        /// <summary>
+        /// 4.6: неотмеченный компонент (геометрия не менялась), но в файле изменены свойства (параметры заготовки и т.п.).
+        /// Свойства существующей версии обновляются из файла: новые добавляются, изменённые перезаписываются,
+        /// отсутствующие в файле не удаляются. AvaType, артикул, материал и покраска НЕ трогаются:
+        /// их правят через «подробную информацию», и файл может хранить устаревшие значения.
+        /// Возвращает число изменённых свойств. SaveChanges - через CompleteAsync снаружи.
+        /// </summary>
+        public async Task<int> UpdateReferencedVersionPropertiesAsync(ComponentVersion componentVersion, IAGR_BaseComponent component)
+        {
+            var fileProps = component.PropertiesCollection?.Properties;
+            if (fileProps == null || fileProps.Count == 0 || componentVersion.Id == 0) return 0;
+
+            var dbProps = await _context.ComponentProperties
+                .Where(p => p.ComponentVersionId == componentVersion.Id)
+                .ToListAsync();
+
+            int changed = 0;
+            foreach (var property in fileProps)
+            {
+                var value = property.Value?.ToString() ?? string.Empty;
+                var db = dbProps.FirstOrDefault(p => p.Name == property.Name);
+                if (db == null)
+                {
+                    _context.ComponentProperties.Add(new ComponentProperty
+                    {
+                        ComponentVersionId = componentVersion.Id,
+                        Name = property.Name,
+                        Value = value
+                    });
+                    changed++;
+                }
+                else if (db.Value != value)
+                {
+                    db.Value = value;
+                    changed++;
+                }
+            }
+
+            if (changed > 0)
+            {
+                _logger.LogInformation($"Свойства версии {component.PartNumber} v{componentVersion.Version} обновлены из файла: {changed}");
+                _saveProgress.AddLogMessage($"Обновлены свойства {component.Name} {component.PartNumber} v{componentVersion.Version}: {changed}");
+            }
+            return changed;
+        }
+
         private async Task SaveMaterialData(ComponentVersion componentVersion, IAGR_BaseComponent component)
         {
             // Сохраняем материал только для деталей и листовых деталей
@@ -1005,7 +989,7 @@ namespace Agrovent.DAL.Services.Repositories
 
             // Модель в хранилище
             var storageModelName = component.Name + component.Extension;
-            var storageModelPath = Path.Combine(AGR_Options.StorageRootFolderPath, componentVersion.HashSum.ToString("D10"), storageModelName);
+            var storageModelPath = AGR_StoragePaths.GetFilePath(componentVersion.HashSum, componentVersion.Version, storageModelName);
             if (!string.IsNullOrEmpty(fileComponent.CurrentModelFilePath))
             {
 

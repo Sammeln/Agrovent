@@ -13,7 +13,6 @@ namespace Agrovent.ViewModels.Components
     {
         // Приватные поля для хранения данных
         private readonly ComponentVersion _entity; // Хранит оригинальную сущность из БД
-        private readonly string _storageRootFolder; // Путь к корню хранилища
 
         public AGR_ComponentRegistryItemVM()
         {
@@ -22,7 +21,6 @@ namespace Agrovent.ViewModels.Components
         public AGR_ComponentRegistryItemVM(ComponentVersion entity)
         {
             _entity = entity ?? throw new ArgumentNullException(nameof(entity));
-            _storageRootFolder = AGR_Options.StorageRootFolderPath;
         }
 
         // Свойства для отображения в DataGrid
@@ -79,7 +77,7 @@ namespace Agrovent.ViewModels.Components
             get
             {
                 // Предполагаем, что файл хранится как Model.FileName (например, Cube.SLDPRT)
-                // и путь формируется как StorageRootFolder + HashSum + FileName
+                // и путь формируется как StorageRootFolder + HashSum + Version + FileName
                 if (!string.IsNullOrEmpty(_entity.Files.FirstOrDefault
                         (x => x.FilePath.EndsWith("prt", StringComparison.OrdinalIgnoreCase)
                         || x.FilePath.EndsWith("asm", StringComparison.OrdinalIgnoreCase)
@@ -91,9 +89,7 @@ namespace Agrovent.ViewModels.Components
 
                     var fileName = Path.GetFileName(path);
 
-                    var hashFolder = _entity.HashSum.ToString("D10");
-                    var fullPath = Path.Combine(_storageRootFolder, hashFolder, fileName);
-                    return fullPath;
+                    return AGR_StoragePaths.ResolveExistingFilePath(_entity.HashSum, _entity.Version, fileName);
                 }
                 return "N/A"; // Или пустая строка
             }

@@ -103,7 +103,7 @@ namespace Agrovent.ViewModels.Properties
                 {
                     //Вычисление длины развертки
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankLen);
-                    if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
+                    if (property?.Value != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
                         SheetMetall_Length = property;
                         SheetMetall_Length.Value = property.Value;
@@ -111,7 +111,7 @@ namespace Agrovent.ViewModels.Properties
 
                     //Вычисление ширины развертки
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankWid);
-                    if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
+                    if (property?.Value != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
                         SheetMetall_Width = property;
                         SheetMetall_Width.Value = property.Value;
@@ -119,7 +119,7 @@ namespace Agrovent.ViewModels.Properties
 
                     //Вычисление толщины развертки
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankThick);
-                    if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
+                    if (property?.Value != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
                         SheetMetall_Thickness = property;
                         SheetMetall_Thickness.Value = property.Value;
@@ -128,7 +128,7 @@ namespace Agrovent.ViewModels.Properties
 
                     //Вычисление площади развертки
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankArea);
-                    if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
+                    if (property?.Value != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
                         double area = double.Parse(property.Value.ToString()
                                             .Replace('.', ',')
@@ -142,7 +142,7 @@ namespace Agrovent.ViewModels.Properties
 
                     //Вычисление количества сгибов
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankBends);
-                    if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
+                    if (property?.Value != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
                         SheetMetall_Bends = property;
                         SheetMetall_Bends.Value = property.Value;
@@ -150,7 +150,7 @@ namespace Agrovent.ViewModels.Properties
 
                     //Вычисление количества отверстий
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankHoles);
-                    if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
+                    if (property?.Value != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
                         SheetMetall_Holes = property;
                         SheetMetall_Holes.Value = property.Value;
@@ -158,7 +158,7 @@ namespace Agrovent.ViewModels.Properties
 
                     //Вычисление площади пластины
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankPlateArea);
-                    if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
+                    if (property?.Value != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
                         double area = double.Parse(property.Value.ToString()
                                             .Replace('.', ',')
@@ -171,7 +171,7 @@ namespace Agrovent.ViewModels.Properties
                     }
                     //Вычисление внешнего контура
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankOuterContour);
-                    if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
+                    if (property?.Value != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
                         double contVal = double.Parse(property.Value.ToString()
                                             .Replace('.', ',')
@@ -181,7 +181,7 @@ namespace Agrovent.ViewModels.Properties
                     }
                     //Вычисление внутреннего контура
                     property = cutlist.Properties.AGR_TryGetProp(AGR_SheetMetallPropNames.SM_BlankInnerContour);
-                    if (property != null && !string.IsNullOrEmpty(property.Value.ToString()))
+                    if (property?.Value != null && !string.IsNullOrEmpty(property.Value.ToString()))
                     {
                         double contVal = double.Parse(property.Value.ToString()
                                                .Replace('.', ',')

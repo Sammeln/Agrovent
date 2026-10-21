@@ -381,8 +381,8 @@ namespace Agrovent.Services
                     }
                     else
                     {
-                        progressVM.AddLogMessage($"Компонент {componentName} не изменился или уже существует.");
-                        _logger.LogInformation($"Компонент {componentName} не изменился или уже существует.");
+                        progressVM.AddLogMessage($"Компонент {componentName} не сохранён: не взят на редактирование.");
+                        _logger.LogInformation($"Компонент {componentName} не сохранён: не взят на редактирование.");
                     }
                 }
                 catch (Exception ex)
@@ -917,6 +917,7 @@ namespace Agrovent.Services
 
             return vm.DialogResult == true;
         }
+
         #region Редактирование (замки + локальная копия)
 
         /// <summary>
@@ -937,7 +938,7 @@ namespace Agrovent.Services
             AGR_EditSelectionViewModel vm;
             try
             {
-                vm = await AGR_EditSelectionViewModel.CreateAsync(AGR_EditSelectionMode_e.Edit, root, _editLocks, _logger);
+                vm = await AGR_EditSelectionViewModel.CreateAsync(AGR_EditSelectionMode_e.Edit, root, _editLocks, _serviceProvider.GetRequiredService<IAGR_MarkerService>(), _logger);
             }
             catch (Exception ex)
             {
@@ -1036,7 +1037,7 @@ namespace Agrovent.Services
             AGR_EditSelectionViewModel vm;
             try
             {
-                vm = await AGR_EditSelectionViewModel.CreateAsync(AGR_EditSelectionMode_e.Cancel, root, _editLocks, _logger);
+                vm = await AGR_EditSelectionViewModel.CreateAsync(AGR_EditSelectionMode_e.Cancel, root, _editLocks, _serviceProvider.GetRequiredService<IAGR_MarkerService>(), _logger);
             }
             catch (Exception ex)
             {

@@ -437,6 +437,7 @@ namespace Agrovent.ViewModels.TaskPane
                     }
                     else component.IsInDatabase = AGR_ComponentDatabaseState_e.NotSavedInDB;
                 }
+                else component.IsInDatabase = AGR_ComponentDatabaseState_e.NotSavedInDB;
             }
             catch (Exception ex)
             {

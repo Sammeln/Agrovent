@@ -94,12 +94,8 @@ namespace Agrovent.ViewModels.Base
   
         private string? GetStorageModelFilePath()
         {
-            var storageModelPath = Path.Combine(
-                AGR_Options.StorageRootFolderPath,
-                PartNumber,
-                Version.ToString(),
-                Path.GetFileName(CurrentModelFilePath)
-                );
+            if (string.IsNullOrEmpty(CurrentModelFilePath) || HashSum == null) return null;
+            var storageModelPath = AGR_StoragePaths.ResolveExistingFilePath(HashSum.Value, Version, CurrentModelFilePath);
             if (File.Exists(storageModelPath))
             {
                 return storageModelPath;

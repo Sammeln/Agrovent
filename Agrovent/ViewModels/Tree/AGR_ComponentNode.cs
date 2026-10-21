@@ -38,7 +38,7 @@ namespace Agrovent.ViewModels.Tree
         public AGR_NodeType_e NodeType => AGR_NodeType_e.Component;
 
         /// <summary>
-        /// Путь к главному файлу сборки/детали в хранилище (StorageRoot\HashSum\Имя файла).
+        /// Путь к главному файлу сборки/детали в хранилище (StorageRoot\HashSum\Version\Имя файла).
         /// Тот же принцип, что и в AGR_ComponentRegistryItemVM.StoragePath.
         /// Требует, чтобы у ComponentVersion была подгружена коллекция Files (см. Include в репозитории/VM).
         /// </summary>
@@ -53,8 +53,7 @@ namespace Agrovent.ViewModels.Tree
                 if (file == null || string.IsNullOrEmpty(file.FilePath)) return null;
 
                 var fileName = Path.GetFileName(file.FilePath);
-                var hashFolder = ComponentVersion.HashSum.ToString("D10");
-                return Path.Combine(AGR_Options.StorageRootFolderPath, hashFolder, fileName);
+                return AGR_StoragePaths.ResolveExistingFilePath(ComponentVersion.HashSum, ComponentVersion.Version, fileName);
             }
         }
     }

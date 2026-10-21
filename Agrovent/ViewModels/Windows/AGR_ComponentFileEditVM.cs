@@ -11,12 +11,14 @@ namespace Agrovent.ViewModels.Windows
     {
         private readonly ComponentFile _entity;
         private readonly int _hashSum;
+        private readonly int _version;
         public ComponentFile Entity => _entity;
 
-        public AGR_ComponentFileEditVM(ComponentFile entity, int hashSum)
+        public AGR_ComponentFileEditVM(ComponentFile entity, int hashSum, int version)
         {
             _entity = entity;
             _hashSum = hashSum;
+            _version = version;
         }
 
         public string FileName => Path.GetFileName(_entity.FilePath);
@@ -25,9 +27,9 @@ namespace Agrovent.ViewModels.Windows
         public long? FileSize => _entity.FileSize;
         public DateTime? LastModified => _entity.LastModified;
 
-        /// <summary>Реальный путь файла в хранилище: StorageRoot\HashSum\ИмяФайла</summary>
+        /// <summary>Реальный путь файла в хранилище: StorageRoot\HashSum\Version\ИмяФайла</summary>
         public string ResolveStoragePath()
-            => Path.Combine(AGR_Options.StorageRootFolderPath, _hashSum.ToString("D10"), FileName);
+            => AGR_StoragePaths.ResolveExistingFilePath(_hashSum, _version, FileName);
 
         public void UpdateFromSource(string sourceFilePath)
         {

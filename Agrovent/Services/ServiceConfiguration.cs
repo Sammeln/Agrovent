@@ -72,7 +72,6 @@ namespace Agrovent
             services.AddSingleton<IAGR_ViewModelCacheService, AGR_ViewModelCacheService>();
             services.AddSingleton<IAGR_EditLockService, AGR_EditLockService>();
             services.AddSingleton<IAGR_MarkerService, AGR_MarkerService>();
-            services.AddSingleton<IAGR_MarkerService, AGR_MarkerService>();
             services.AddSingleton<IAGR_CommandService, AGR_CommandService>(provider =>
                new AGR_CommandService(
                    provider.GetRequiredService<ILogger<AGR_CommandService>>(),

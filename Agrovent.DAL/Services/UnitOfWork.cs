@@ -12,6 +12,8 @@ namespace Agrovent.DAL
         Task<IDbContextTransaction> BeginTransactionAsync();
         Task CommitTransactionAsync();
         Task RollbackTransactionAsync();
+        /// <summary>Забыть все отслеживаемые сущности. Контекст в add-in живёт всё время работы SolidWorks.</summary>
+        void ClearTracking();
     }
 
     public class UnitOfWork : IUnitOfWork
@@ -64,7 +66,12 @@ namespace Agrovent.DAL
                 await _transaction.DisposeAsync();
                 _transaction = null;
             }
+            // После SaveChanges сущности остаются в трекере с Id откатанных строк: следующее сохранение
+            // нашло бы их в Local и сослалось на несуществующие записи (23503).
+            _context.ChangeTracker.Clear();
         }
+
+        public void ClearTracking() => _context.ChangeTracker.Clear();
 
      
 

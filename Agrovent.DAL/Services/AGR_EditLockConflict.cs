@@ -208,7 +208,7 @@
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<DataContext>();
 
-            // TODO этап 4/5: версия из маркера файла, а не последняя в БД
+            // Последняя версия в БД. Версию файла (из маркера) подставляет вызывающий: окно выбора (AGR_EditSelectionViewModel)
             var components = await db.Components
                 .AsNoTracking()
                 .Where(c => pns.Contains(c.PartNumber))

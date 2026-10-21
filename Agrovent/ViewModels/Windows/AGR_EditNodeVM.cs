@@ -7,6 +7,7 @@
     using Agrovent.DAL.Services;
     using Agrovent.Infrastructure.Commands;
     using Agrovent.Infrastructure.Extensions;
+    using Agrovent.Services;
     using Agrovent.ViewModels.Base;
     using AgroventInfrastructure;
     using AgroventInfrastructure.Enums;
@@ -30,7 +31,14 @@
         public string PartNumber { get; init; } = "";
         public string Name { get; init; } = "";
         public string FilePath { get; init; } = "";
+        /// <summary>Версия файла: из маркера, если он есть, иначе последняя в БД. Становится BaseVersion замка.</summary>
         public int Version { get; set; }
+        /// <summary>Последняя версия в БД (для показа «устаревшей» версии файла).</summary>
+        public int LatestVersion { get; set; }
+        /// <summary>Маркер, прочитанный при построении дерева (null = нет или не прочитан).</summary>
+        internal AGR_Marker? Marker { get; init; }
+        /// <summary>Маркер есть, но повреждён: брать на редактирование нельзя.</summary>
+        public bool IsMarkerInvalid { get; init; }
         public int Quantity { get; set; } = 1;
         public bool IsPurchased { get; init; }                       // заблокирован
         public AGR_EditState_e State { get; set; }
@@ -63,6 +71,7 @@
             ? State == AGR_EditState_e.EditingByMe
             : IsInDatabase
                 && !IsPurchased
+                && !IsMarkerInvalid
                 && !IsBlockedByParent
                 && State != AGR_EditState_e.EditingByOther
                 && State != AGR_EditState_e.EditingByMe;
@@ -71,13 +80,17 @@
         {
             AGR_EditState_e.EditingByMe => "На редактировании у меня",
             AGR_EditState_e.EditingByOther => $"Занят: {LockedByUser} с {LockedAt?.ToLocalTime():dd.MM.yyyy HH:mm}",
+            _ when IsMarkerInvalid => "Маркер файла повреждён",
             _ when IsPurchased => "Покупной",
             _ when !IsInDatabase => "Нет в БД",
             _ when IsBlockedByParent => "Подсборка занята",
+            _ when LatestVersion > Version => $"Версия файла не последняя (в БД v{LatestVersion})",
             _ => ""
         };
 
-        public string VersionText => IsInDatabase ? Version.ToString() : "";
+        public string VersionText => !IsInDatabase ? ""
+            : LatestVersion > Version ? $"{Version} / {LatestVersion}" // колонка 50 px: «версия файла / последняя»
+            : Version.ToString();
 
         private bool _IsChecked;
         /// <summary>Отметка из UI: каскад по правилам окна (см. AGR_EditSelectionViewModel.SetChecked).</summary>
@@ -201,6 +214,7 @@
             AGR_EditSelectionMode_e mode,
             IAGR_BaseComponent rootComponent,
             IAGR_EditLockService editLocks,
+            IAGR_MarkerService markers,
             ILogger? logger)
         {
             var rootPath = GetPath(rootComponent);
@@ -213,7 +227,9 @@
                 TargetFolder = Path.Combine(localFolder, rootComponent.Name ?? Path.GetFileNameWithoutExtension(rootPath))
             };
 
-            // 1. Структура из SolidWorks (синхронно, на потоке SolidWorks)
+            // 1. Структура и маркеры из SolidWorks (синхронно, на потоке SolidWorks)
+            vm._markers = markers;
+            vm._logger = logger;
             var root = vm.CreateNode(rootComponent, null);
             if (rootComponent.SwDocument is ISwAssembly asm)
                 vm.BuildChildren(asm.Configurations.Active.Components, root, logger);
@@ -230,7 +246,20 @@
                     continue;
                 }
                 n.ComponentId = i.ComponentId;
+                n.LatestVersion = i.Version;
                 n.Version = i.Version;
+
+                // Версия файла берётся из маркера: замок получит её как BaseVersion (ветвистая история)
+                var m = n.Marker;
+                if (m != null)
+                {
+                    if (m.ComponentId != i.ComponentId)
+                        logger?.LogWarning($"Редактирование: маркер {n.Name} указывает на Id {m.ComponentId}, а PartNumber {n.PartNumber} - на Id {i.ComponentId}. Берём последнюю версию.");
+                    else if (m.Version > i.Version)
+                        logger?.LogWarning($"Редактирование: в маркере {n.Name} v{m.Version}, в БД последняя v{i.Version}. Берём последнюю версию.");
+                    else
+                        n.Version = m.Version;
+                }
                 n.State = i.State;
                 n.LockedByUser = i.LockedBy;
                 n.LockedAt = i.LockedAt;
@@ -253,8 +282,27 @@
             return vm;
         }
 
-        private AGR_EditNodeVM CreateNode(IAGR_BaseComponent comp, AGR_EditNodeVM? parent) => new AGR_EditNodeVM
+        private IAGR_MarkerService? _markers;
+        private ILogger? _logger;
+
+        private AGR_EditNodeVM CreateNode(IAGR_BaseComponent comp, AGR_EditNodeVM? parent)
         {
+            AGR_Marker? marker = null;
+            var invalid = false;
+            var doc = comp.SwDocument;
+            if (_markers != null && doc != null && doc.IsAlive)
+            {
+                var result = _markers.TryRead(doc, out marker, out var error);
+                invalid = result == AGR_MarkerReadResult_e.Invalid;
+                if (invalid) _logger?.LogWarning($"Редактирование: маркер {comp.Name} повреждён: {error}");
+            }
+            return CreateNode(comp, parent, marker, invalid);
+        }
+
+        private AGR_EditNodeVM CreateNode(IAGR_BaseComponent comp, AGR_EditNodeVM? parent, AGR_Marker? marker, bool markerInvalid) => new AGR_EditNodeVM
+        {
+            Marker = marker,
+            IsMarkerInvalid = markerInvalid,
             PartNumber = comp.PartNumber ?? "",
             Name = comp.Name ?? "",
             FilePath = GetPath(comp),
