@@ -22,7 +22,7 @@
 
 	<ItemGroup>
 		<Content Include="Resources\appsettings.json">
-			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
 

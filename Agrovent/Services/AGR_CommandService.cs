@@ -7,6 +7,7 @@ using Agrovent.DAL.Services;
 using Agrovent.Infrastructure.Extensions; // Для AGR_TryGetProp и т.д.
 using Agrovent.Infrastructure.Helpers;
 using Agrovent.Infrastructure.Interfaces;
+using Agrovent.Services.Migration;
 using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.PackNGo;
@@ -917,6 +918,120 @@ namespace Agrovent.Services
 
             return vm.DialogResult == true;
         }
+
+        #region Миграция и диагностика (временно, удалить после миграции хранилища)
+
+        /// <summary>Отчёт перед миграцией: ничего не меняет. Файлы отчёта в Документы\Agrovent\Migration.</summary>
+        public async Task<bool> MigrationReportAsync()
+        {
+            EnsureUiSynchronizationContext();
+
+            if (_swApp.Documents.Count > 0)
+            {
+                // Открытые документы мешают: SolidWorks подставляет уже открытый файл с тем же именем
+                ShowError("Закройте все документы перед построением отчёта.");
+                return false;
+            }
+
+            var answer = MessageBox.Show(
+                "Отчёт перед миграцией хранилища. БД и файлы не меняются.\n\n"
+                + "Да - полный: БД, папки, ссылки сборок и чертежей + открытие каждой модели (Обозначение по конфигурациям, маркер). Долго.\n"
+                + "Нет - быстрый: БД, папки, ссылки (модели не открываются).\n\n"
+                + $"Прервать проход: создать файл {AGR_MigrationReportService.StopFileName} в папке отчёта.",
+                "Миграция: отчёт", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            if (answer == MessageBoxResult.Cancel) return false;
+
+            try
+            {
+                var service = _serviceProvider.GetRequiredService<IAGR_MigrationReportService>();
+                var folder = await service.BuildReportAsync(answer == MessageBoxResult.Yes);
+                AGR_Helper.ShowMessage($"Отчёт готов:\n{folder}\n\nНачните с summary.txt.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info, Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                try { System.Diagnostics.Process.Start("explorer.exe", folder); } catch { /* не критично */ }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Миграция: ошибка построения отчёта.");
+                ShowError($"Ошибка построения отчёта: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>Диагностика маркера: маркер, текущий отпечаток, Обозначение по конфигурациям.
+        /// Каноническая строка отпечатка пишется в Документы\Agrovent\Fingerprint (сравнивать два файла diff-ом).</summary>
+        public Task<bool> ShowMarkerInfoAsync()
+        {
+            var doc = GetActiveDocument3D();
+            if (doc == null) return Task.FromResult(false);
+
+            try
+            {
+                var markers = _serviceProvider.GetRequiredService<IAGR_MarkerService>();
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Файл: {doc.Path}");
+
+                switch (markers.TryRead(doc, out var marker, out var error))
+                {
+                    case AGR_MarkerReadResult_e.Ok:
+                        sb.AppendLine($"Маркер: {marker!.PartNumber} v{marker.Version}, Id {marker.ComponentId}, схема {marker.SchemaVersion}");
+                        break;
+                    case AGR_MarkerReadResult_e.Invalid:
+                        sb.AppendLine($"Маркер ПОВРЕЖДЁН: {error}");
+                        break;
+                    default:
+                        sb.AppendLine("Маркера нет");
+                        break;
+                }
+
+                var current = AGR_GeometryFingerprint.Compute(doc, out var canonical);
+                sb.AppendLine($"Отпечаток в маркере: {(string.IsNullOrEmpty(marker?.Fingerprint) ? "(нет)" : marker!.Fingerprint)}");
+                sb.AppendLine($"Отпечаток сейчас:    {current}");
+                if (!string.IsNullOrEmpty(marker?.Fingerprint))
+                    sb.AppendLine(marker!.Fingerprint == current ? "Отпечаток СОВПАДАЕТ" : "Отпечаток НЕ СОВПАДАЕТ");
+
+                sb.AppendLine();
+                var fileLevel = AGR_PropertyReader.Read(doc.Model, "", AgroventInfrastructure.Enums.AGR_PropertyNames.Partnumber);
+                sb.AppendLine($"Обозначение (файл): {fileLevel ?? "(нет)"}");
+                foreach (var (config, value) in AGR_PropertyReader.ReadByConfigurations(doc.Model, AgroventInfrastructure.Enums.AGR_PropertyNames.Partnumber))
+                    sb.AppendLine($"Обозначение ({config}): {value ?? "(нет)"}");
+
+                var dir = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments), "Agrovent", "Fingerprint");
+                Directory.CreateDirectory(dir);
+                var name = string.IsNullOrEmpty(doc.Path) ? doc.Title : Path.GetFileNameWithoutExtension(doc.Path);
+                var file = Path.Combine(dir, $"{name}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllText(file, sb + "\r\n" + canonical, new System.Text.UTF8Encoding(true));
+
+                sb.AppendLine();
+                sb.AppendLine($"Каноническая строка: {file}");
+
+                if (marker == null && error != null)
+                {
+                    // Повреждённый или тестовый маркер (этап 1) останавливает сохранение: даём обнулить
+                    sb.AppendLine();
+                    sb.AppendLine("Обнулить маркер? Документ будет сохранён, файл станет «без маркера».");
+                    if (MessageBox.Show(sb.ToString(), "Маркер и отпечаток", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                    {
+                        if (markers.SaveWithMarker(doc, null, out var saveError))
+                            AGR_Helper.ShowMessage("Маркер обнулён.", Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info, Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                        else
+                            ShowError($"Маркер не обнулён: {saveError}");
+                    }
+                    return Task.FromResult(true);
+                }
+
+                AGR_Helper.ShowMessage(sb.ToString(), Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info, Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return Task.FromResult(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Диагностика маркера: ошибка.");
+                ShowError($"Ошибка диагностики маркера: {ex.Message}");
+                return Task.FromResult(false);
+            }
+        }
+
+        #endregion
 
         #region Редактирование (замки + локальная копия)
 

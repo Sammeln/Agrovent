@@ -18,5 +18,9 @@ namespace AgroventInfrastructure.Interfaces
         Task<bool> PackNGoAsync();
         Task<bool> EditActiveComponentAsync();
         Task<bool> CancelEditingAsync();
+
+        // Временно, удалить после миграции хранилища
+        Task<bool> MigrationReportAsync();
+        Task<bool> ShowMarkerInfoAsync();
     }
 }

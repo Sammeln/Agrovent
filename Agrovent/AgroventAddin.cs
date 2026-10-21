@@ -94,6 +94,15 @@ namespace Agrovent
         [Title("Отменить редактирование")]
         [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly | WorkspaceTypes_e.Part, true, RibbonTabTextDisplay_e.TextBelow)]
         CancelEditing,
+
+        // Временно, удалить после миграции хранилища
+        [Title("Маркер и отпечаток")]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.Assembly | WorkspaceTypes_e.Part)]
+        ShowMarkerInfo,
+
+        [Title("Миграция: отчёт")]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.NoDocuments)]
+        MigrationReport,
     }
 
     [ComVisible(true)]
@@ -320,6 +329,12 @@ namespace Agrovent
 
                     case AGR_Commands_e.CancelEditing:
                     await _commandService.CancelEditingAsync(); break;
+
+                    case AGR_Commands_e.ShowMarkerInfo:
+                    await _commandService.ShowMarkerInfoAsync(); break;
+
+                    case AGR_Commands_e.MigrationReport:
+                    await _commandService.MigrationReportAsync(); break;
                     //case AGR_Commands_e.Test:
                     //Application.Documents.Active.Features.CreateCustomFeature<BoxMacroFeatureDefinition, BoxMacroFeatureData, BoxPropertyPage>();
                     //var doc = Application.Documents.Active;
