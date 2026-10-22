@@ -174,6 +174,7 @@ namespace Agrovent.Infrastructure.Services
 
                 // 1. Версии по плану и снятие моих замков в одной транзакции
                 await saveVersions();
+                await ResolveRemainingAsync(plan);
                 await _unitOfWork.ComponentRepository.RemoveEditLocksAsync(LockedIds(plan), userId);
 
                 // 4.6: у неотмеченных геометрия проверена отпечатком; изменённые свойства файла пишем в их версию
@@ -213,6 +214,26 @@ namespace Agrovent.Infrastructure.Services
                 _logger.LogError(ex, $"Ошибка при сохранении: {rootPartNumber}");
                 _saveProgress.AddLogMessage($"Ошибка при сохранении {rootPartNumber}, изменения в БД отменены. {ex.Message} {ex.InnerException?.Message}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// SaveAssemblyStructure не заходит в неотмеченные подсборки, а в плане есть и их дети
+        /// (отпечаток проверяется у всех). Им нужна версия для свойств (4.6) и копирования: берём существующую.
+        /// </summary>
+        private async Task ResolveRemainingAsync(AGR_SavePlan plan)
+        {
+            foreach (var item in plan.Items.Values.Where(i => i.Saved == null).ToList())
+            {
+                if (item.Action != AGR_VersionAction_e.UseExisting)
+                {
+                    // Новая версия, на которую не ссылается ни одна новая версия сборки: файл без маркера
+                    // внутри подсборки, не взятой на редактирование
+                    throw new InvalidOperationException(
+                        $"{item.Component.Name} ({item.Component.PartNumber}): нет маркера, а подсборка с ним не взята на редактирование. " +
+                        "Возьмите подсборку на редактирование и повторите сохранение.");
+                }
+                await _unitOfWork.ComponentRepository.ResolvePlannedVersion(item.Component, plan);
             }
         }
 
