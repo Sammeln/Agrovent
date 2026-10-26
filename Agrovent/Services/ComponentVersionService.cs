@@ -2,6 +2,9 @@
 using System.Text.Json;
 using Agrovent.DAL;
 using Agrovent.DAL.Services;
+using Agrovent.DAL.Services.Repositories;
+using Agrovent.Infrastructure.Helpers;
+using Agrovent.Views.Windows;
 using Agrovent.Infrastructure.Interfaces;
 using Agrovent.Services;
 using Agrovent.ViewModels.Components;
@@ -88,6 +91,8 @@ namespace Agrovent.Infrastructure.Services
         public async Task<bool> CheckAndSaveComponentAsync(IAGR_BaseComponent component)
         {
             // 0. PartNumber (отдельное соединение) и сохранение локальных документов
+            // 6.5: покупной без маркера и без PartNumber сначала ищется среди существующих покупных
+            await ResolvePurchasedAsync(new[] { component });
             await GenerateMissingPartNumbersAsync(new[] { component });
             await TrySaveDocuments(component);
 
@@ -119,6 +124,8 @@ namespace Agrovent.Infrastructure.Services
                 allComponents.Add(assembly);
             }
             // 1. Генерируем PartNumber через ОТДЕЛЬНОЕ соединение ДО начала транзакции!
+            // 6.5: покупные без маркера и без PartNumber сначала ищутся среди существующих покупных (без дублей)
+            await ResolvePurchasedAsync(allComponents);
             await GenerateMissingPartNumbersAsync(allComponents);
             await TrySaveDocuments(assembly);
 
@@ -177,26 +184,33 @@ namespace Agrovent.Infrastructure.Services
                 await ResolveRemainingAsync(plan);
                 await _unitOfWork.ComponentRepository.RemoveEditLocksAsync(LockedIds(plan), userId);
 
-                // 4.6: у неотмеченных геометрия проверена отпечатком; изменённые свойства файла пишем в их версию
-                var updatedIds = new HashSet<int>();
-                foreach (var item in plan.Items.Values.Where(i => i.Action == AGR_VersionAction_e.UseExisting
-                                                               && !i.Component.IsPurchased
-                                                               && i.Saved != null))
+                // Отпечатки новых версий: те же значения, что пойдут в маркер
+                foreach (var item in plan.Items.Values.Where(i => i.Action == AGR_VersionAction_e.NewVersion && i.Saved != null))
                 {
-                    if (updatedIds.Add(item.Saved!.Id))
-                        await _unitOfWork.ComponentRepository.UpdateReferencedVersionPropertiesAsync(item.Saved, item.Component);
+                    item.Saved!.GeometryFingerprint = item.GeometryFingerprint;
+                    item.Saved.PropertiesFingerprint = item.PropertiesFingerprint;
+                }
+
+                // 6.3: неотмеченные с изменёнными свойствами (геометрия совпала) - свойства в их версию, без новой версии
+                var updatedIds = new HashSet<int>();
+                foreach (var item in plan.Items.Values.Where(i => i.PropertiesChanged && i.Saved != null))
+                {
+                    if (!updatedIds.Add(item.Saved!.Id)) continue;
+                    await _unitOfWork.ComponentRepository.UpdateReferencedVersionAsync(item.Saved, item.Component, item.FileProperties!);
+                    item.Saved.PropertiesFingerprint = item.PropertiesFingerprint;
                 }
                 var savedCount = await _unitOfWork.CompleteAsync();
                 _saveProgress.AddLogMessage($"Подготовлено {savedCount} записей БД.");
 
-                // 2. Маркеры: Id и версии уже известны, документы ещё открыты
+                // 2. Маркеры: Id и версии уже известны, документы ещё открыты (новые версии и PropertiesChanged)
                 writer.WriteMarkers(plan);
 
-                // 3. Файлы новых версий в хранилище (закрывает все документы)
+                // 3. Файлы новых версий в хранилище, файлы PropertiesChanged поверх их версии (закрывает все документы)
                 writer.CopyToStorage(plan, root);
 
                 // 4. Только теперь фиксируем БД
                 await _unitOfWork.CommitTransactionAsync();
+                writer.DiscardBackups();
 
                 var created = plan.Items.Values.Count(i => i.Action == AGR_VersionAction_e.NewVersion);
                 _logger.LogInformation($"Сохранено: {rootName} {rootPartNumber}, новых версий: {created}");
@@ -208,7 +222,7 @@ namespace Agrovent.Infrastructure.Services
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync();
-                writer.DeleteCreatedFolders();
+                writer.RollbackFiles();
                 // Маркеры, уже записанные в локальные файлы, указывают на откатанные версии. Замки остались,
                 // поэтому при повторном сохранении эти компоненты снова получат новую версию.
                 _logger.LogError(ex, $"Ошибка при сохранении: {rootPartNumber}");
@@ -251,6 +265,65 @@ namespace Agrovent.Infrastructure.Services
             taskPane.Selection = null;
             taskPane.ActiveView = new AGR_HomePageVM();
         }
+        /// <summary>
+        /// 6.5: заглушка от дублей покупных. Покупной без маркера и без PartNumber до выдачи нового номера ищется в БД:
+        /// по артикулу (уникален для покупного), не нашёлся - по имени файла и отпечатку геометрии. Один кандидат -
+        /// берём его PartNumber; несколько - выбор пользователя; ни одного - новый компонент (как раньше).
+        /// С найденным PartNumber план сошлётся на последнюю версию покупного (AGR_SavePlanBuilder).
+        /// Отдельный scope: вызывается до транзакции сохранения.
+        /// </summary>
+        private async Task ResolvePurchasedAsync(IEnumerable<IAGR_BaseComponent> components)
+        {
+            var files = components
+                .Where(c => c.IsPurchased && string.IsNullOrWhiteSpace(c.PartNumber) && c.SwDocument?.IsAlive == true)
+                .GroupBy(c => c.SwDocument.Path ?? c.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (files.Count == 0) return;
+
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IAGR_ComponentRepository>();
+
+            foreach (var file in files)
+            {
+                var comp = file.First();
+                // Маркер есть (или повреждён) - компонент определится по нему, не угадываем
+                if (_markers.TryRead(comp.SwDocument, out _, out _) != AGR_MarkerReadResult_e.Missing) continue;
+
+                var candidates = new List<AGR_PurchasedCandidate>();
+                if (int.TryParse(comp.Article, out var article))
+                    candidates = await repository.FindPurchasedCandidatesAsync(article, comp.Name, null);
+
+                if (candidates.Count == 0)
+                {
+                    string fingerprint;
+                    try { fingerprint = AGR_GeometryFingerprint.Compute(comp.SwDocument, out _); }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Покупной {comp.Name}: отпечаток не посчитан, поиск по геометрии пропущен.");
+                        continue;
+                    }
+                    candidates = await repository.FindPurchasedCandidatesAsync(null, comp.Name, fingerprint);
+                }
+
+                if (candidates.Count == 0)
+                {
+                    _saveProgress.AddLogMessage($"Покупной {comp.Name}: в базе не найден, будет создан новый.");
+                    continue;
+                }
+
+                var chosen = candidates.Count == 1 ? candidates[0] : AGR_PurchasedCandidateDialog.Show(comp.Name, candidates);
+                if (chosen == null)
+                {
+                    _saveProgress.AddLogMessage($"Покупной {comp.Name}: найдено {candidates.Count}, выбран новый компонент.");
+                    continue;
+                }
+
+                foreach (var c in file) c.PartNumber = chosen.PartNumber; // пишется в Custom файла
+                _logger.LogInformation($"Покупной {comp.Name}: найден существующий {chosen}.");
+                _saveProgress.AddLogMessage($"Покупной {comp.Name}: используется существующий {chosen.PartNumber} v{chosen.Version}.");
+            }
+        }
+
         private async Task GenerateMissingPartNumbersAsync(IEnumerable<IAGR_BaseComponent> components)
         {
             // Отбираем только те компоненты, у которых еще нет PartNumber
@@ -323,12 +396,12 @@ namespace Agrovent.Infrastructure.Services
         }
 
         // Копирование файлов в хранилище ---
-        public async Task CopyFilesToStorageAsync(IAGR_BaseComponent rootComponent, int rootHashSum)
+        public async Task CopyFilesToStorageAsync(IAGR_BaseComponent rootComponent)
         {
             var rootPartNumber = rootComponent.PartNumber;
 
-            // 1. Собираем информацию о файлах и их хэшах
-            var filesToCopyInfo = new Dictionary<string, (int Hash, int Version)>(); // Ключ: исходный путь, Значение: хэш и версия компонента
+            // 1. Собираем информацию о файлах: папка компонента в хранилище и версия
+            var filesToCopyInfo = new Dictionary<string, (Guid? StorageGuid, int Version)>(); // Ключ: исходный путь, Значение: папка компонента и версия
 
             // Если rootComponent - сборка, получаем плоский список зависимостей
             if (rootComponent is AGR_AssemblyComponentVM assemblyComponent)
@@ -352,8 +425,8 @@ namespace Agrovent.Infrastructure.Services
 
             if (filesToCopyInfo.Count == 0)
             {
-                _logger.LogWarning($"Не найдено файлов для копирования для компонента {rootComponent.PartNumber} (HashSum: {rootHashSum})");
-                _saveProgress.AddLogMessage($"Не найдено файлов для копирования для компонента {rootComponent.PartNumber} (HashSum: {rootHashSum})");
+                _logger.LogWarning($"Не найдено файлов для копирования для компонента {rootComponent.PartNumber}");
+                _saveProgress.AddLogMessage($"Не найдено файлов для копирования для компонента {rootComponent.PartNumber}");
                 return;
             }
 
@@ -388,16 +461,16 @@ namespace Agrovent.Infrastructure.Services
                 for (int i = 0; i < sourceArray.Length; i++)
                 {
                     var sourcePath = sourceArray[i];
-                    if (filesToCopyInfo.TryGetValue(sourcePath, out var infoForPath))
+                    if (filesToCopyInfo.TryGetValue(sourcePath, out var infoForPath) && infoForPath.StorageGuid.HasValue)
                     {
-                        var targetDir = AGR_StoragePaths.GetVersionFolder(infoForPath.Hash, infoForPath.Version);
+                        var targetDir = AGR_StoragePaths.GetVersionFolder(infoForPath.StorageGuid.Value, infoForPath.Version);
                         Directory.CreateDirectory(targetDir); // Убедиться, что папка существует
                         targetArray[i] = Path.Combine(targetDir, Path.GetFileName(sourcePath));
                     }
                     else
                     {
-                        _logger.LogError($"Не найден хэш для пути {sourcePath} в словаре filesToCopyInfo.");
-                        _saveProgress.AddLogMessage($"Не найден хэш для пути {sourcePath} в словаре filesToCopyInfo.");
+                        _logger.LogError($"Нет папки компонента (компонент не сохранён в БД) для пути {sourcePath} в словаре filesToCopyInfo.");
+                        _saveProgress.AddLogMessage($"Нет папки компонента (компонент не сохранён в БД) для пути {sourcePath} в словаре filesToCopyInfo.");
                         // Пропускаем этот файл или обрабатываем ошибку по-другому
                         targetArray[i] = null; // или throw new Exception(...)
                     }
@@ -415,13 +488,13 @@ namespace Agrovent.Infrastructure.Services
                 var sourceFile = rootFileComponent.CurrentModelFilePath; // Это CurrentModelFilePath
 
                 // 1.4 Записать целевой путь rootComponent
-                if (!filesToCopyInfo.TryGetValue(sourceFile, out var rootInfo))
+                if (!filesToCopyInfo.TryGetValue(sourceFile, out var rootInfo) || !rootInfo.StorageGuid.HasValue)
                 {
-                    _logger.LogError($"Не найден хэш для исходного файла rootComponent {sourceFile}.");
-                    _saveProgress.AddLogMessage($"Не найден хэш для исходного файла rootComponent {sourceFile}.");
-                    //return; // Или выбросить исключение
+                    _logger.LogError($"Нет папки компонента (компонент не сохранён в БД) для исходного файла rootComponent {sourceFile}.");
+                    _saveProgress.AddLogMessage($"Нет папки компонента (компонент не сохранён в БД) для исходного файла rootComponent {sourceFile}.");
+                    return;
                 }
-                var targetDirRoot = AGR_StoragePaths.GetVersionFolder(rootInfo.Hash, rootInfo.Version);
+                var targetDirRoot = AGR_StoragePaths.GetVersionFolder(rootInfo.StorageGuid.Value, rootInfo.Version);
                 Directory.CreateDirectory(targetDirRoot); // Убедиться, что папка существует
                 var targetFile = Path.Combine(targetDirRoot, Path.GetFileName(sourceFile));
 
@@ -464,13 +537,13 @@ namespace Agrovent.Infrastructure.Services
                     }
                     else
                     {
-                        _logger.LogInformation($"Файлы успешно скопированы через SW CopyDocument для компонента {rootPartNumber} (HashSum: {rootHashSum}).");
-                        _saveProgress.AddLogMessage($"Файлы успешно скопированы через SW CopyDocument для компонента {rootPartNumber} (HashSum: {rootHashSum}).");
+                        _logger.LogInformation($"Файлы успешно скопированы через SW CopyDocument для компонента {rootPartNumber}.");
+                        _saveProgress.AddLogMessage($"Файлы успешно скопированы через SW CopyDocument для компонента {rootPartNumber}.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Исключение при вызове SW CopyDocument для компонента {rootPartNumber} (HashSum: {rootHashSum}).");
+                    _logger.LogError(ex, $"Исключение при вызове SW CopyDocument для компонента {rootPartNumber}.");
                     // Логика обработки исключения
                 }
 
@@ -485,13 +558,13 @@ namespace Agrovent.Infrastructure.Services
             // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
         }
         // Копирование файлов в производственное хранилище (Production) ---
-        public async Task CopyFilesToProdAsync(IAGR_BaseComponent rootComponent, int rootHashSum)
+        public async Task CopyFilesToProdAsync(IAGR_BaseComponent rootComponent)
         {
             var rootPartNumber = rootComponent.PartNumber;
 
             // 1. Собираем информацию о файлах. 
             // Теперь храним не только хэш, но и PartNumber и флаг IsPurchased
-            var filesToCopyInfo = new Dictionary<string, (int Hash, int Version, string PartNumber, bool IsPurchased)>();
+            var filesToCopyInfo = new Dictionary<string, (Guid? StorageGuid, int Version, string PartNumber, bool IsPurchased)>();
 
             if (rootComponent is AGR_AssemblyComponentVM assemblyComponent)
             {
@@ -551,8 +624,15 @@ namespace Agrovent.Infrastructure.Services
                         // --- ЛОГИКА ВЫБОРА ПАПКИ ---
                         if (fileInfo.IsPurchased)
                         {
-                            // Требование 3: purchased компоненты ссылаются на файл в хранилище (StorageRoot/hash/версия)
-                            targetDir = AGR_StoragePaths.GetVersionFolder(fileInfo.Hash, fileInfo.Version);
+                            // Требование 3: purchased компоненты ссылаются на файл в хранилище (StorageRoot/guid/версия)
+                            if (!fileInfo.StorageGuid.HasValue)
+                            {
+                                _logger.LogError($"Покупной компонент не сохранён в БД (нет папки в хранилище): {sourcePath}");
+                                _saveProgress.AddLogMessage($"Покупной компонент не сохранён в БД (нет папки в хранилище): {sourcePath}");
+                                targetArray[i] = null;
+                                continue;
+                            }
+                            targetDir = AGR_StoragePaths.GetVersionFolder(fileInfo.StorageGuid.Value, fileInfo.Version);
                         }
                         else
                         {
@@ -584,13 +664,14 @@ namespace Agrovent.Infrastructure.Services
                 {
                     _logger.LogError($"Не найдена информация для исходного файла rootComponent {sourceFile}.");
                     _saveProgress.AddLogMessage($"Не найдена информация для исходного файла rootComponent {sourceFile}.");
+                    return;
                 }
 
                 // Целевой путь для корневого компонента
                 string targetDirRoot;
-                if (rootFileInfo.IsPurchased)
+                if (rootFileInfo.IsPurchased && rootFileInfo.StorageGuid.HasValue)
                 {
-                    targetDirRoot = AGR_StoragePaths.GetVersionFolder(rootFileInfo.Hash, rootFileInfo.Version);
+                    targetDirRoot = AGR_StoragePaths.GetVersionFolder(rootFileInfo.StorageGuid.Value, rootFileInfo.Version);
                 }
                 else
                 {
@@ -649,7 +730,7 @@ namespace Agrovent.Infrastructure.Services
 
 
         // --- Добавление файлов компонента в словарь ---
-        private void AddComponentFilesToDict(IAGR_BaseComponent component, Dictionary<string, (int Hash, int Version)> filesDict)
+        private void AddComponentFilesToDict(IAGR_BaseComponent component, Dictionary<string, (Guid? StorageGuid, int Version)> filesDict)
         {
             if (!(component is IAGR_HasFile fileComponent))
             {
@@ -657,7 +738,7 @@ namespace Agrovent.Infrastructure.Services
                 return;
             }
 
-            var componentHash = component.CalculateComponentHash(); // Вычисляем хэш для текущего компонента
+            var storageGuid = component.StorageGuid;                  // папка компонента: из БД (загрузка панели или сохранение)
             var componentVersion = component.Version;               // проставляется в ComponentRepository.SaveComponent
 
             // Добавляем CurrentModelFilePath
@@ -665,8 +746,8 @@ namespace Agrovent.Infrastructure.Services
             {
                 if (!filesDict.ContainsKey(fileComponent.CurrentModelFilePath))
                 {
-                    filesDict[fileComponent.CurrentModelFilePath] = (componentHash, componentVersion);
-                    _logger.LogDebug($"Добавлен файл модели для {component.PartNumber} (Hash: {componentHash}): {fileComponent.CurrentModelFilePath}");
+                    filesDict[fileComponent.CurrentModelFilePath] = (storageGuid, componentVersion);
+                    _logger.LogDebug($"Добавлен файл модели для {component.PartNumber}: {fileComponent.CurrentModelFilePath}");
                 }
                 else
                 {
@@ -683,8 +764,8 @@ namespace Agrovent.Infrastructure.Services
             {
                 if (!filesDict.ContainsKey(fileComponent.CurrentDrawFilePath))
                 {
-                    filesDict[fileComponent.CurrentDrawFilePath] = (componentHash, componentVersion);
-                    _logger.LogDebug($"Добавлен файл чертежа для {component.PartNumber} (Hash: {componentHash}): {fileComponent.CurrentDrawFilePath}");
+                    filesDict[fileComponent.CurrentDrawFilePath] = (storageGuid, componentVersion);
+                    _logger.LogDebug($"Добавлен файл чертежа для {component.PartNumber}: {fileComponent.CurrentDrawFilePath}");
                 }
                 else
                 {
@@ -698,7 +779,7 @@ namespace Agrovent.Infrastructure.Services
         }
 
         // --- Добавление файлов компонента в словарь для Production ---
-        private void AddComponentFilesToProductionDict(IAGR_BaseComponent component, Dictionary<string, (int Hash, int Version, string PartNumber, bool IsPurchased)> filesDict)
+        private void AddComponentFilesToProductionDict(IAGR_BaseComponent component, Dictionary<string, (Guid? StorageGuid, int Version, string PartNumber, bool IsPurchased)> filesDict)
         {
             if (!(component is IAGR_HasFile fileComponent))
             {
@@ -706,7 +787,7 @@ namespace Agrovent.Infrastructure.Services
                 return;
             }
 
-            var componentHash = component.CalculateComponentHash();
+            var storageGuid = component.StorageGuid;
             var partNumber = component.PartNumber;
 
             // ВАЖНО: Замените эту проверку на реальную логику определения "purchased" компонента в вашей системе!
@@ -718,7 +799,7 @@ namespace Agrovent.Infrastructure.Services
             {
                 if (!filesDict.ContainsKey(fileComponent.CurrentModelFilePath))
                 {
-                    filesDict[fileComponent.CurrentModelFilePath] = (componentHash, component.Version, partNumber, isPurchased);
+                    filesDict[fileComponent.CurrentModelFilePath] = (storageGuid, component.Version, partNumber, isPurchased);
                     _logger.LogDebug($"Добавлен файл модели для {component.PartNumber} (Purchased: {isPurchased}): {fileComponent.CurrentModelFilePath}");
                 }
             }
@@ -728,7 +809,7 @@ namespace Agrovent.Infrastructure.Services
             {
                 if (!filesDict.ContainsKey(fileComponent.CurrentDrawFilePath))
                 {
-                    filesDict[fileComponent.CurrentDrawFilePath] = (componentHash, component.Version, partNumber, isPurchased);
+                    filesDict[fileComponent.CurrentDrawFilePath] = (storageGuid, component.Version, partNumber, isPurchased);
                     _logger.LogDebug($"Добавлен файл чертежа для {component.PartNumber} (Purchased: {isPurchased}): {fileComponent.CurrentDrawFilePath}");
                 }
             }

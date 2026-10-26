@@ -23,6 +23,7 @@
         public const string Color = "Цвет покраски";
         public const string Article = "Артикул";
         public const string Version = "Версия";
+        // Больше не пишется в файлы; имя нужно миграции, чтобы удалить свойство из файлов
         public const string HashSum = "Хэш-сумма";
         public const string PDM_Partnumber = "Номер ДСЕ";
     }

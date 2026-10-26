@@ -225,7 +225,7 @@ namespace Agrovent.Infrastructure.Handlers
                             var vm = _viewModelCache.GetOrCreate(swDoc, d => _viewModelFactory.CreateComponent(d));
                             vm.Article = "";
                             vm.PartNumber = "";
-                            vm.HashSum = 0;
+                            vm.StorageGuid = null;
                         }
                     }
                     catch (Exception ex)

@@ -174,9 +174,9 @@ namespace Agrovent.ViewModels.Tree
                 newDoc.Commit(CancellationToken.None);
                 if (newDoc != null)
                 {
+                    (newDoc as ISwDocument3D).Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = "";
                     (newDoc as ISwDocument3D).Configurations.Active.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value = "";
                     (newDoc as ISwDocument3D).Configurations.Active.Properties.AGR_TryGetProp(AGR_PropertyNames.Article).Value = "";
-                    (newDoc as ISwDocument3D).Configurations.Active.Properties.AGR_TryGetProp(AGR_PropertyNames.HashSum).Value = "";
                 }
             }
             return 1;
@@ -274,7 +274,6 @@ namespace Agrovent.ViewModels.Tree
                 // Создаём ViewModel из документа SolidWorks
                 viewModel = _viewModelCache.GetOrCreate(document, d => _viewModelFactory.CreateComponent(d));
 
-                var hash = viewModel.CalculateComponentHash();
                 //var viewModel = _viewModelFactory.CreateComponent(document);
                 if (viewModel is AGR_AssemblyComponentVM assemblyComponentVM)
                 {
@@ -294,11 +293,11 @@ namespace Agrovent.ViewModels.Tree
                     }
                     else
                     {
-                        await CheckComponentByHashAsync(viewModel);
+                        // Нет «Обозначения»: в БД компонента нет (поиск по хешу убран, поиск покупных - этап 6.5)
+                        viewModel.IsInDatabase = AGR_ComponentDatabaseState_e.NotSavedInDB;
                     }
                 }
 
-                //int hashVM = viewModel.CalculateComponentHash();
 
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -341,8 +340,18 @@ namespace Agrovent.ViewModels.Tree
                     _logger.LogDebug($"Loaded version {latestVersion.Version} for {partNumber}");
 
                     // Обновляем свойства из БД
-                    component.Version = latestVersion.Version;
-                    component.HashSum = latestVersion.HashSum;
+                    // Версия и GUID - из маркера файла; без маркера (файлы до миграции) - последняя версия из БД.
+                    // TODO этап 5: загружать версию из маркера, а не последнюю (ComponentVersion = latestVersion).
+                    var dbGuid = latestVersion.Component?.StorageGuid;
+                    if (component.StorageGuid.HasValue && dbGuid.HasValue && component.StorageGuid != dbGuid)
+                    {
+                        // Маркер от другой БД (очищена, пересоздана) или чужой файл: верим БД
+                        _logger.LogWarning($"{partNumber}: GUID маркера {component.StorageGuid} не совпадает с БД {dbGuid}, маркер не учитывается.");
+                        component.Version = 0;
+                        component.StorageGuid = null;
+                    }
+                    if (component.Version == 0) component.Version = latestVersion.Version;
+                    component.StorageGuid ??= dbGuid;
 
                     // Загружаем AvaArticle если есть
                     if (latestVersion.AvaArticle != null) // Используем AvaArticleId из ComponentVersion
@@ -363,46 +372,6 @@ namespace Agrovent.ViewModels.Tree
             }
         }
 
-        private async Task CheckComponentByHashAsync(IAGR_BaseComponent component)
-        {
-            try
-            {
-                int hashSum = component.CalculateComponentHash();
-                var name = component.Name;
-
-                if (component.SwDocument is ISwAssembly assembly)
-                {
-                    if (assembly.Configurations.Active.Components.Count == 0) return;
-                }
-                if (component.SwDocument is ISwPart part)
-                {
-                    if (part.Features.Count == 21) return;
-                }
-
-                // Используем UnitOfWork для поиска по хэшу
-                var existingComponent = await _unitOfWork.ComponentRepository.FindComponentByHash(hashSum); // Используем метод из репозитория
-                if (existingComponent != null)
-                {
-
-                    if (existingComponent.Name == component.Name)
-                    {
-
-                        var res = _app.ShowMessageBox($"В базе найден такой компонент - {existingComponent.Component.PartNumber}\nНужно или переименовать компонент или использовать сохраненное обозначение\nИспользовать обозначение?",
-                                            Xarial.XCad.Base.Enums.MessageBoxIcon_e.Question,
-                                            Xarial.XCad.Base.Enums.MessageBoxButtons_e.YesNo);
-                        if (res == Xarial.XCad.Base.Enums.MessageBoxResult_e.Yes)
-                        {
-                            component.PartNumber = existingComponent.Component.PartNumber;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) // Ловим и логируем исключение
-            {
-                _logger.LogError(ex, $"Error checking component by hash for {component?.Name}");
-                // Не выбрасываем исключение, чтобы не прерывать основной поток загрузки
-            }
-        }
         private async void OnSelectionChangedAsync(IXDocument doc, Xarial.XCad.IXSelObject selObject)
         {
             try

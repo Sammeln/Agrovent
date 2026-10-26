@@ -271,7 +271,7 @@ namespace Agrovent.ViewModels.Components
             OnPropertyChanged(nameof(PartNumber));
             OnPropertyChanged(nameof(Article));
             OnPropertyChanged(nameof(Version));
-            OnPropertyChanged(nameof(HashSum));
+            OnPropertyChanged(nameof(StorageGuid));
             OnPropertyChanged(nameof(Preview));
             OnPropertyChanged(nameof(ComponentType));
             OnPropertyChanged(nameof(AvaType));

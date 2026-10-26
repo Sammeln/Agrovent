@@ -19,10 +19,7 @@ namespace Agrovent.ViewModels.Specification
             _xComponent = xComponent;
             _Name = Path.GetFileNameWithoutExtension(_xComponent.ReferencedDocument.Path);
             _ConfigName = _xComponent.ReferencedConfiguration.Name;
-            _PartNumber = _xComponent
-                .ReferencedDocument
-                .Configurations.Active
-                .Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString() ?? "";
+            _PartNumber = (_xComponent.ReferencedDocument as IXDocument3D)?.AGR_ReadPartNumber() ?? "";
             _Quantity = quantity;
         }
 

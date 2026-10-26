@@ -124,7 +124,7 @@ namespace Agrovent.ViewModels.Windows
                     BlankProperties.Add(new AGR_ComponentPropertyEditVM(prop));
 
                 foreach (var file in _entity.Files)
-                    Files.Add(new AGR_ComponentFileEditVM(file, _entity.HashSum, _entity.Version));
+                    Files.Add(new AGR_ComponentFileEditVM(file, _entity.Component.StorageGuid, _entity.Version));
 
                 //ValidateComponent();
             }
@@ -437,7 +437,7 @@ namespace Agrovent.ViewModels.Windows
 
             try
             {
-                var storageFolder = AGR_StoragePaths.GetVersionFolder(_entity.HashSum, _entity.Version);
+                var storageFolder = AGR_StoragePaths.GetVersionFolder(_entity.Component.StorageGuid, _entity.Version);
                 Directory.CreateDirectory(storageFolder);
                 var targetPath = Path.Combine(storageFolder, Path.GetFileName(dlg.FileName));
                 File.Copy(dlg.FileName, targetPath, true);
@@ -451,7 +451,7 @@ namespace Agrovent.ViewModels.Windows
                     LastModified = File.GetLastWriteTime(dlg.FileName)
                 };
 
-                Files.Add(new AGR_ComponentFileEditVM(newFile, _entity.HashSum, _entity.Version));
+                Files.Add(new AGR_ComponentFileEditVM(newFile, _entity.Component.StorageGuid, _entity.Version));
                 _newFiles.Add(newFile);
             }
             catch (Exception ex) { _logger?.LogError(ex, "Ошибка при добавлении файла"); }

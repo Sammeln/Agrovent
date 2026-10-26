@@ -44,7 +44,7 @@ namespace Agrovent.ViewModels.Base
 
         // ВНИМАНИЕ: эти two свойства больше не используются в геттерах данных (PartNumber, Article, ...).
         // Они оставлены только для внутренних методов, которым реально нужен живой документ
-        // прямо здесь и сейчас (например, RefreshFromDocument, CalculateComponentHash, ComputePreviewImageBytes).
+        // прямо здесь и сейчас (например, RefreshFromDocument, ComputePreviewImageBytes).
         // Обращение к ним всегда должно быть обёрнуто в try/catch(COMException) и предварённой проверкой IsAlive,
         // т.к. между проверкой IsAlive и следующим обращением к COM документ теоретически может закрыться.
         internal ISwConfiguration? mConfiguration => (mDocument != null && mDocument.IsAlive) ? mDocument.Configurations.Active : null;
@@ -71,7 +71,7 @@ namespace Agrovent.ViewModels.Base
         private string _partNumber = "";
         private string _article = "";
         private int _version;
-        private int? _hashSum;
+        private Guid? _storageGuid;
         private AGR_AvaType_e _avaType = AGR_AvaType_e.Component;
         private AGR_ComponentType_e _componentType = AGR_ComponentType_e.NA;
         private string _configName = "";
@@ -123,17 +123,16 @@ namespace Agrovent.ViewModels.Base
             {
                 var props = mDocument.Configurations.Active.Properties;
 
-                _partNumber = props.AGR_TryGetProp(AGR_PropertyNames.Partnumber)?.Value?.ToString() ?? "";
+                // «Обозначение» - Custom файла (до миграции файлов - активная конфигурация), свойство не создаётся
+                _partNumber = mDocument.AGR_ReadPartNumber();
 
                 _article = AvaArticle != null
                     ? AvaArticle.Article.ToString()
                     : props.AGR_TryGetProp(AGR_PropertyNames.Article)?.Value?.ToString() ?? "";
 
-                _version = TryParseInt(props.AGR_TryGetProp(AGR_PropertyNames.Version)?.Value);
-
-                var hashRaw = props.AGR_TryGetProp(AGR_PropertyNames.HashSum)?.Value?.ToString();
-                _hashSum = string.IsNullOrEmpty(hashRaw) ? 0 : TryParseInt(hashRaw);
-
+                // Версия и папка в хранилище - из маркера (свойство «Версия» больше не пишется). Нет маркера -
+                // версия 0 (не сохранён), GUID не трогаем: его могла проставить загрузка из БД.
+                ReadMarker();
                 var avaTypeRaw = props.AGR_TryGetProp(AGR_PropertyNames.AvaType)?.Value?.ToString();
                 _avaType = string.IsNullOrEmpty(avaTypeRaw)
                     ? AGR_AvaType_e.Component
@@ -161,7 +160,7 @@ namespace Agrovent.ViewModels.Base
             OnPropertyChanged(nameof(PartNumber));
             OnPropertyChanged(nameof(Article));
             OnPropertyChanged(nameof(Version));
-            OnPropertyChanged(nameof(HashSum));
+            OnPropertyChanged(nameof(StorageGuid));
             OnPropertyChanged(nameof(AvaType));
             OnPropertyChanged(nameof(ComponentType));
             OnPropertyChanged(nameof(IsPurchased));
@@ -185,6 +184,50 @@ namespace Agrovent.ViewModels.Base
             {
                 // Документ закрылся прямо во время записи — переводим VM в неживое
                 // состояние, дальнейшие обращения к mDocument прекратятся.
+                IsAlive = false;
+            }
+        }
+
+        /// <summary>Версия и GUID из маркера файла. Маркер повреждён или отсутствует - версия 0.</summary>
+        private void ReadMarker()
+        {
+            var markers = AGR_ServiceContainer.GetService<Agrovent.Services.IAGR_MarkerService>();
+            if (markers != null
+                && markers.TryRead(mDocument!, out var marker, out _) == Agrovent.Services.AGR_MarkerReadResult_e.Ok)
+            {
+                _version = marker!.Version;
+                _storageGuid = marker.StorageGuid;
+            }
+            else
+            {
+                _version = 0;
+            }
+        }
+
+        /// <summary>«Обозначение» пишется только на вкладку Custom файла; из конфигураций удаляется,
+        /// чтобы не было двух разных значений (так же делает миграция).</summary>
+        private void TryWritePartNumber(string value)
+        {
+            if (mDocument == null || !mDocument.IsAlive) return;
+
+            try
+            {
+                var prop = mDocument.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber);
+                if (prop != null) prop.Value = value;
+
+                if (mDocument.Model.GetConfigurationNames() is object[] configs)
+                {
+                    foreach (var config in configs.OfType<string>())
+                    {
+                        var mgr = mDocument.Model.Extension.get_CustomPropertyManager(config);
+                        if (mgr?.GetNames() is object[] names
+                            && names.OfType<string>().Any(n => string.Equals(n, AGR_PropertyNames.Partnumber, StringComparison.OrdinalIgnoreCase)))
+                            mgr.Delete2(AGR_PropertyNames.Partnumber); 
+                    }
+                }
+            }
+            catch (COMException)
+            {
                 IsAlive = false;
             }
         }
@@ -222,7 +265,7 @@ namespace Agrovent.ViewModels.Base
                 _partNumber = value;
                 OnPropertyChanged(nameof(PartNumber));
                 PartnumberChanged?.Invoke(this, new EventArgs());
-                TryWriteProperty(AGR_PropertyNames.Partnumber, value);
+                TryWritePartNumber(value);
             }
         }
 
@@ -244,22 +287,19 @@ namespace Agrovent.ViewModels.Base
             {
                 _version = value;
                 OnPropertyChanged(nameof(Version));
-                TryWriteProperty(AGR_PropertyNames.Version, value);
             }
         }
 
-        public int? HashSum
+        // Из маркера файла или из БД (загрузка панели, сохранение); в свойства файла не пишется
+        public Guid? StorageGuid
         {
-            get => _hashSum;
+            get => _storageGuid;
             set
             {
-                _hashSum = value;
-                OnPropertyChanged(nameof(HashSum));
-                TryWriteProperty(AGR_PropertyNames.HashSum, value);
+                _storageGuid = value;
+                OnPropertyChanged(nameof(StorageGuid));
             }
         }
-
-        public int ComponentHash => CalculateComponentHash();
         public bool IsLoaded { get; set; }
 
         #region Preview
@@ -444,56 +484,6 @@ namespace Agrovent.ViewModels.Base
 
         #region METHODS
 
-        public int CalculateComponentHash()
-        {
-            if (mDocument == null || !mDocument.IsAlive) return 0;
-
-            // Вычисляем хеш на основе важных свойств
-            unchecked
-            {
-                int hash = 17;
-
-                try
-                {
-                    if (this is AGR_PartComponentVM part)
-                    {
-                        string str = string.Empty;
-
-                        var swPart = part.SwDocument as ISwPart;
-
-                        var dimensions = swPart.Dimensions.ToList();
-
-                        if (dimensions != null && dimensions?.Count > 0)
-                        {
-                            foreach (var dim in swPart.Dimensions)
-                            {
-                                hash += dim.Value.GetHashCode();
-                            }
-                        }
-                        foreach (var feat in swPart.Features)
-                        {
-                            str += feat.Name;
-                        }
-                        hash += HashString(str);
-                    }
-                    if (this is AGR_AssemblyComponentVM assembly)
-                    {
-                        foreach (var item in assembly.GetChildComponents())
-                        {
-                            hash += item.Component.CalculateComponentHash() * item.Quantity;
-                        }
-                    }
-                }
-                catch (COMException)
-                {
-                    IsAlive = false;
-                    return hash;
-                }
-
-                return hash;
-            }
-        }
-
         protected virtual byte[]? ComputePreviewImageBytes()
         {
             try
@@ -538,18 +528,6 @@ namespace Agrovent.ViewModels.Base
         {
             // Просто обращаемся к свойству, чтобы оно вычислилось в текущем потоке (ожидается UI-поток)
             _ = Preview;
-        }
-        public int HashString(string text)
-        {
-            unchecked
-            {
-                int hash = 23;
-                foreach (char c in text)
-                {
-                    hash = hash * 31 + c;
-                }
-                return hash;
-            }
         }
 
         #endregion

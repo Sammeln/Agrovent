@@ -14,7 +14,8 @@ namespace AgroventInfrastructure.Interfaces.Entities.Components
         AGR_ComponentType_e ComponentType { get; set; }
         string ConfigName { get; set; }
         ICollection<IAGR_ComponentFileEntity> Files { get; set; }
-        int HashSum { get; set; }
+        string? GeometryFingerprint { get; set; }
+        string? PropertiesFingerprint { get; set; }
         IAGR_ComponentMaterialEntity? Material { get; set; }
         string Name { get; set; }
         byte[] PreviewImage { get; set; }

@@ -394,8 +394,6 @@ namespace Agrovent
                     //удаляем из кэша старый документ
                     _viewModelCache.Remove(LastComponent.SwDocument);
 
-                    var pn = doc.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
-
                     //Получаем модель бокового меню
                     var taskPaneVM = AGR_ServiceContainer.GetService<AGR_TaskPaneViewModel>();
 
@@ -410,7 +408,7 @@ namespace Agrovent
                     newdocVM.AvaArticle = null;
                     newdocVM.Article = "";
                     newdocVM.PartNumber = string.Empty;
-                    newdocVM.HashSum = 0;
+                    newdocVM.StorageGuid = null;
 
                     taskPaneVM.OnDocumentActivatedAsync(doc);
                 }
@@ -509,10 +507,7 @@ namespace Agrovent
         private void ExportToIGES()
         {
             var doc = Application.Documents.Active;
-            var pn = (doc as ISwDocument3D)
-                .Configurations.Active
-                .Properties
-                .AGR_TryGetProp(AGR_PropertyNames.Partnumber)?.Value.ToString();
+            var pn = (doc as ISwDocument3D)?.AGR_ReadPartNumber();
             var folder = @"\\192.168.10.56\pdm";
             var docName = Path.GetFileName(doc.Path);
 

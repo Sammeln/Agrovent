@@ -19,7 +19,8 @@ namespace AgroventInfrastructure.Interfaces.Components.Base
         abstract string PartNumber { get; set; }
         abstract string Article { get; set; }
         abstract int Version { get; set; }
-        abstract int? HashSum { get; set; }
+        /// <summary>Папка компонента в хранилище (Components.StorageGuid). null - компонента ещё нет в БД.</summary>
+        abstract Guid? StorageGuid { get; set; }
         abstract byte[] Preview { get; }
         abstract IAGR_AvaArticleModel? AvaArticle { get; set; }
         abstract AGR_ComponentType_e ComponentType { get; set; }
@@ -42,7 +43,6 @@ namespace AgroventInfrastructure.Interfaces.Components.Base
         abstract int ParentAssembliesCount { get; }
 
         abstract bool CanUserEdit { get; }
-        abstract int CalculateComponentHash();
         abstract void PrecomputePreview();
 
         abstract bool IsPurchased { get; }

@@ -20,8 +20,8 @@ namespace Agrovent.Infrastructure.Interfaces
         // Дополнительные методы (опционально)
         Task<ComponentVersion?> GetLatestComponentVersionAsync(string partNumber);
         Task<List<AssemblyStructure>> GetAssemblyStructureAsync(string assemblyPartNumber, int version);
-        Task CopyFilesToStorageAsync(IAGR_BaseComponent rootComponent, int rootHashSum);
-        Task CopyFilesToProdAsync(IAGR_BaseComponent rootComponent, int rootHashSum);
+        Task CopyFilesToStorageAsync(IAGR_BaseComponent rootComponent);
+        Task CopyFilesToProdAsync(IAGR_BaseComponent rootComponent);
         
     }
 }
