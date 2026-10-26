@@ -23,8 +23,9 @@ namespace AgroventInfrastructure.Entities.Components
         // Версия (начинается с 1)
         public int Version { get; set; }
 
-        // Уникальный хеш модели
-        public int HashSum { get; set; }
+        // Отпечатки на момент сохранения версии (вместо хеша): геометрия - AGR_GeometryFingerprint, свойства - AGR_PropertiesFingerprint
+        public string? GeometryFingerprint { get; set; }
+        public string? PropertiesFingerprint { get; set; }
 
         // Основные свойства
         public string Name { get; set; }
@@ -75,8 +76,9 @@ namespace AgroventInfrastructure.Entities.Components
         // Версия (начинается с 1)
         public int Version { get; set; }
 
-        // Уникальный хеш модели
-        public int HashSum { get; set; }
+        // Отпечатки на момент сохранения версии (вместо хеша): геометрия - AGR_GeometryFingerprint, свойства - AGR_PropertiesFingerprint
+        public string? GeometryFingerprint { get; set; }
+        public string? PropertiesFingerprint { get; set; }
 
         // Основные свойства
         public string Name { get; set; }

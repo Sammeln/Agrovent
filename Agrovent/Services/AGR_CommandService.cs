@@ -447,7 +447,7 @@ namespace Agrovent.Services
 
                 if (activeDoc is ISwAssembly)
                 {
-                    await _componentVersionService.CopyFilesToStorageAsync(component, component.CalculateComponentHash());
+                    await _componentVersionService.CopyFilesToStorageAsync(component);
                     AGR_Helper.ShowMessage($"Копирование успешно выполнено", Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info, Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
                     return true;
 
@@ -499,7 +499,7 @@ namespace Agrovent.Services
 
                 IAGR_BaseComponent component = _viewModelCache.GetOrCreate(swDoc, d => _ComponentViewModelFactory.CreateComponent(d));
 
-                    await _componentVersionService.CopyFilesToProdAsync(component, component.CalculateComponentHash());
+                    await _componentVersionService.CopyFilesToProdAsync(component);
                     return true;
 
             }
@@ -1208,8 +1208,6 @@ namespace Agrovent.Services
 
             try
             {
-                // CHECK: формат результата GetDocumentDependencies2 (пары «имя, путь»). Берём из массива
-                // только полные пути к существующим файлам, поэтому порядок элементов не важен.
                 var deps = _swApp.Sw.GetDocumentDependencies2(rootPath, true, true, false) as object[];
                 if (deps != null)
                 {
@@ -1352,11 +1350,6 @@ namespace Agrovent.Services
             Xarial.XCad.Base.Enums.MessageBoxIcon_e.Error,
             Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
 
-        /// <summary>
-        /// CHECK: команда SolidWorks приходит на главный поток; если на нём нет SynchronizationContext,
-        /// продолжение после await уйдёт в пул потоков, а SolidWorks нужно вызывать с главного.
-        /// Ставим контекст WPF-диспетчера этого потока (он прокачивается циклом сообщений SolidWorks).
-        /// </summary>
         private static void EnsureUiSynchronizationContext()
         {
             if (SynchronizationContext.Current == null)

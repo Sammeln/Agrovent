@@ -38,14 +38,13 @@ namespace Agrovent.DAL.Services.Repositories
 
         // Сохранение (этап 4): решение «новая / существующая версия» принимает AGR_SavePlan, не хеш
         Task<ComponentVersion> ResolvePlannedVersion(IAGR_BaseComponent component, AGR_SavePlan plan);
-        Task<ComponentVersion> CreateNewVersion(IAGR_BaseComponent component, int hashSum, int? basedOnVersion);
+        Task<ComponentVersion> CreateNewVersion(IAGR_BaseComponent component, int? basedOnVersion);
         Task<ComponentVersion> GetVersionForReference(IAGR_BaseComponent component, int componentId, int version);
         Task RemoveEditLocksAsync(IEnumerable<int> componentIds, int userId);
-        Task<int> UpdateReferencedVersionPropertiesAsync(ComponentVersion componentVersion, IAGR_BaseComponent component);
+        Task<int> UpdateReferencedVersionAsync(ComponentVersion componentVersion, IAGR_BaseComponent component, IReadOnlyDictionary<string, string> fileValues);
 
-        // Поиск компонента по хешу (идентификация при открытии, не для сохранения)
-        Task<ComponentVersion?> FindComponentByHash(int hashSum);
-        Task<ComponentVersion?> FindComponentByHash(int hashSum, string partnumber);
+        // 6.5: поиск существующего покупного перед выдачей нового номера
+        Task<List<AGR_PurchasedCandidate>> FindPurchasedCandidatesAsync(int? article, string name, string? geometryFingerprint);
 
         // Получение структуры сборки
         Task<List<AssemblyStructure>> GetAssemblyStructure(string assemblyPartNumber, int version);
@@ -304,7 +303,7 @@ namespace Agrovent.DAL.Services.Repositories
         {
             var item = plan.Get(component);
             item.Saved = item.Action == AGR_VersionAction_e.NewVersion
-                ? await CreateNewVersion(component, component.CalculateComponentHash(), item.BasedOnVersion)
+                ? await CreateNewVersion(component, item.BasedOnVersion)
                 : await GetVersionForReference(component, item.ComponentId, item.Version);
             return item.Saved;
         }
@@ -314,7 +313,7 @@ namespace Agrovent.DAL.Services.Repositories
         /// Компонент (по PartNumber) создаётся, если его ещё нет. Повторный вызов в том же контексте
         /// для того же компонента возвращает уже созданную версию (компонент встречается в нескольких подсборках).
         /// </summary>
-        public async Task<ComponentVersion> CreateNewVersion(IAGR_BaseComponent component, int hashSum, int? basedOnVersion)
+        public async Task<ComponentVersion> CreateNewVersion(IAGR_BaseComponent component, int? basedOnVersion)
         {
             try
             {
@@ -328,7 +327,7 @@ namespace Agrovent.DAL.Services.Repositories
                 if (created != null)
                 {
                     component.Version = created.Version;
-                    component.HashSum = created.HashSum;
+                    component.StorageGuid = created.Component.StorageGuid;
                     return created;
                 }
 
@@ -342,9 +341,15 @@ namespace Agrovent.DAL.Services.Repositories
                     existingComponent = new Component
                     {
                         PartNumber = pn,
+                        StorageGuid = Guid.NewGuid(),
                         CreatedAt = DateTime.UtcNow
                     };
                     _context.Components.Add(existingComponent);
+                }
+                else if (existingComponent.StorageGuid == Guid.Empty)
+                {
+                    // Защита: колонку заполняет SQL-скрипт этапа 6, но пустой GUID дал бы общую папку
+                    existingComponent.StorageGuid = Guid.NewGuid();
                 }
 
                 var maxInDb = existingComponent.Id == 0
@@ -367,7 +372,6 @@ namespace Agrovent.DAL.Services.Repositories
                     Component = existingComponent,
                     Version = nextVersion,
                     BasedOnVersion = basedOnVersion,
-                    HashSum = hashSum,
                     PreviewImage = component.Preview,
                     Name = component.Name,
                     ConfigName = component.ConfigName,
@@ -386,7 +390,7 @@ namespace Agrovent.DAL.Services.Repositories
                 await SaveMaterialData(componentVersion, component);
                 await SaveFileData(componentVersion, component); // путь hash\версия: версия уже известна
 
-                component.HashSum = hashSum;
+                component.StorageGuid = existingComponent.StorageGuid;
                 component.Version = nextVersion;
 
                 _saveProgress.AddLogMessage("============================================================");
@@ -412,8 +416,12 @@ namespace Agrovent.DAL.Services.Repositories
                 throw new InvalidOperationException(
                     $"Версия v{version} компонента {component.Name} (Id {componentId}) не найдена в БД.");
 
+            // StorageGuid нужен для пути файла версии (AGR_StorageWriter)
+            if (cv.Component == null)
+                await _context.Entry(cv).Reference(v => v.Component).LoadAsync();
+
             component.Version = cv.Version;
-            component.HashSum = cv.HashSum;
+            component.StorageGuid = cv.Component.StorageGuid;
             _saveProgress.AddLogMessage($"Без изменений, ссылка на версию: {component.Name} {component.PartNumber} v{cv.Version}");
             return cv;
         }
@@ -501,50 +509,42 @@ namespace Agrovent.DAL.Services.Repositories
         }
         #endregion
 
-        #region Поиск компонента по хешу
+        #region Поиск покупных (6.5)
 
-        public async Task<ComponentVersion?> FindComponentByHash(int hashSum)
+        /// <summary>
+        /// Покупные компоненты (ComponentType или AvaType = покупной), подходящие под файл без маркера и без «Обозначения»:
+        /// по артикулу ERP (он уникален для покупного), а если артикула нет - по имени файла и отпечатку геометрии.
+        /// Один компонент - одна строка с последней из подходящих версий. Только чтение.
+        /// </summary>
+        public async Task<List<AGR_PurchasedCandidate>> FindPurchasedCandidatesAsync(int? article, string name, string? geometryFingerprint)
         {
-            try
-            {
-                _logger.LogDebug($"Поиск компонента по хешу: {hashSum}");
+            var query = _context.ComponentVersions.AsNoTracking()
+                .Where(v => v.ComponentType == AGR_ComponentType_e.Purchased || v.AvaType == AGR_AvaType_e.Purchased);
 
-                return await _context.ComponentVersions
-                    .Include(v => v.Component)
-                    .Include(v => v.Properties)
-                    .Include(v => v.Material)
-                    .Include(v => v.Files)
-                    .FirstOrDefaultAsync(v => v.HashSum == hashSum);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Ошибка при поиске компонента по хешу: {hashSum}");
-                //System.Windows.Forms.MessageBox.Show(ex.Message);
-                throw;
+            if (article.HasValue)
+                query = query.Where(v => v.AvaArticleArticle == article.Value);
+            else if (!string.IsNullOrEmpty(geometryFingerprint))
+                query = query.Where(v => v.Name == name && v.GeometryFingerprint == geometryFingerprint);
+            else
+                return new List<AGR_PurchasedCandidate>();
 
-            }
-        }
-        public async Task<ComponentVersion?> FindComponentByHash(int hashSum, string partnumber)
-        {
-            try
-            {
-                _logger.LogDebug($"Поиск компонента по хешу: {hashSum}");
+            var rows = await query
+                .Select(v => new AGR_PurchasedCandidate
+                {
+                    ComponentId = v.ComponentId,
+                    PartNumber = v.Component.PartNumber,
+                    Version = v.Version,
+                    Name = v.Name,
+                    Article = v.AvaArticleArticle,
+                    ArticleName = v.AvaArticle != null ? v.AvaArticle.Name : null
+                })
+                .ToListAsync();
 
-                return await _context.ComponentVersions
-                    .Include(v => v.Component)
-                    .Include(v => v.Properties)
-                    .Include(v => v.Material)
-                    .Include(v => v.Files)
-                    .Where(c => c.Component.PartNumber == partnumber)
-                    .FirstOrDefaultAsync(v => v.HashSum == hashSum);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Ошибка при поиске компонента по хешу: {hashSum}");
-                //System.Windows.Forms.MessageBox.Show(ex.Message);
-                throw;
-
-            }
+            return rows
+                .GroupBy(r => r.ComponentId)
+                .Select(g => g.OrderByDescending(r => r.Version).First())
+                .OrderBy(r => r.ComponentId)
+                .ToList();
         }
 
         #endregion
@@ -852,47 +852,129 @@ namespace Agrovent.DAL.Services.Repositories
             _logger.LogDebug($"Сохранено {component.PropertiesCollection.Properties.Count} свойств");
         }
         /// <summary>
-        /// 4.6: неотмеченный компонент (геометрия не менялась), но в файле изменены свойства (параметры заготовки и т.п.).
-        /// Свойства существующей версии обновляются из файла: новые добавляются, изменённые перезаписываются,
-        /// отсутствующие в файле не удаляются. AvaType, артикул, материал и покраска НЕ трогаются:
-        /// их правят через «подробную информацию», и файл может хранить устаревшие значения.
-        /// Возвращает число изменённых свойств. SaveChanges - через CompleteAsync снаружи.
+        /// 6.3: неотмеченный компонент, геометрия совпала с маркером, а отпечаток свойств нет - пользователь поправил
+        /// свойства в файле. Файл новее БД, поэтому существующая версия обновляется из него (новая версия не создаётся):
+        /// - свойства (ComponentProperties) по составу VM, значение из файла: новые добавляются, изменённые
+        ///   перезаписываются, отсутствующие в файле не удаляются;
+        /// - «Признак» (AvaType) и «Артикул» (если такой артикул есть в AvaArticles);
+        /// - материал и покраска деталей (по наименованию; артикул ищется по наименованию в AvaArticles).
+        /// «Обозначение» не меняется: это идентичность компонента. SaveChanges - через CompleteAsync снаружи.
+        /// fileValues - AGR_PropertiesFingerprint.ReadEffective (конфигурация, иначе Custom файла).
         /// </summary>
-        public async Task<int> UpdateReferencedVersionPropertiesAsync(ComponentVersion componentVersion, IAGR_BaseComponent component)
+        public async Task<int> UpdateReferencedVersionAsync(ComponentVersion componentVersion, IAGR_BaseComponent component,
+            IReadOnlyDictionary<string, string> fileValues)
         {
-            var fileProps = component.PropertiesCollection?.Properties;
-            if (fileProps == null || fileProps.Count == 0 || componentVersion.Id == 0) return 0;
-
-            var dbProps = await _context.ComponentProperties
-                .Where(p => p.ComponentVersionId == componentVersion.Id)
-                .ToListAsync();
-
+            if (componentVersion.Id == 0) return 0;
+            string? FileValue(string name) => fileValues.TryGetValue(name, out var v) ? v.Trim() : null;
             int changed = 0;
-            foreach (var property in fileProps)
+
+            // Свойства
+            var vmProps = component.PropertiesCollection?.Properties;
+            if (vmProps != null && vmProps.Count > 0)
             {
-                var value = property.Value?.ToString() ?? string.Empty;
-                var db = dbProps.FirstOrDefault(p => p.Name == property.Name);
-                if (db == null)
+                var dbProps = await _context.ComponentProperties
+                    .Where(p => p.ComponentVersionId == componentVersion.Id)
+                    .ToListAsync();
+
+                foreach (var property in vmProps)
                 {
-                    _context.ComponentProperties.Add(new ComponentProperty
+                    var value = FileValue(property.Name) ?? property.Value?.ToString() ?? string.Empty;
+                    var db = dbProps.FirstOrDefault(p => p.Name == property.Name);
+                    if (db == null)
                     {
-                        ComponentVersionId = componentVersion.Id,
-                        Name = property.Name,
-                        Value = value
-                    });
-                    changed++;
-                }
-                else if (db.Value != value)
-                {
-                    db.Value = value;
-                    changed++;
+                        _context.ComponentProperties.Add(new ComponentProperty
+                        {
+                            ComponentVersionId = componentVersion.Id,
+                            Name = property.Name,
+                            Value = value
+                        });
+                        changed++;
+                    }
+                    else if (db.Value != value)
+                    {
+                        db.Value = value;
+                        changed++;
+                    }
                 }
             }
 
+            // Признак
+            var avaTypeText = FileValue(AGR_PropertyNames.AvaType);
+            if (int.TryParse(avaTypeText, out var avaTypeRaw) && Enum.IsDefined(typeof(AGR_AvaType_e), avaTypeRaw)
+                && componentVersion.AvaType != (AGR_AvaType_e)avaTypeRaw)
+            {
+                componentVersion.AvaType = (AGR_AvaType_e)avaTypeRaw;
+                changed++;
+            }
+
+            // Артикул
+            var articleText = FileValue(AGR_PropertyNames.Article);
+            if (string.IsNullOrEmpty(articleText))
+            {
+                if (componentVersion.AvaArticleArticle != null) { componentVersion.AvaArticleArticle = null; changed++; }
+            }
+            else if (int.TryParse(articleText, out var article) && componentVersion.AvaArticleArticle != article)
+            {
+                if (await _context.AvaArticles.AnyAsync(a => a.Article == article))
+                {
+                    componentVersion.AvaArticleArticle = article;
+                    changed++;
+                }
+                else
+                {
+                    _saveProgress.AddLogMessage($"{component.Name}: артикула {article} нет в справочнике, артикул в БД не изменён.");
+                }
+            }
+
+            // Материал и покраска (только детали, как SaveMaterialData)
+            if (component.ComponentType == AGR_ComponentType_e.Part || component.ComponentType == AGR_ComponentType_e.SheetMetallPart)
+                changed += await UpdateMaterialFromFileAsync(componentVersion, component,
+                    FileValue(AGR_PropertyNames.Material), FileValue(AGR_PropertyNames.Color));
+
             if (changed > 0)
             {
-                _logger.LogInformation($"Свойства версии {component.PartNumber} v{componentVersion.Version} обновлены из файла: {changed}");
+                _logger.LogInformation($"Версия {component.PartNumber} v{componentVersion.Version} обновлена из файла: {changed} изменений");
                 _saveProgress.AddLogMessage($"Обновлены свойства {component.Name} {component.PartNumber} v{componentVersion.Version}: {changed}");
+            }
+            return changed;
+        }
+
+        private async Task<int> UpdateMaterialFromFileAsync(ComponentVersion componentVersion, IAGR_BaseComponent component,
+            string? materialName, string? paintName)
+        {
+            var material = await _context.ComponentMaterials.FirstOrDefaultAsync(m => m.ComponentVersionId == componentVersion.Id);
+            materialName = string.IsNullOrEmpty(materialName) ? null : materialName;
+            paintName = string.IsNullOrEmpty(paintName) ? null : paintName;
+
+            bool materialChanged = material?.BaseMaterial != materialName;
+            bool paintChanged = material?.Paint != paintName;
+            if (!materialChanged && !paintChanged) return 0;
+
+            if (material == null)
+            {
+                material = new ComponentMaterial { ComponentVersionId = componentVersion.Id };
+                _context.ComponentMaterials.Add(material);
+            }
+
+            var names = new[] { materialName, paintName }.Where(n => n != null).Select(n => n!).ToList();
+            var articles = await GetAvaArticlesByNameAsync(names);
+            int changed = 0;
+
+            if (materialChanged)
+            {
+                material.BaseMaterial = materialName;
+                material.MaterialAvaArticleID = materialName != null && articles.TryGetValue(materialName, out var m) ? m.Article : null;
+                if (materialName != null && material.MaterialAvaArticleID == null)
+                    _saveProgress.AddLogMessage($"{component.Name}: материал «{materialName}» не найден в справочнике, артикул материала пуст.");
+                changed++;
+            }
+            if (paintChanged)
+            {
+                material.Paint = paintName;
+                material.PaintAvaArticleID = paintName != null && articles.TryGetValue(paintName, out var p) ? p.Article : null;
+                if (paintName != null && material.PaintAvaArticleID == null)
+                    _saveProgress.AddLogMessage($"{component.Name}: покраска «{paintName}» не найдена в справочнике, артикул покраски пуст.");
+                changed++;
             }
             return changed;
         }
@@ -989,7 +1071,7 @@ namespace Agrovent.DAL.Services.Repositories
 
             // Модель в хранилище
             var storageModelName = component.Name + component.Extension;
-            var storageModelPath = AGR_StoragePaths.GetFilePath(componentVersion.HashSum, componentVersion.Version, storageModelName);
+            var storageModelPath = AGR_StoragePaths.GetFilePath(componentVersion.Component.StorageGuid, componentVersion.Version, storageModelName);
             if (!string.IsNullOrEmpty(fileComponent.CurrentModelFilePath))
             {
 

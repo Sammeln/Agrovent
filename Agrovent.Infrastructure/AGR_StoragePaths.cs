@@ -1,32 +1,35 @@
+using System;
 using System.IO;
 
 namespace AgroventInfrastructure
 {
     /// <summary>
-    /// Пути в хранилище: StorageRoot\&lt;HashSum:D10&gt;\&lt;Version&gt;\файл.
-    /// Хеш больше не уникален, поэтому папку версии определяет пара (хеш, версия).
-    /// Папка версии неизменяема: файлы существующей версии не перезаписываются.
+    /// Пути в хранилище: StorageRoot\&lt;StorageGuid&gt;\&lt;Version&gt;\файл.
+    /// StorageGuid один на компонент (Components.StorageGuid), выдаётся при первом сохранении.
+    /// В папке версии лежат все файлы модели (модель, чертёж, pdf, dxf...).
     /// </summary>
     public static class AGR_StoragePaths
     {
-        public static string GetVersionFolder(int hashSum, int version)
-            => Path.Combine(AGR_Options.StorageRootFolderPath, hashSum.ToString("D10"), version.ToString());
+        public static string GetComponentFolder(Guid storageGuid)
+            => Path.Combine(AGR_Options.StorageRootFolderPath, storageGuid.ToString("D"));
 
-        public static string GetFilePath(int hashSum, int version, string fileName)
-            => Path.Combine(GetVersionFolder(hashSum, version), Path.GetFileName(fileName));
+        public static string GetVersionFolder(Guid storageGuid, int version)
+            => Path.Combine(GetComponentFolder(storageGuid), version.ToString());
+
+        public static string GetFilePath(Guid storageGuid, int version, string fileName)
+            => Path.Combine(GetVersionFolder(storageGuid, version), Path.GetFileName(fileName));
 
         /// <summary>
-        /// Путь для чтения существующего файла. Пока хранилище не переведено на новую схему,
-        /// файла в папке версии может не быть: тогда берётся старый путь StorageRoot\&lt;HashSum:D10&gt;\файл.
-        /// TODO после миграции хранилища: удалить fallback, оставить GetFilePath.
+        /// Путь для чтения существующего файла версии: по схеме guid\версия, иначе путь из ComponentFiles
+        /// (recordedPath; до миграции хранилища файлы лежат по старой схеме). Нет ни того, ни другого - путь по схеме.
+        /// TODO после миграции хранилища: recordedPath не нужен.
         /// </summary>
-        public static string ResolveExistingFilePath(int hashSum, int version, string fileName)
+        public static string ResolveExistingFilePath(Guid? storageGuid, int version, string fileName, string? recordedPath = null)
         {
-            var path = GetFilePath(hashSum, version, fileName);
-            if (File.Exists(path)) return path;
-
-            var legacy = Path.Combine(AGR_Options.StorageRootFolderPath, hashSum.ToString("D10"), Path.GetFileName(fileName));
-            return File.Exists(legacy) ? legacy : path;
+            string? path = storageGuid.HasValue ? GetFilePath(storageGuid.Value, version, fileName) : null;
+            if (path != null && File.Exists(path)) return path;
+            if (!string.IsNullOrEmpty(recordedPath) && File.Exists(recordedPath)) return recordedPath;
+            return path ?? recordedPath ?? "";
         }
     }
 }

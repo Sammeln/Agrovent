@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using AgroventInfrastructure.Entities.Base;
 using AgroventInfrastructure.Entities.TechProcess;
@@ -11,6 +12,9 @@ namespace AgroventInfrastructure.Entities.Components
     {
         // Основной идентификатор (PartNumber)
         public string PartNumber { get; set; }
+
+        // Папка компонента в хранилище: StorageRoot\<StorageGuid>\<версия> (выдаётся при первом сохранении)
+        public Guid StorageGuid { get; set; }
 
         // Навигационные свойства
         public ICollection<ComponentVersion> Versions { get; set; } = new List<ComponentVersion>();

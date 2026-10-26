@@ -54,9 +54,10 @@ namespace Agrovent.DAL
                 .HasIndex(cv => new { cv.ComponentId, cv.Version })
                 .IsUnique();
 
-            // Хеш-сумма должна быть уникальной для версии
-            modelBuilder.Entity<ComponentVersion>()
-                .HasIndex(cv => cv.HashSum);
+            // Папка компонента в хранилище
+            modelBuilder.Entity<Component>()
+                .HasIndex(c => c.StorageGuid)
+                .IsUnique();
 
             // Компоненты - уникальный PartNumber
             modelBuilder.Entity<Component>()

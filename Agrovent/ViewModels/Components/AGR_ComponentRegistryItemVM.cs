@@ -77,7 +77,7 @@ namespace Agrovent.ViewModels.Components
             get
             {
                 // Предполагаем, что файл хранится как Model.FileName (например, Cube.SLDPRT)
-                // и путь формируется как StorageRootFolder + HashSum + Version + FileName
+                // и путь формируется как StorageRootFolder + StorageGuid + Version + FileName (до миграции - путь из ComponentFiles)
                 if (!string.IsNullOrEmpty(_entity.Files.FirstOrDefault
                         (x => x.FilePath.EndsWith("prt", StringComparison.OrdinalIgnoreCase)
                         || x.FilePath.EndsWith("asm", StringComparison.OrdinalIgnoreCase)
@@ -89,7 +89,7 @@ namespace Agrovent.ViewModels.Components
 
                     var fileName = Path.GetFileName(path);
 
-                    return AGR_StoragePaths.ResolveExistingFilePath(_entity.HashSum, _entity.Version, fileName);
+                    return AGR_StoragePaths.ResolveExistingFilePath(_entity.Component?.StorageGuid, _entity.Version, fileName, path);
                 }
                 return "N/A"; // Или пустая строка
             }

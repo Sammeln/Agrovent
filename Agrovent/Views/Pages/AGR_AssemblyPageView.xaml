@@ -130,13 +130,6 @@
                                 <TextBox Text="{Binding Version, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource ReadOnlyTextBox}"/>
                             </DockPanel>
-
-                            <!-- Хэш -->
-                            <DockPanel Style="{StaticResource PropertyGroupStyle}" Visibility="Collapsed">
-                                <TextBlock Text="Хэш:" Style="{StaticResource PropertyLabelStyle}"/>
-                                <TextBox Text="{Binding ComponentHash, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}"
-                                 Style="{StaticResource ReadOnlyTextBox}"/>
-                            </DockPanel>
                         </StackPanel>
                     </Expander>
 

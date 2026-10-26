@@ -38,7 +38,6 @@ namespace Agrovent.Services
         {
             if (document is null) return null;
             var key = document.Path;
-            //var pn = document.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
             //пытаемся получить componentVersion для открытой 3д модели
             //var cv = GetComponentVersionAsync(pn).Result;
 
@@ -56,7 +55,6 @@ namespace Agrovent.Services
         {
             if (document is null) return null;
             var key = document.Path;
-            var pn = document.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber).Value.ToString();
             //пытаемся получить componentVersion для открытой 3д модели
             //var cv = await GetComponentVersionAsync(pn);
 

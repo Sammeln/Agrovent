@@ -12,14 +12,27 @@ namespace Agrovent.Services
     /// <summary>Маркер модели: связь файла с компонентом и версией в БД.</summary>
     public class AGR_Marker
     {
-        public const int CurrentSchemaVersion = 1;
+        /// <summary>2 (этап 6): + StorageGuid, отпечаток свойств, версия алгоритма отпечатков. Маркер схемы 1 читается как повреждённый.</summary>
+        public const int CurrentSchemaVersion = 2;
+
+        /// <summary>Увеличить при любом изменении AGR_GeometryFingerprint или AGR_PropertiesFingerprint:
+        /// отпечатки другой версии алгоритма не сравниваются.</summary>
+        public const int CurrentFingerprintVersion = 1;
 
         public int SchemaVersion { get; set; } = CurrentSchemaVersion;
         public int ComponentId { get; set; }
         public string PartNumber { get; set; } = "";
         public int Version { get; set; }
+        /// <summary>Папка компонента в хранилище (Components.StorageGuid).</summary>
+        public Guid StorageGuid { get; set; }
         /// <summary>Отпечаток геометрии на момент сохранения версии (AGR_GeometryFingerprint).</summary>
-        public string Fingerprint { get; set; } = "";
+        public string GeometryFingerprint { get; set; } = "";
+        /// <summary>Отпечаток свойств на момент сохранения версии (AGR_PropertiesFingerprint).</summary>
+        public string PropertiesFingerprint { get; set; } = "";
+        public int FingerprintVersion { get; set; } = CurrentFingerprintVersion;
+
+        /// <summary>Отпечатки посчитаны текущим алгоритмом: их можно сравнивать.</summary>
+        public bool FingerprintsComparable => FingerprintVersion == CurrentFingerprintVersion;
     }
 
     public enum AGR_MarkerReadResult_e
@@ -144,7 +157,9 @@ namespace Agrovent.Services
         private static string Serialize(AGR_Marker m)
         {
             var body = $"SchemaVersion={m.SchemaVersion}\nComponentId={m.ComponentId}\nPartNumber={m.PartNumber}" +
-                       $"\nVersion={m.Version}\nFingerprint={m.Fingerprint}";
+                       $"\nVersion={m.Version}\nStorageGuid={m.StorageGuid:D}" +
+                       $"\nGeometryFingerprint={m.GeometryFingerprint}\nPropertiesFingerprint={m.PropertiesFingerprint}" +
+                       $"\nFingerprintVersion={m.FingerprintVersion}";
             return body + SigPrefix + Sign(body);
         }
 
@@ -157,7 +172,7 @@ namespace Agrovent.Services
             var body = text.Substring(0, idx);
             if (Sign(body) != text.Substring(idx + SigPrefix.Length).Trim()) { error = "подпись не совпала"; return false; }
 
-            var m = new AGR_Marker { SchemaVersion = 0 };
+            var m = new AGR_Marker { SchemaVersion = 0, FingerprintVersion = 0 };
             foreach (var line in body.Split('\n'))
             {
                 int eq = line.IndexOf('=');
@@ -170,13 +185,18 @@ namespace Agrovent.Services
                     case "ComponentId": m.ComponentId = int.TryParse(v, out var id) ? id : 0; break;
                     case "PartNumber": m.PartNumber = v; break;
                     case "Version": m.Version = int.TryParse(v, out var ver) ? ver : 0; break;
-                    case "Fingerprint": m.Fingerprint = v; break;
+                    case "StorageGuid": m.StorageGuid = Guid.TryParse(v, out var g) ? g : Guid.Empty; break;
+                    case "GeometryFingerprint": m.GeometryFingerprint = v; break;
+                    case "PropertiesFingerprint": m.PropertiesFingerprint = v; break;
+                    case "FingerprintVersion": m.FingerprintVersion = int.TryParse(v, out var fv) ? fv : 0; break;
                 }
             }
 
             if (m.SchemaVersion < 1) { error = "нет SchemaVersion (тестовый или чужой маркер)"; return false; }
+            if (m.SchemaVersion < AGR_Marker.CurrentSchemaVersion) { error = $"маркер старого формата (схема {m.SchemaVersion}), обнулите его"; return false; }
             if (m.SchemaVersion > AGR_Marker.CurrentSchemaVersion) { error = $"неизвестная SchemaVersion {m.SchemaVersion}"; return false; }
-            if (m.ComponentId <= 0 || m.Version <= 0 || string.IsNullOrEmpty(m.PartNumber)) { error = "неполные данные"; return false; }
+            if (m.ComponentId <= 0 || m.Version <= 0 || string.IsNullOrEmpty(m.PartNumber) || m.StorageGuid == Guid.Empty)
+            { error = "неполные данные"; return false; }
 
             marker = m;
             return true;

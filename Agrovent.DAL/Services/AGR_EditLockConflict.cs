@@ -33,6 +33,15 @@
         public DateTime? LockedAt { get; set; }
     }
 
+    /// <summary>Компонент из маркера, как он есть в БД: проверка, что маркер относится к этой БД.</summary>
+    public class AGR_MarkerIdentity
+    {
+        public int ComponentId { get; init; }
+        public Guid StorageGuid { get; init; }
+        public string PartNumber { get; init; } = "";
+        public HashSet<int> Versions { get; init; } = new();
+    }
+
     public interface IAGR_EditLockService
     {
         /// <summary>Пакетно: по PartNumber возвращает Id, последнюю версию и замок.
@@ -40,6 +49,9 @@
         Task<Dictionary<string, AGR_EditComponentInfo>> GetEditInfoAsync(IEnumerable<string> partNumbers);
 
         Task<int> GetCurrentUserIdAsync();
+
+        /// <summary>Пакетно: компоненты по Id из маркеров (GUID, PartNumber, номера версий). Нет Id в БД - нет в словаре.</summary>
+        Task<Dictionary<int, AGR_MarkerIdentity>> GetMarkerIdentitiesAsync(IEnumerable<int> componentIds);
 
         /// <summary>Берёт замки одной транзакцией (всё или ничего). Свои замки конфликтом не считаются
         /// и не пересоздаются. Пустой список = успех.</summary>
@@ -192,6 +204,29 @@
                 .Include(l => l.User)
                 .Where(l => ids.Contains(l.ComponentId))
                 .ToDictionaryAsync(l => l.ComponentId);
+        }
+
+        public async Task<Dictionary<int, AGR_MarkerIdentity>> GetMarkerIdentitiesAsync(IEnumerable<int> componentIds)
+        {
+            var ids = componentIds.Where(id => id > 0).Distinct().ToList();
+            if (ids.Count == 0) return new Dictionary<int, AGR_MarkerIdentity>();
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+            var rows = await db.Components
+                .AsNoTracking()
+                .Where(c => ids.Contains(c.Id))
+                .Select(c => new { c.Id, c.StorageGuid, c.PartNumber, Versions = c.Versions.Select(v => v.Version).ToList() })
+                .ToListAsync();
+
+            return rows.ToDictionary(r => r.Id, r => new AGR_MarkerIdentity
+            {
+                ComponentId = r.Id,
+                StorageGuid = r.StorageGuid,
+                PartNumber = r.PartNumber,
+                Versions = r.Versions.ToHashSet()
+            });
         }
 
         public async Task<Dictionary<string, AGR_EditComponentInfo>> GetEditInfoAsync(IEnumerable<string> partNumbers)

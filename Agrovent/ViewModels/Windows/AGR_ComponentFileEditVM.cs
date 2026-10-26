@@ -10,14 +10,16 @@ namespace Agrovent.ViewModels.Windows
     public class AGR_ComponentFileEditVM : BaseViewModel
     {
         private readonly ComponentFile _entity;
-        private readonly int _hashSum;
+        private readonly Guid _storageGuid;
+        private readonly string _recordedPath; // путь из ComponentFiles на момент загрузки (до миграции - старая схема)
         private readonly int _version;
         public ComponentFile Entity => _entity;
 
-        public AGR_ComponentFileEditVM(ComponentFile entity, int hashSum, int version)
+        public AGR_ComponentFileEditVM(ComponentFile entity, Guid storageGuid, int version)
         {
             _entity = entity;
-            _hashSum = hashSum;
+            _storageGuid = storageGuid;
+            _recordedPath = entity.FilePath;
             _version = version;
         }
 
@@ -27,9 +29,9 @@ namespace Agrovent.ViewModels.Windows
         public long? FileSize => _entity.FileSize;
         public DateTime? LastModified => _entity.LastModified;
 
-        /// <summary>Реальный путь файла в хранилище: StorageRoot\HashSum\Version\ИмяФайла</summary>
+        /// <summary>Реальный путь файла в хранилище: StorageRoot\StorageGuid\Version\ИмяФайла</summary>
         public string ResolveStoragePath()
-            => AGR_StoragePaths.ResolveExistingFilePath(_hashSum, _version, FileName);
+            => AGR_StoragePaths.ResolveExistingFilePath(_storageGuid, _version, FileName, _recordedPath);
 
         public void UpdateFromSource(string sourceFilePath)
         {
