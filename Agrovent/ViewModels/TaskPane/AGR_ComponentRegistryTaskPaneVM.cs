@@ -38,7 +38,6 @@ namespace Agrovent.ViewModels.TaskPane
         private static readonly AGR_AvaTypeConverter _avaTypeConverter = new AGR_AvaTypeConverter();
         private static readonly AGR_ComponentTypeConverter _componentTypeConverter = new AGR_ComponentTypeConverter();
         private readonly ISwApplication _app;
-        private string[] _files;
 
 
         #region CTOR
@@ -52,7 +51,7 @@ namespace Agrovent.ViewModels.TaskPane
             _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
             _app = AGR_ServiceContainer.GetService<AgroventAddin>().Application;
 
-            (_app.Sw as SldWorks).ReferenceNotFoundNotify += AGR_ComponentRegistryTaskPaneVM_ReferenceNotFoundNotify;
+            // ReferenceNotFound обрабатывает AGR_MissingReferenceResolver (одна подписка в AgroventAddin)
 
             // Инициализация CollectionViewSource
             RegistryItemsView = CollectionViewSource.GetDefaultView(RegistryItems);
@@ -78,22 +77,10 @@ namespace Agrovent.ViewModels.TaskPane
                 AGR_ComponentTypeNames.AllTypes
             };
 
-            _files = Directory.GetFiles(AGR_Options.StorageRootFolderPath, "*.*", SearchOption.AllDirectories);
             // Загружаем данные при создании VM (или вызывайте LoadDataCommand извне)
             // Task.Run(async () => await LoadDataAsync()); // Не рекомендуется запускать асинхронный код в конструкторе
 
             IXDocument3D doc = default;
-        }
-
-        private int AGR_ComponentRegistryTaskPaneVM_ReferenceNotFoundNotify(string FileName)
-        {
-            var filename = Path.GetFileNameWithoutExtension(FileName);
-            var extension = Path.GetExtension(FileName);
-            
-            var file = _files.Where(f => f.EndsWith($"{filename}{extension}")).FirstOrDefault();
-
-            _app.Sw.SetMissingReferencePathName(file);
-            return 1;
         }
 
         public AGR_ComponentRegistryTaskPaneVM()

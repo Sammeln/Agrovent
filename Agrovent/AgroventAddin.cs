@@ -176,7 +176,9 @@ namespace Agrovent
 
                 //Подписки на события
                 var swApp = Application.Sw as SldWorks;
-                swApp.ReferenceNotFoundNotify += AgroventAddin_ReferenceNotFoundNotify;
+                // Single ReferenceNotFound handler (temporary, MarkerMigrationTest): see AGR_MissingReferenceResolver
+                var missingRefs = AGR_ServiceContainer.GetService<Agrovent.Services.Migration.AGR_MissingReferenceResolver>();
+                swApp.ReferenceNotFoundNotify += missingRefs.OnReferenceNotFound;
                 swApp.CommandCloseNotify += SwApp_CommandCloseNotify;
 
                 Application.Documents.RegisterHandler(

@@ -22,7 +22,7 @@
 
 	<ItemGroup>
 		<Content Include="Resources\appsettings.json">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
 
@@ -84,6 +84,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<None Update="Properties\launchSettings.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
 		<None Update="Resources\box-icon.png">
 		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>

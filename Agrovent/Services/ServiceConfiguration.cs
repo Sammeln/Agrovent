@@ -73,6 +73,7 @@ namespace Agrovent
             services.AddSingleton<IAGR_EditLockService, AGR_EditLockService>();
             services.AddSingleton<IAGR_MarkerService, AGR_MarkerService>();
             services.AddSingleton<Agrovent.Services.Migration.IAGR_MigrationReportService, Agrovent.Services.Migration.AGR_MigrationReportService>();
+            services.AddSingleton<Agrovent.Services.Migration.AGR_MissingReferenceResolver>();
             services.AddSingleton<IAGR_CommandService, AGR_CommandService>(provider =>
                new AGR_CommandService(
                    provider.GetRequiredService<ILogger<AGR_CommandService>>(),

@@ -34,17 +34,20 @@ namespace Agrovent.Services.Migration
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ISwApplication _swApp;
         private readonly IAGR_MarkerService _markers;
+        private readonly AGR_MissingReferenceResolver _missingRefs;
         private readonly ILogger<AGR_MigrationReportService> _logger;
 
         public AGR_MigrationReportService(
             IServiceScopeFactory scopeFactory,
             ISwApplication swApp,
             IAGR_MarkerService markers,
+            AGR_MissingReferenceResolver missingRefs,
             ILogger<AGR_MigrationReportService> logger)
         {
             _scopeFactory = scopeFactory;
             _swApp = swApp;
             _markers = markers;
+            _missingRefs = missingRefs;
             _logger = logger;
         }
 
@@ -376,6 +379,10 @@ namespace Agrovent.Services.Migration
                 var first = g.First();
                 report.Progress($"Модели {++done}/{groups.Count}: {path}", onlyEvery: 20, index: done);
 
+                // Потерянные ссылки при открытии: сначала среди файлов дочерних версий (на всю глубину)
+                _missingRefs.TakeEvents();
+                _missingRefs.PreferredPaths = DescendantPaths(g);
+
                 ISwDocument? doc = null;
                 try
                 {
@@ -411,6 +418,51 @@ namespace Agrovent.Services.Migration
                 finally
                 {
                     try { doc?.Close(); } catch (Exception ex) { _logger.LogDebug(ex, $"Миграция: не закрылся {path}"); }
+                    _missingRefs.PreferredPaths = null;
+                    AddMissingReferences(first, report);
+                }
+            }
+        }
+
+        /// <summary>Файлы всех дочерних версий (на всю глубину AssemblyStructure) версий этого файла.</summary>
+        private static List<string> DescendantPaths(IEnumerable<AGR_MigrationVersion> versions)
+        {
+            var result = new List<string>();
+            var visited = new HashSet<int>();
+            var stack = new Stack<AGR_MigrationVersion>(versions);
+            while (stack.Count > 0)
+            {
+                var v = stack.Pop();
+                if (!visited.Add(v.VersionId)) continue;
+                foreach (var child in v.Children)
+                {
+                    if (child.ModelPath != null) result.Add(child.ModelPath);
+                    stack.Push(child);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>События ReferenceNotFound при открытии модели - в отчёт.</summary>
+        private void AddMissingReferences(AGR_MigrationVersion owner, AGR_MigrationReport report)
+        {
+            foreach (var e in _missingRefs.TakeEvents())
+            {
+                switch (e.How)
+                {
+                    case AGR_MissingReferenceHow_e.Preferred:
+                        report.Add(AGR_Severity.Info, "Открытие: потерянная ссылка найдена среди дочерних версий", owner, e.Missing, e.Resolved ?? "");
+                        break;
+                    case AGR_MissingReferenceHow_e.ByNameUnique:
+                        report.Add(AGR_Severity.Warning, "Открытие: потерянная ссылка найдена по имени в хранилище", owner, e.Missing, e.Resolved ?? "");
+                        break;
+                    case AGR_MissingReferenceHow_e.ByNameAmbiguous:
+                        report.Add(AGR_Severity.Warning, "Открытие: потерянная ссылка по имени неоднозначна", owner, e.Missing,
+                            $"взят первый из {e.Candidates}: {e.Resolved}");
+                        break;
+                    default:
+                        report.Add(AGR_Severity.Error, "Открытие: потерянная ссылка не найдена", owner, e.Missing, "компонент остался потерянным");
+                        break;
                 }
             }
         }
