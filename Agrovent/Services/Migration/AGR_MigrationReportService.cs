@@ -632,11 +632,11 @@ namespace Agrovent.Services.Migration
 
         public void WriteAll(AGR_MigrationData data, TimeSpan elapsed, bool openFiles)
         {
-            WriteCsv("issues.csv",
+            WriteCsv(Path.Combine(_folder, "issues.csv"),
                 new[] { "Важность", "Категория", "ComponentId", "Обозначение", "Версия", "VersionId", "StorageGuid", "Тип", "Путь", "Подробности" },
                 _issues.OrderBy(r => r[0] == "Ошибка" ? 0 : r[0] == "Предупреждение" ? 1 : 2).ThenBy(r => r[1]));
 
-            WriteCsv("plan.csv",
+            WriteCsv(Path.Combine(_folder, "plan.csv"),
                 new[] { "VersionId", "ComponentId", "Обозначение", "Версия", "StorageGuid", "Тип", "Модель есть", "Старый путь модели", "Новый путь модели", "Старый путь чертежа", "Новый путь чертежа" },
                 data.Versions.OrderBy(v => v.PartNumber).ThenBy(v => v.Version).Select(v => new[]
                 {
@@ -645,7 +645,7 @@ namespace Agrovent.Services.Migration
                     v.ModelPath ?? "", v.NewModelPath ?? "", v.DrawingPath ?? "", v.NewDrawingPath ?? ""
                 }));
 
-            WriteCsv("orphans.csv", new[] { "Файл в хранилище без записи в БД" }, Orphans.Select(o => new[] { o }));
+            WriteCsv(Path.Combine(_folder, "orphans.csv"), new[] { "Файл в хранилище без записи в БД" }, Orphans.Select(o => new[] { o }));
 
             var sb = new StringBuilder();
             sb.AppendLine($"Отчёт перед миграцией хранилища, {DateTime.Now:dd.MM.yyyy HH:mm}");
@@ -672,9 +672,9 @@ namespace Agrovent.Services.Migration
             File.WriteAllText(Path.Combine(_folder, "summary.txt"), sb.ToString(), new UTF8Encoding(true));
         }
 
-        private void WriteCsv(string name, string[] header, IEnumerable<string[]> rows)
+        internal static void WriteCsv(string path, string[] header, IEnumerable<string[]> rows)
         {
-            using var w = new StreamWriter(Path.Combine(_folder, name), false, new UTF8Encoding(true)); // BOM для Excel
+            using var w = new StreamWriter(path, false, new UTF8Encoding(true)); // BOM для Excel
             w.WriteLine(string.Join(";", header.Select(Escape)));
             foreach (var r in rows) w.WriteLine(string.Join(";", r.Select(Escape)));
         }

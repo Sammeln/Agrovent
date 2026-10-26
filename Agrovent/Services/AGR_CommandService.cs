@@ -958,6 +958,58 @@ namespace Agrovent.Services
             }
         }
 
+        /// <summary>Слияние дублей покупных (до миграции хранилища): поиск групп и отчёт, затем по подтверждению слияние.
+        /// Нужна таблица MigrationLog (SQL в EditingRework.md).</summary>
+        public async Task<bool> MergePurchasedDuplicatesAsync()
+        {
+            EnsureUiSynchronizationContext();
+            var service = _serviceProvider.GetRequiredService<IAGR_PurchasedDuplicatesService>();
+
+            AGR_DuplicatesResult result;
+            try
+            {
+                result = await service.AnalyzeAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Дубли покупных: ошибка поиска.");
+                ShowError($"Ошибка поиска дублей: {ex.Message}");
+                return false;
+            }
+            try { System.Diagnostics.Process.Start("explorer.exe", result.Folder); } catch { /* не критично */ }
+
+            if (result.ComponentsToDelete == 0)
+            {
+                AGR_Helper.ShowMessage($"Дублей покупных к слиянию нет (групп пропущено: {result.Groups.Count}).\n{result.Folder}",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info, Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return true;
+            }
+
+            var answer = MessageBox.Show(
+                $"Групп дублей: {result.Groups.Count}, к слиянию: {result.ToMerge.Count()}, пропущено: {result.Groups.Count(g => g.Blocked != null)}.\n"
+                + $"Будет удалено компонентов: {result.ComponentsToDelete}, версий: {result.VersionsToDelete}.\n\n"
+                + $"Отчёт: {result.Folder} (duplicates.csv, summary.txt).\n\n"
+                + "Да - слить (одна транзакция, БД меняется). Нет - только отчёт.",
+                "Миграция: дубли покупных", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (answer != MessageBoxResult.Yes) return true;
+
+            try
+            {
+                var applied = await service.ApplyAsync(result);
+                AGR_Helper.ShowMessage(
+                    $"Слито групп: {applied.Groups}. Удалено компонентов: {applied.Components}, версий: {applied.Versions}.\n"
+                    + $"AssemblyStructures: переведено {applied.StructureRows}, склеено {applied.StructureRowsMerged}.\n"
+                    + $"ProjectComponents: переведено {applied.ProjectRows}, удалено повторов {applied.ProjectRowsMerged}.",
+                    Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info, Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ShowError($"Слияние не выполнено, изменения откатаны: {ex.Message}");
+                return false;
+            }
+        }
+
         /// <summary>Диагностика маркера: маркер, текущий отпечаток, Обозначение по конфигурациям.
         /// Каноническая строка отпечатка пишется в Документы\Agrovent\Fingerprint (сравнивать два файла diff-ом).</summary>
         public Task<bool> ShowMarkerInfoAsync()

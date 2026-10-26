@@ -103,6 +103,10 @@ namespace Agrovent
         [Title("Миграция: отчёт")]
         [CommandItemInfo(true, true, WorkspaceTypes_e.NoDocuments)]
         MigrationReport,
+
+        [Title("Миграция: дубли покупных")]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.NoDocuments)]
+        MergePurchasedDuplicates,
     }
 
     [ComVisible(true)]
@@ -337,6 +341,9 @@ namespace Agrovent
 
                     case AGR_Commands_e.MigrationReport:
                     await _commandService.MigrationReportAsync(); break;
+
+                    case AGR_Commands_e.MergePurchasedDuplicates:
+                    await _commandService.MergePurchasedDuplicatesAsync(); break;
                     //case AGR_Commands_e.Test:
                     //Application.Documents.Active.Features.CreateCustomFeature<BoxMacroFeatureDefinition, BoxMacroFeatureData, BoxPropertyPage>();
                     //var doc = Application.Documents.Active;

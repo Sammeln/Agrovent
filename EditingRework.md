@@ -154,7 +154,8 @@
   CREATE TABLE public."MigrationLog" (
       "Id"                    serial PRIMARY KEY,
       "ComponentVersionId"    integer NOT NULL UNIQUE,  -- без FK: слияние дублей удаляет версии
-      "Status"                varchar(20) NOT NULL DEFAULT 'Pending', -- Pending / Copied / Done / Error / Skipped
+      "Status"                varchar(20) NOT NULL DEFAULT 'Pending', -- Pending / Copied / Done / Error / Skipped / Merged
+      "MergedIntoVersionId"   integer,                  -- Merged: версия основного, на которую переведён дубль покупного
       "OldModelPath"          text,
       "NewModelPath"          text,
       "OldDrawingPath"        text,
@@ -168,8 +169,15 @@
       "FinishedAt"            timestamptz
   );
   CREATE INDEX "IX_MigrationLog_Status" ON public."MigrationLog" ("Status");
+  -- если таблица уже создана без колонки (этап 2):
+  -- ALTER TABLE public."MigrationLog" ADD COLUMN "MergedIntoVersionId" integer;
   -- после миграции: DROP TABLE public."MigrationLog";
   ```
+- Этап 2 (код 2026-10-26, собирается, на БД НЕ проверен): `Services/Migration/AGR_PurchasedDuplicatesService`, кнопка «Миграция: дубли покупных» (без открытых документов). Сначала поиск и отчёт `Документы\Agrovent\Migration\Duplicates_<время>\` (`duplicates.csv`, `summary.txt`), затем вопрос «слить / только отчёт».
+  - Покупной = `ComponentType` или `AvaType` покупной у последней версии. Ключ по последней версии: «артикул + HashSum», без артикула «имя (Trim, без регистра) + HashSum»; `HashSum` читается прямым SQL (в EF-модели его нет). Без `HashSum` — не группируется (счётчик в summary). Основной = наименьший Id, ссылки переводятся на его ПОСЛЕДНЮЮ версию.
+  - Группа пропускается, если у дубля есть техпроцесс (`TechnologicalProcesses` по PartNumber). Замечания (не блокируют): у основного нет файла, имена различаются, у дубля несколько версий.
+  - Слияние одной транзакцией (ADO.NET поверх `DataContext`): `AssemblyStructures.ChildComponentVersionId` и `ProjectComponents.ComponentVersionId` → версия основного; в затронутых сборках строки «дубль + основной» склеиваются (количество суммируется, остаётся меньший Id), в проектах повторы удаляются; в `MigrationLog` строка на каждую версию дубля (`Merged`, старые пути модели и чертежа, `MergedIntoVersionId`) — по ней миграция перенаправит ссылки сборок на файл основного; затем явное удаление свойств, материала, файлов, структуры (дубль-сборка как родитель), замков, версий и компонентов дублей. Ошибка (например, неизвестный FK в боевой БД) — откат всего. Итог в `applied.txt`.
+  - Порядок на копии БД: SQL подготовки (GUID, отпечатки) → SQL `MigrationLog` → «Миграция: дубли покупных» → отчёт → миграция.
 - Этапы: (1) сборка тестовой ветки (отчёт и «Маркер и отпечаток» на GUID и маркер v2) + SQL журнала; (2) слияние дублей покупных; (3) команда миграции: порядок снизу вверх, копирование в `<guid>\<версия>`, ссылки сборок и чертежей; (4) открытие, «Обозначение» в Custom, удаление «Обозначения»/«Версии»/«Хэш-суммы» из конфигураций, отпечатки, маркер, сохранение, `FilePath` и отпечатки в БД; (5) проверочный проход (М5).
 
 ## Сделано

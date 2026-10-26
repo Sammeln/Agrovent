@@ -21,6 +21,7 @@ namespace AgroventInfrastructure.Interfaces
 
         // Временно, удалить после миграции хранилища
         Task<bool> MigrationReportAsync();
+        Task<bool> MergePurchasedDuplicatesAsync();
         Task<bool> ShowMarkerInfoAsync();
     }
 }
