@@ -144,6 +144,34 @@
 3. Версии без файлов (v3 LTS) — ошибочный артефакт: запись версии удаляется. Перед удалением проверить, не ссылается ли на неё `AssemblyStructures` и `ProjectComponents`.
 4. Компонент без версий (с пустым «Обозначением») удаляется.
 
+Решения пользователя (2026-10-26, перед командой миграции; все места `// CHECK` проверены пользователем, работают):
+- Подготовка копии боевой БД — SQL-скрипт пользователя: `StorageGuid`, колонки отпечатков. `ComponentFiles.FilePath` скрипт НЕ меняет: старый путь нужен команде, новый `FilePath` пишет команда после переноса версии. Отпечатки считает команда (нужен открытый файл).
+- Удаление версий без файлов (v3 LTS) и компонентов без версий — SQL-скриптом (с проверкой `AssemblyStructures`, `ProjectComponents`), не командой.
+- Слияние дублей покупных — отдельная команда, до команды миграции.
+- Журнал миграции — таблица в БД (продолжение после падения), удалить после миграции.
+- Этап 1 (код 2026-10-26, собирается, в SolidWorks НЕ проверен): отчёт миграции на `StorageGuid` (новый путь `<guid>\<версия>`, ошибка «Компонент без StorageGuid», проверка «нестандартный путь» по схеме хеша удалена: старый путь всегда из `FilePath`; колонка HashSum в csv заменена на StorageGuid); «Маркер и отпечаток» показывает GUID, версию алгоритма, оба отпечатка (маркер / сейчас), в файл пишет обе канонические строки. Журнал — таблица `MigrationLog`, одна строка на версию (SQL в истории диалога и ниже):
+  ```sql
+  CREATE TABLE public."MigrationLog" (
+      "Id"                    serial PRIMARY KEY,
+      "ComponentVersionId"    integer NOT NULL UNIQUE,  -- без FK: слияние дублей удаляет версии
+      "Status"                varchar(20) NOT NULL DEFAULT 'Pending', -- Pending / Copied / Done / Error / Skipped
+      "OldModelPath"          text,
+      "NewModelPath"          text,
+      "OldDrawingPath"        text,
+      "NewDrawingPath"        text,
+      "GeometryFingerprint"   varchar(64),
+      "PropertiesFingerprint" varchar(64),
+      "Message"               text,
+      "Attempts"              integer NOT NULL DEFAULT 0,
+      "MachineName"           varchar(100),
+      "StartedAt"             timestamptz,
+      "FinishedAt"            timestamptz
+  );
+  CREATE INDEX "IX_MigrationLog_Status" ON public."MigrationLog" ("Status");
+  -- после миграции: DROP TABLE public."MigrationLog";
+  ```
+- Этапы: (1) сборка тестовой ветки (отчёт и «Маркер и отпечаток» на GUID и маркер v2) + SQL журнала; (2) слияние дублей покупных; (3) команда миграции: порядок снизу вверх, копирование в `<guid>\<версия>`, ссылки сборок и чертежей; (4) открытие, «Обозначение» в Custom, удаление «Обозначения»/«Версии»/«Хэш-суммы» из конфигураций, отпечатки, маркер, сохранение, `FilePath` и отпечатки в БД; (5) проверочный проход (М5).
+
 ## Сделано
 - Тест маркера в потоке (xCAD) — работает. Тестовый код живёт в `AgroventAddin.cs` (регион TEST) и `Agrovent.Tests` (`XcadMarkerStorage`); после перехода на боевой код удалить.
 - Этап 2: таблица и колонка в БД, сущность `ComponentEditLock`, `AGR_EditLockService` (на `IServiceScopeFactory`), члены VM, команды в enum и `OnCommandStateResolve` — собирается и запускается (проверено пользователем).

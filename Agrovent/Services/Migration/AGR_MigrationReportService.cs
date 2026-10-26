@@ -89,7 +89,7 @@ namespace Agrovent.Services.Migration
                     v.ComponentId,
                     v.Component.PartNumber,
                     v.Version,
-                    v.HashSum,
+                    v.Component.StorageGuid,
                     v.Name,
                     v.ComponentType,
                     Files = v.Files.Select(f => new { f.FileType, f.FilePath }).ToList()
@@ -120,7 +120,7 @@ namespace Agrovent.Services.Migration
                     ComponentId = v.ComponentId,
                     PartNumber = v.PartNumber ?? "",
                     Version = v.Version,
-                    HashSum = v.HashSum,
+                    StorageGuid = v.StorageGuid,
                     Name = v.Name ?? "",
                     ComponentType = v.ComponentType,
                     ModelPath = models.FirstOrDefault()?.FilePath,
@@ -154,6 +154,9 @@ namespace Agrovent.Services.Migration
 
             foreach (var v in data.Versions)
             {
+                if (v.StorageGuid == Guid.Empty)
+                    report.Add(AGR_Severity.Error, "Компонент без StorageGuid", v, "", "SQL подготовки БД не выполнен");
+
                 if (v.ModelRecords == 0)
                     report.Add(AGR_Severity.Error, "Нет записи о модели в хранилище", v, "", "ComponentFiles без StorageModel");
                 else if (v.ModelRecords > 1)
@@ -183,17 +186,11 @@ namespace Agrovent.Services.Migration
                     continue;
                 }
 
-                var fileName = Path.GetFileName(path);
-                var legacy = Path.Combine(AGR_Options.StorageRootFolderPath, v.HashSum.ToString("D10"), fileName);
+                // Старый путь берётся из ComponentFiles.FilePath как есть, проверять старую схему хеша не нужно
                 if (SamePath(path, v.NewModelPath))
                     report.Add(AGR_Severity.Info, "Уже в новой схеме", v, path, "");
-                else
-                {
-                    if (!SamePath(path, legacy))
-                        report.Add(AGR_Severity.Warning, "Нестандартный путь модели", v, path, $"ожидался {legacy}");
-                    if (SafeExists(v.NewModelPath!))
-                        report.Add(AGR_Severity.Warning, "Целевой файл уже есть", v, v.NewModelPath, "в папке hash\\версия уже лежит файл");
-                }
+                else if (v.NewModelPath != null && SafeExists(v.NewModelPath))
+                    report.Add(AGR_Severity.Warning, "Целевой файл уже есть", v, v.NewModelPath, "в папке guid\\версия уже лежит файл");
 
                 var drawingNearModel = Path.ChangeExtension(path, ".SLDDRW");
                 if (v.DrawingPath != null)
@@ -212,7 +209,7 @@ namespace Agrovent.Services.Migration
                 }
             }
 
-            // Один старый файл на несколько версий: хеш совпал, файл перезаписан, геометрия старой версии потеряна
+            // Один старый файл на несколько версий (хеш совпал, файл перезаписан): каждая версия получит свою копию в guid\версия
             foreach (var g in data.Versions.Where(v => v.ModelPath != null)
                          .GroupBy(v => NormalizePath(v.ModelPath!), StringComparer.OrdinalIgnoreCase)
                          .Where(g => g.Count() > 1))
@@ -222,8 +219,8 @@ namespace Agrovent.Services.Migration
                     report.Add(AGR_Severity.Warning, "Один файл на несколько версий", v, v.ModelPath, list);
             }
 
-            // Две версии в одну папку hash\версия с одним именем файла
-            foreach (var g in data.Versions.Where(v => v.ModelPath != null)
+            // Две версии в одну папку guid\версия с одним именем файла (одинаковый GUID у разных компонентов)
+            foreach (var g in data.Versions.Where(v => v.NewModelPath != null)
                          .GroupBy(v => NormalizePath(v.NewModelPath!), StringComparer.OrdinalIgnoreCase)
                          .Where(g => g.Count() > 1))
             {
@@ -571,7 +568,7 @@ namespace Agrovent.Services.Migration
         public int ComponentId { get; set; }
         public string PartNumber { get; set; } = "";
         public int Version { get; set; }
-        public int HashSum { get; set; }
+        public Guid StorageGuid { get; set; }
         public string Name { get; set; } = "";
         public AGR_ComponentType_e ComponentType { get; set; }
         public string? ModelPath { get; set; }
@@ -581,7 +578,8 @@ namespace Agrovent.Services.Migration
         public bool DrawingExists { get; set; }
         public List<AGR_MigrationVersion> Children { get; } = new();
 
-        public string? NewModelPath => ModelPath == null ? null : AGR_StoragePaths.GetFilePath(HashSum, Version, ModelPath);
+        public string? NewModelPath => ModelPath == null || StorageGuid == Guid.Empty
+            ? null : AGR_StoragePaths.GetFilePath(StorageGuid, Version, ModelPath);
         public string? NewDrawingPath => DrawingPath == null || NewModelPath == null ? null : Path.ChangeExtension(NewModelPath, ".SLDDRW");
     }
 
@@ -611,7 +609,7 @@ namespace Agrovent.Services.Migration
             {
                 SeverityText(severity), category,
                 v?.ComponentId.ToString() ?? "", v?.PartNumber ?? "", v?.Version.ToString() ?? "",
-                v?.VersionId.ToString() ?? "", v?.HashSum.ToString() ?? "", v?.ComponentType.ToString() ?? "",
+                v?.VersionId.ToString() ?? "", v?.StorageGuid.ToString("D") ?? "", v?.ComponentType.ToString() ?? "",
                 path ?? "", details
             });
         }
@@ -635,14 +633,14 @@ namespace Agrovent.Services.Migration
         public void WriteAll(AGR_MigrationData data, TimeSpan elapsed, bool openFiles)
         {
             WriteCsv("issues.csv",
-                new[] { "Важность", "Категория", "ComponentId", "Обозначение", "Версия", "VersionId", "HashSum", "Тип", "Путь", "Подробности" },
+                new[] { "Важность", "Категория", "ComponentId", "Обозначение", "Версия", "VersionId", "StorageGuid", "Тип", "Путь", "Подробности" },
                 _issues.OrderBy(r => r[0] == "Ошибка" ? 0 : r[0] == "Предупреждение" ? 1 : 2).ThenBy(r => r[1]));
 
             WriteCsv("plan.csv",
-                new[] { "VersionId", "ComponentId", "Обозначение", "Версия", "HashSum", "Тип", "Модель есть", "Старый путь модели", "Новый путь модели", "Старый путь чертежа", "Новый путь чертежа" },
+                new[] { "VersionId", "ComponentId", "Обозначение", "Версия", "StorageGuid", "Тип", "Модель есть", "Старый путь модели", "Новый путь модели", "Старый путь чертежа", "Новый путь чертежа" },
                 data.Versions.OrderBy(v => v.PartNumber).ThenBy(v => v.Version).Select(v => new[]
                 {
-                    v.VersionId.ToString(), v.ComponentId.ToString(), v.PartNumber, v.Version.ToString(), v.HashSum.ToString(),
+                    v.VersionId.ToString(), v.ComponentId.ToString(), v.PartNumber, v.Version.ToString(), v.StorageGuid.ToString("D"),
                     v.ComponentType.ToString(), v.ModelExists ? "да" : "нет",
                     v.ModelPath ?? "", v.NewModelPath ?? "", v.DrawingPath ?? "", v.NewDrawingPath ?? ""
                 }));

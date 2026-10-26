@@ -20,7 +20,6 @@ namespace Agrovent.Infrastructure.Helpers
     public static class AGR_GeometryFingerprint
     {
         // Типы элементов, которые не описывают геометрию или пересчитываются сами из других элементов.
-        // CHECK: имена типов по GetTypeName2 сверить на реальных моделях (лог canonical в Debug).
         private static readonly HashSet<string> SkippedTypes = new(StringComparer.OrdinalIgnoreCase)
         {
             "MaterialFolder",      // материал допустимо менять без взятия
@@ -88,7 +87,6 @@ namespace Agrovent.Infrastructure.Helpers
             {
                 if (disp.GetDimension2(0) is Dimension dim)
                 {
-                    // CHECK: GetSystemValue3 возвращает массив значений по конфигурациям
                     var values = dim.GetSystemValue3((int)swInConfigurationOpts_e.swThisConfiguration, null) as double[];
                     var value = values != null && values.Length > 0 ? values[0] : dim.SystemValue;
 

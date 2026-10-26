@@ -975,6 +975,8 @@ namespace Agrovent.Services
                 {
                     case AGR_MarkerReadResult_e.Ok:
                         sb.AppendLine($"Маркер: {marker!.PartNumber} v{marker.Version}, Id {marker.ComponentId}, схема {marker.SchemaVersion}");
+                        sb.AppendLine($"GUID: {marker.StorageGuid:D}, алгоритм отпечатков {marker.FingerprintVersion}" +
+                                      (marker.FingerprintsComparable ? "" : $" (текущий {AGR_Marker.CurrentFingerprintVersion}: не сравнивается)"));
                         break;
                     case AGR_MarkerReadResult_e.Invalid:
                         sb.AppendLine($"Маркер ПОВРЕЖДЁН: {error}");
@@ -984,11 +986,10 @@ namespace Agrovent.Services
                         break;
                 }
 
-                var current = AGR_GeometryFingerprint.Compute(doc, out var canonical);
-                sb.AppendLine($"Отпечаток в маркере: {(string.IsNullOrEmpty(marker?.Fingerprint) ? "(нет)" : marker!.Fingerprint)}");
-                sb.AppendLine($"Отпечаток сейчас:    {current}");
-                if (!string.IsNullOrEmpty(marker?.Fingerprint))
-                    sb.AppendLine(marker!.Fingerprint == current ? "Отпечаток СОВПАДАЕТ" : "Отпечаток НЕ СОВПАДАЕТ");
+                var geometry = AGR_GeometryFingerprint.Compute(doc, out var geometryCanonical);
+                var properties = AGR_PropertiesFingerprint.Compute(doc, out var propertiesCanonical);
+                AppendFingerprint(sb, "Геометрия", marker?.GeometryFingerprint, geometry, marker?.FingerprintsComparable == true);
+                AppendFingerprint(sb, "Свойства", marker?.PropertiesFingerprint, properties, marker?.FingerprintsComparable == true);
 
                 sb.AppendLine();
                 var fileLevel = AGR_PropertyReader.Read(doc.Model, "", AgroventInfrastructure.Enums.AGR_PropertyNames.Partnumber);
@@ -1000,7 +1001,9 @@ namespace Agrovent.Services
                 Directory.CreateDirectory(dir);
                 var name = string.IsNullOrEmpty(doc.Path) ? doc.Title : Path.GetFileNameWithoutExtension(doc.Path);
                 var file = Path.Combine(dir, $"{name}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
-                File.WriteAllText(file, sb + "\r\n" + canonical, new System.Text.UTF8Encoding(true));
+                File.WriteAllText(file,
+                    sb + "\r\n[Геометрия]\r\n" + geometryCanonical + "\r\n[Свойства]\r\n" + propertiesCanonical,
+                    new System.Text.UTF8Encoding(true));
 
                 sb.AppendLine();
                 sb.AppendLine($"Каноническая строка: {file}");
@@ -1029,6 +1032,14 @@ namespace Agrovent.Services
                 ShowError($"Ошибка диагностики маркера: {ex.Message}");
                 return Task.FromResult(false);
             }
+        }
+
+        private static void AppendFingerprint(System.Text.StringBuilder sb, string title, string? inMarker, string current, bool comparable)
+        {
+            sb.AppendLine($"{title}: в маркере {(string.IsNullOrEmpty(inMarker) ? "(нет)" : inMarker)}");
+            sb.AppendLine($"{title}: сейчас    {current}");
+            if (!string.IsNullOrEmpty(inMarker) && comparable)
+                sb.AppendLine(inMarker == current ? $"{title}: СОВПАДАЕТ" : $"{title}: НЕ СОВПАДАЕТ");
         }
 
         #endregion

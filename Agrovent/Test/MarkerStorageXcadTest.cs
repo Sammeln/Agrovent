@@ -1,5 +1,3 @@
-// ТЕСТОВЫЙ КОД: маркер модели в user-stream через xCAD 0.8.3 + PartNumber на уровне файла.
-// Не компилировался. Места, где имена API могли отличаться в 0.8.3, помечены // CHECK.
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -10,7 +8,7 @@ using System.Windows.Input;
 using Xarial.XCad;
 using Xarial.XCad.Data;
 using Xarial.XCad.Documents;
-using Xarial.XCad.Enums;           // CHECK: AccessType_e может лежать в другом namespace - см. IntelliSense
+using Xarial.XCad.Enums;           
 using AgroventInfrastructure.Enums;
 using Xarial.XCad.Data.Enums; // AGR_PropertyNames.Partnumber
 
