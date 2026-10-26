@@ -1010,6 +1010,52 @@ namespace Agrovent.Services
             }
         }
 
+        /// <summary>Миграция хранилища, этап 3: копирование версий в guid\версия и перенаправление ссылок.
+        /// Повторный запуск продолжает с неперенесённых (журнал MigrationLog).</summary>
+        public async Task<bool> MigrateStorageAsync()
+        {
+            EnsureUiSynchronizationContext();
+
+            if (_swApp.Documents.Count > 0)
+            {
+                // SolidWorks подставляет уже открытый файл с тем же именем
+                ShowError("Закройте все документы перед миграцией.");
+                return false;
+            }
+
+            var answer = MessageBox.Show(
+                "Миграция хранилища: перенос файлов и ссылок.\n\n"
+                + $"Каждая версия копируется в {AgroventInfrastructure.AGR_Options.StorageRootFolderPath}\\<guid>\\<версия>, ссылки сборок и чертежей "
+                + "перенаправляются на новые файлы. Старые файлы и ComponentFiles.FilePath не меняются, ход пишется в MigrationLog.\n\n"
+                + "До запуска: SQL подготовки (StorageGuid, MigrationLog), слияние дублей покупных, нет замков, "
+                + "сетевое хранилище недоступно (тест).\n\n"
+                + $"Прервать: создать файл {AGR_MigrationReportService.StopFileName} в папке прогона (Документы\\Agrovent\\Migration\\Migration_<время>).\n\n"
+                + "Начать?",
+                "Миграция: перенос файлов", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+            if (answer != MessageBoxResult.OK) return false;
+
+            try
+            {
+                var service = _serviceProvider.GetRequiredService<IAGR_StorageMigrationService>();
+                var run = await service.RunAsync();
+                AGR_Helper.ShowMessage(
+                    (run.Stopped ? "ПРЕРВАНО файлом STOP.\n" : "")
+                    + $"Версий: {run.Total}, перенесено: {run.Copied}, уже в журнале: {run.Skipped}, ошибок: {run.Errors}.\n"
+                    + $"Ссылок заменено: {run.ReferencesReplaced}, не разрешено: {run.ReferencesUnresolved}.\n"
+                    + $"Время: {run.Elapsed:hh\\:mm\\:ss}\n\n{run.Folder}\n(summary.txt, refs.csv)",
+                    run.Errors > 0 || run.ReferencesUnresolved > 0 ? Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning : Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                try { System.Diagnostics.Process.Start("explorer.exe", run.Folder); } catch { /* не критично */ }
+                return run.Errors == 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Миграция: ошибка переноса файлов.");
+                ShowError($"Ошибка миграции: {ex.Message}");
+                return false;
+            }
+        }
+
         /// <summary>Диагностика маркера: маркер, текущий отпечаток, Обозначение по конфигурациям.
         /// Каноническая строка отпечатка пишется в Документы\Agrovent\Fingerprint (сравнивать два файла diff-ом).</summary>
         public Task<bool> ShowMarkerInfoAsync()

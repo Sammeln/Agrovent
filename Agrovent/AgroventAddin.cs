@@ -107,6 +107,10 @@ namespace Agrovent
         [Title("Миграция: дубли покупных")]
         [CommandItemInfo(true, true, WorkspaceTypes_e.NoDocuments)]
         MergePurchasedDuplicates,
+
+        [Title("Миграция: перенос файлов")]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.NoDocuments)]
+        MigrateStorage,
     }
 
     [ComVisible(true)]
@@ -344,6 +348,9 @@ namespace Agrovent
 
                     case AGR_Commands_e.MergePurchasedDuplicates:
                     await _commandService.MergePurchasedDuplicatesAsync(); break;
+
+                    case AGR_Commands_e.MigrateStorage:
+                    await _commandService.MigrateStorageAsync(); break;
                     //case AGR_Commands_e.Test:
                     //Application.Documents.Active.Features.CreateCustomFeature<BoxMacroFeatureDefinition, BoxMacroFeatureData, BoxPropertyPage>();
                     //var doc = Application.Documents.Active;

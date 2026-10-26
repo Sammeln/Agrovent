@@ -509,22 +509,22 @@ namespace Agrovent.Services.Migration
             catch { return path.Trim().TrimEnd('\\'); }
         }
 
-        private static string NormalizeDir(string? dir) => string.IsNullOrWhiteSpace(dir) ? "" : NormalizePath(dir) + "\\";
+        internal static string NormalizeDir(string? dir) => string.IsNullOrWhiteSpace(dir) ? "" : NormalizePath(dir) + "\\";
 
-        private static bool SamePath(string? a, string? b)
+        internal static bool SamePath(string? a, string? b)
             => a != null && b != null && string.Equals(NormalizePath(a), NormalizePath(b), StringComparison.OrdinalIgnoreCase);
 
-        private static bool IsUnder(string path, string dir)
+        internal static bool IsUnder(string path, string dir)
             => dir.Length > 0 && NormalizePath(path).StartsWith(dir, StringComparison.OrdinalIgnoreCase);
 
-        private static bool SafeExists(string path)
+        internal static bool SafeExists(string path)
         {
             try { return File.Exists(path); } catch { return false; }
         }
 
-        private static bool IsAssembly(string path) => Path.GetExtension(path).Equals(".sldasm", StringComparison.OrdinalIgnoreCase);
+        internal static bool IsAssembly(string path) => Path.GetExtension(path).Equals(".sldasm", StringComparison.OrdinalIgnoreCase);
 
-        private static bool IsModel(string path)
+        internal static bool IsModel(string path)
         {
             var ext = Path.GetExtension(path);
             return ext.Equals(".sldprt", StringComparison.OrdinalIgnoreCase) || ext.Equals(".sldasm", StringComparison.OrdinalIgnoreCase);
