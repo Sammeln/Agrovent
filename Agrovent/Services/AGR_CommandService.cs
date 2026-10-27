@@ -1058,6 +1058,56 @@ namespace Agrovent.Services
             }
         }
 
+        /// <summary>Смена корня хранилища после миграции: ссылки «Migration:RebaseFrom\...» в файлах папок guid
+        /// → StorageRootFolderPath. ComponentFiles.FilePath меняется SQL-скриптом (EditingRework.md).</summary>
+        public Task<bool> RebaseStorageAsync()
+        {
+            EnsureUiSynchronizationContext();
+
+            if (_swApp.Documents.Count > 0)
+            {
+                ShowError("Закройте все документы перед сменой корня.");
+                return Task.FromResult(false);
+            }
+
+            var service = _serviceProvider.GetRequiredService<IAGR_StorageRebaseService>();
+            if (service.RebaseFrom == null)
+            {
+                ShowError("Не задан Migration:RebaseFrom в appsettings.json (старый корень, в который выполнялась миграция).");
+                return Task.FromResult(false);
+            }
+
+            var answer = MessageBox.Show(
+                "Смена корня хранилища.\n\n"
+                + $"Ссылки в файлах сборок, чертежей и деталей в папках guid\nиз: {service.RebaseFrom}\n"
+                + $"в: {AgroventInfrastructure.AGR_Options.StorageRootFolderPath}\n\n"
+                + "Папки guid должны быть уже скопированы в новый корень. БД не меняется (ComponentFiles.FilePath - SQL).\n\n"
+                + $"Прервать: файл {AGR_MigrationReportService.StopFileName} в папке прогона (Документы\\Agrovent\\Migration\\Rebase_<время>).\n\n"
+                + "Начать?",
+                "Миграция: смена корня", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+            if (answer != MessageBoxResult.OK) return Task.FromResult(false);
+
+            try
+            {
+                var run = service.Run();
+                AGR_Helper.ShowMessage(
+                    (run.Stopped ? "ПРЕРВАНО файлом STOP.\n" : "")
+                    + $"Файлов: {run.Files}, ссылок заменено: {run.Replaced}.\n"
+                    + $"Нет файла в новом корне: {run.Missing}, ошибок: {run.Failed}, ссылок вне хранилища: {run.OtherRoots}.\n"
+                    + $"Время: {run.Elapsed:hh\\:mm\\:ss}\n\n{run.Folder}\n(summary.txt, refs.csv)",
+                    run.Missing > 0 || run.Failed > 0 ? Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning : Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info,
+                    Xarial.XCad.Base.Enums.MessageBoxButtons_e.Ok);
+                try { System.Diagnostics.Process.Start("explorer.exe", run.Folder); } catch { /* не критично */ }
+                return Task.FromResult(run.Missing == 0 && run.Failed == 0);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Миграция: ошибка смены корня.");
+                ShowError($"Ошибка смены корня: {ex.Message}");
+                return Task.FromResult(false);
+            }
+        }
+
         /// <summary>Диагностика маркера: маркер, текущий отпечаток, Обозначение по конфигурациям.
         /// Каноническая строка отпечатка пишется в Документы\Agrovent\Fingerprint (сравнивать два файла diff-ом).</summary>
         public Task<bool> ShowMarkerInfoAsync()

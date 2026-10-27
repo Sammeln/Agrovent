@@ -192,6 +192,45 @@
   - сохранение в хранилище на время прогона разрешено флагом `AGR_DocumentHandler.AllowStorageSave` (иначе `OnFileSaveNotify` у деталей показывает окно и отменяет сохранение);
   - повтор: `Done` пропускается, `Copied` (прошлый прогон этапа 3 или сбой между копированием и доводкой) — только доводка, `Error` — копирование заново. Ошибка доводки оставляет копию, родители продолжают ссылаться на неё.
   - Чертежи не открываются и не сохраняются (ссылки перенаправлены на этапе копирования).
+- Прогон на копии боевой БД (2026-10-27, `Migration_20261027_081639`): дубли — 31 группа, удалено 51 компонент; миграция — 841 из 844 версий Done (3 — v3 LTS без файлов), ссылок заменено 2172, не разрешено 18. Пользователь открыл несколько больших сборок — без потерь.
+- Исправления после прогона (2026-10-27, собирается, в SolidWorks НЕ проверено):
+  - Порядок: версия, на которую ссылается файл, обходимый раньше неё (ссылка вне структуры, чертёж детали на сборку), переносится по требованию (`ProcessSafe`, каждая версия один раз). Было «версия … не перенесена» у 0052939, 0119702, 0119711, 0133108, 0113519.
+  - Поиск по имени файла слитого дубля покупного → основной (`MergedByName`): у основного файл может называться иначе («Болт М6 х 20 A2 DIN 933» → 0064703).
+  - Повтор после Done: источник и старые пути для сопоставления ссылок берутся из `MigrationLog.OldModelPath/OldDrawingPath` (в `ComponentFiles` уже новый путь); копирование файла в самого себя — ошибка.
+- Команда «Миграция: смена корня» (`AGR_StorageRebaseService`): во всех sldprt/sldasm/slddrw папок guid нового корня ссылки с префиксом `Migration:RebaseFrom` → `StorageRootFolderPath` (`ReplaceReferencedDocument`, только если целевой файл есть). БД не меняет, повтор безопасен. Отчёт `Rebase_<время>`.
+- Переключение (решено 2026-10-27: без второго прогона, тестовая БД становится боевой):
+  1. Закрыть SolidWorks, пересобрать `MarkerMigrationTest` в VS.
+  2. SQL повтора 7 версий (ниже) → «Миграция: перенос файлов» с текущими тестовыми настройками → `refs.csv`.
+  3. Убедиться, что в боевую БД ничего не сохраняли после снятия копии (сравнить `max("CreatedAt")` в `ComponentVersions`), запретить сохранения.
+  4. Переименовать БД. Скопировать папки guid из `D:\AgroventTest\NewStorage` в `\\192.168.10.1\kd\!AgroventStorage` (рядом со старыми папками хеша). Переименовать `D:\AgroventTest\NewStorage`, чтобы SolidWorks не подставлял локальные файлы.
+  5. appsettings: строка подключения на боевую БД, `StorageRootFolderPath` = `\\192.168.10.1\kd\!AgroventStorage`, `Migration:RebaseFrom` = `D:\AgroventTest\NewStorage`; сеть включена.
+  6. «Миграция: смена корня» → `summary.txt`: «Нет файла в новом корне» и ошибок 0.
+  7. SQL смены корня в `ComponentFiles` (ниже).
+  8. Проверка на другой машине: открыть верхние сборки из хранилища, «Маркер и отпечаток».
+  9. Выпуск add-in из `main`; потом `DROP TABLE "MigrationLog"`, `DROP COLUMN "HashSum"`, удаление старых папок хеша после проверки.
+  ```sql
+  -- Повтор версий с неразрешёнными ссылками (источник - OldModelPath журнала, старая копия должна быть на месте)
+  UPDATE public."MigrationLog" l SET "Status" = 'Error', "Message" = 'повтор: порядок обхода, имена дублей'
+  FROM public."ComponentVersions" v JOIN public."Components" c ON c."Id" = v."ComponentId"
+  WHERE l."ComponentVersionId" = v."Id" AND l."Status" = 'Done'
+    AND (c."PartNumber", v."Version") IN (('0052939',1),('0119702',1),('0119711',1),('0133108',1),
+                                         ('0133155',1),('0133256',1),('0113519',1))
+  RETURNING c."PartNumber", v."Version", l."OldModelPath";
+
+  -- Смена корня в БД (после команды «смена корня»); standard_conforming_strings = on: '\' в строке как есть
+  BEGIN;
+  UPDATE public."ComponentFiles"
+  SET "FilePath" = '\\192.168.10.1\kd\!AgroventStorage' || substr("FilePath", length('D:\AgroventTest\NewStorage') + 1)
+  WHERE left("FilePath", length('D:\AgroventTest\NewStorage\')) = 'D:\AgroventTest\NewStorage\';
+  UPDATE public."MigrationLog"
+  SET "NewModelPath"   = '\\192.168.10.1\kd\!AgroventStorage' || substr("NewModelPath", length('D:\AgroventTest\NewStorage') + 1)
+  WHERE left("NewModelPath", length('D:\AgroventTest\NewStorage\')) = 'D:\AgroventTest\NewStorage\';
+  UPDATE public."MigrationLog"
+  SET "NewDrawingPath" = '\\192.168.10.1\kd\!AgroventStorage' || substr("NewDrawingPath", length('D:\AgroventTest\NewStorage') + 1)
+  WHERE left("NewDrawingPath", length('D:\AgroventTest\NewStorage\')) = 'D:\AgroventTest\NewStorage\';
+  SELECT count(*) AS "осталось локальных" FROM public."ComponentFiles" WHERE "FilePath" LIKE 'D:%' OR "FilePath" LIKE 'C:%';
+  COMMIT;
+  ```
   - Известное: при недоступной сетевой папке каждый `File.Exists` по `\\192.168.10.1\…` может ждать таймаут; 15 чертежей без записи получат её на этапе 4 (путь уже в журнале); версия, чьё копирование упало посередине, оставляет частичную папку (повторный запуск перезапишет).
 - Этапы: (1) сборка тестовой ветки (отчёт и «Маркер и отпечаток» на GUID и маркер v2) + SQL журнала; (2) слияние дублей покупных; (3) команда миграции: порядок снизу вверх, копирование в `<guid>\<версия>`, ссылки сборок и чертежей; (4) открытие, «Обозначение» в Custom, удаление «Обозначения»/«Версии»/«Хэш-суммы» из конфигураций, отпечатки, маркер, сохранение, `FilePath` и отпечатки в БД; (5) проверочный проход (М5).
 

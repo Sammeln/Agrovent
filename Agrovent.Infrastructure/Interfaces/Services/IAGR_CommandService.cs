@@ -23,6 +23,7 @@ namespace AgroventInfrastructure.Interfaces
         Task<bool> MigrationReportAsync();
         Task<bool> MergePurchasedDuplicatesAsync();
         Task<bool> MigrateStorageAsync();
+        Task<bool> RebaseStorageAsync();
         Task<bool> ShowMarkerInfoAsync();
     }
 }

@@ -75,6 +75,7 @@ namespace Agrovent
             services.AddSingleton<Agrovent.Services.Migration.IAGR_MigrationReportService, Agrovent.Services.Migration.AGR_MigrationReportService>();
             services.AddSingleton<Agrovent.Services.Migration.IAGR_PurchasedDuplicatesService, Agrovent.Services.Migration.AGR_PurchasedDuplicatesService>();
             services.AddSingleton<Agrovent.Services.Migration.IAGR_StorageMigrationService, Agrovent.Services.Migration.AGR_StorageMigrationService>();
+            services.AddSingleton<Agrovent.Services.Migration.IAGR_StorageRebaseService, Agrovent.Services.Migration.AGR_StorageRebaseService>();
             services.AddSingleton<Agrovent.Services.Migration.AGR_MissingReferenceResolver>();
             services.AddSingleton<IAGR_CommandService, AGR_CommandService>(provider =>
                new AGR_CommandService(

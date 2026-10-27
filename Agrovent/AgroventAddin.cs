@@ -111,6 +111,10 @@ namespace Agrovent
         [Title("Миграция: перенос файлов")]
         [CommandItemInfo(true, true, WorkspaceTypes_e.NoDocuments)]
         MigrateStorage,
+
+        [Title("Миграция: смена корня")]
+        [CommandItemInfo(true, true, WorkspaceTypes_e.NoDocuments)]
+        RebaseStorage,
     }
 
     [ComVisible(true)]
@@ -351,6 +355,9 @@ namespace Agrovent
 
                     case AGR_Commands_e.MigrateStorage:
                     await _commandService.MigrateStorageAsync(); break;
+
+                    case AGR_Commands_e.RebaseStorage:
+                    await _commandService.RebaseStorageAsync(); break;
                     //case AGR_Commands_e.Test:
                     //Application.Documents.Active.Features.CreateCustomFeature<BoxMacroFeatureDefinition, BoxMacroFeatureData, BoxPropertyPage>();
                     //var doc = Application.Documents.Active;

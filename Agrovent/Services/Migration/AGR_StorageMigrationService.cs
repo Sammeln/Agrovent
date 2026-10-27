@@ -156,7 +156,7 @@ namespace Agrovent.Services.Migration
             {
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "SELECT \"ComponentVersionId\", \"Status\", \"NewModelPath\", \"NewDrawingPath\", \"OldModelPath\", " +
-                                  "\"MergedIntoVersionId\" FROM public.\"MigrationLog\"";
+                                  "\"MergedIntoVersionId\", \"OldDrawingPath\" FROM public.\"MigrationLog\"";
                 using var r = await cmd.ExecuteReaderAsync();
                 while (await r.ReadAsync())
                 {
@@ -165,11 +165,17 @@ namespace Agrovent.Services.Migration
                         r.IsDBNull(2) ? null : r.GetString(2),
                         r.IsDBNull(3) ? null : r.GetString(3),
                         r.IsDBNull(4) ? null : r.GetString(4),
-                        r.IsDBNull(5) ? null : r.GetInt32(5));
+                        r.IsDBNull(5) ? null : r.GetInt32(5),
+                        r.IsDBNull(6) ? null : r.GetString(6));
                     if (row.Status == StatusMerged)
                     {
                         if (row.OldModelPath != null && row.MergedIntoVersionId is int main && byId.TryGetValue(main, out var mainVersion))
+                        {
                             data.Merged[AGR_MigrationReportService.NormalizePath(row.OldModelPath)] = mainVersion;
+                            var key = Path.GetFileName(row.OldModelPath).Trim().ToUpperInvariant();
+                            if (!data.MergedByName.TryGetValue(key, out var mains)) data.MergedByName[key] = mains = new List<AGR_StorageMigrationVersion>();
+                            if (!mains.Contains(mainVersion)) mains.Add(mainVersion);
+                        }
                     }
                     else data.Log[row.VersionId] = row;
                 }
@@ -177,6 +183,14 @@ namespace Agrovent.Services.Migration
             finally
             {
                 await db.Database.CloseConnectionAsync();
+            }
+
+            // После Done в ComponentFiles уже новый путь: источник и старые пути для сопоставления ссылок - из журнала
+            foreach (var v in versions)
+            {
+                if (!data.Log.TryGetValue(v.VersionId, out var row) || row.OldModelPath == null) continue;
+                v.OldModelPath = row.OldModelPath;
+                v.OldDrawingPath = row.OldDrawingPath;
             }
             return data;
         }
@@ -187,7 +201,7 @@ namespace Agrovent.Services.Migration
     internal record AGR_PathAlias(string From, string To);
 
     internal record AGR_MigrationLogRow(int VersionId, string Status, string? NewModelPath, string? NewDrawingPath,
-        string? OldModelPath, int? MergedIntoVersionId);
+        string? OldModelPath, int? MergedIntoVersionId, string? OldDrawingPath);
 
     internal class AGR_StorageMigrationVersion
     {
@@ -218,6 +232,8 @@ namespace Agrovent.Services.Migration
         public Dictionary<int, AGR_MigrationLogRow> Log { get; } = new();
         /// <summary>Старый файл дубля покупного → версия основного (этап 2).</summary>
         public Dictionary<string, AGR_StorageMigrationVersion> Merged { get; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Имя файла дубля (Trim, верхний регистр) → версии основных: у основного может быть другое имя файла.</summary>
+        public Dictionary<string, List<AGR_StorageMigrationVersion>> MergedByName { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -238,6 +254,7 @@ namespace Agrovent.Services.Migration
         private readonly Dictionary<string, List<AGR_StorageMigrationVersion>> _byOldPath = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, List<AGR_StorageMigrationVersion>> _byFileName = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, List<string>>? _oldStorageIndex;
+        private readonly HashSet<int> _processed = new();
         private readonly List<string[]> _events = new();
         private readonly Dictionary<string, int> _counters = new();
 
@@ -278,15 +295,7 @@ namespace Agrovent.Services.Migration
             {
                 if (CheckStop()) break;
                 Progress($"{++done}/{order.Count}: {v.Title} {v.OldModelPath}", onlyEvery: 25, index: done);
-                try
-                {
-                    ProcessVersion(v);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Миграция: {v.Title}");
-                    Fail(v, "Исключение: " + ex.Message);
-                }
+                ProcessSafe(v);
             }
             Progress($"Готово: скопировано {CopiedCount}, доведено (Done) {DoneCount}, пропущено (уже Done) {SkippedCount}, ошибок {ErrorCount}.");
         }
@@ -330,6 +339,22 @@ namespace Agrovent.Services.Migration
         #endregion
 
         #region Версия
+
+        /// <summary>Каждая версия обрабатывается один раз: в порядке обхода или раньше, по требованию
+        /// (на неё ссылается файл, обходимый раньше неё, - ссылка вне структуры, чертёж детали на сборку).</summary>
+        private void ProcessSafe(AGR_StorageMigrationVersion v)
+        {
+            if (!_processed.Add(v.VersionId)) return;
+            try
+            {
+                ProcessVersion(v);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Миграция: {v.Title}");
+                Fail(v, "Исключение: " + ex.Message);
+            }
+        }
 
         private void ProcessVersion(AGR_StorageMigrationVersion v)
         {
@@ -566,6 +591,8 @@ namespace Agrovent.Services.Migration
 
         private static void CopyFile(string source, string dest)
         {
+            if (AGR_MigrationReportService.SamePath(source, dest))
+                throw new InvalidOperationException($"источник совпадает с целью: {source}");
             if (File.Exists(dest)) File.SetAttributes(dest, File.GetAttributes(dest) & ~FileAttributes.ReadOnly);
             File.Copy(source, dest, true);
             File.SetAttributes(dest, File.GetAttributes(dest) & ~FileAttributes.ReadOnly);
@@ -682,6 +709,13 @@ namespace Agrovent.Services.Migration
             }
             if (notes.Length > 0) return (null, notes);
 
+            // Имя файла слитого дубля покупного: у основного файл может называться иначе
+            if (_data.MergedByName.TryGetValue(key, out var mains))
+            {
+                if (mains.Count == 1) return Target(mains[0], "по имени дубля покупного -> основной");
+                return (null, $"по имени дубля покупного неоднозначно: {string.Join(", ", mains.Select(c => c.Title))}");
+            }
+
             // Сирота: файла нет в БД (исключённые из спецификации, конверты, старая библиотека покупных).
             // Сначала файл по ссылке в старом хранилище, потом одноимённый там же, последним - локальный файл
             // (C:\Work и т.п. на этой машине может быть другой версией).
@@ -700,7 +734,15 @@ namespace Agrovent.Services.Migration
         }
 
         private (string? Target, string How) Target(AGR_StorageMigrationVersion v, string how)
-            => v.NewModelPath != null ? (v.NewModelPath, how) : (null, $"{how}: версия {v.Title} не перенесена");
+        {
+            // Версия ещё не обходилась: перенести сейчас (в этот момент открытых документов нет)
+            if (v.NewModelPath == null && !_processed.Contains(v.VersionId))
+            {
+                Count("Версия перенесена по требованию (ссылка раньше обхода)");
+                ProcessSafe(v);
+            }
+            return v.NewModelPath != null ? (v.NewModelPath, how) : (null, $"{how}: версия {v.Title} не перенесена");
+        }
 
         private bool SameOld(AGR_StorageMigrationVersion v, string normalizedPath)
             => string.Equals(AGR_MigrationReportService.NormalizePath(v.OldModelPath!), normalizedPath, StringComparison.OrdinalIgnoreCase)
