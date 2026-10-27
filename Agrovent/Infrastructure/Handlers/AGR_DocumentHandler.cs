@@ -140,9 +140,12 @@ namespace Agrovent.Infrastructure.Handlers
             return 0;
         }
 
+        /// <summary>Временно (ветка MarkerMigrationTest): миграция сохраняет файлы в папках хранилища.</summary>
+        public static bool AllowStorageSave { get; set; }
+
         private int OnFileSaveNotify(string FileName)
         {
-            if (FileName.Contains(AGR_Options.StorageRootFolderPath))
+            if (!AllowStorageSave && FileName.Contains(AGR_Options.StorageRootFolderPath))
             {
                 MessageBox.Show("Попытка сохранить файл в корневом хранилище.");
                 return 1;

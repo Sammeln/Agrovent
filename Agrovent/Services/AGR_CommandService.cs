@@ -1024,9 +1024,11 @@ namespace Agrovent.Services
             }
 
             var answer = MessageBox.Show(
-                "Миграция хранилища: перенос файлов и ссылок.\n\n"
+                "Миграция хранилища.\n\n"
                 + $"Каждая версия копируется в {AgroventInfrastructure.AGR_Options.StorageRootFolderPath}\\<guid>\\<версия>, ссылки сборок и чертежей "
-                + "перенаправляются на новые файлы. Старые файлы и ComponentFiles.FilePath не меняются, ход пишется в MigrationLog.\n\n"
+                + "перенаправляются на новые файлы. Копия модели открывается: «Обозначение» из БД в Custom файла, "
+                + "удаление «Обозначения» из конфигураций и «Версии»/«Хэш-суммы», отпечатки, маркер, сохранение. "
+                + "В БД: ComponentFiles.FilePath и отпечатки версии. Старые файлы не меняются, ход пишется в MigrationLog.\n\n"
                 + "До запуска: SQL подготовки (StorageGuid, MigrationLog), слияние дублей покупных, нет замков, "
                 + "сетевое хранилище недоступно (тест).\n\n"
                 + $"Прервать: создать файл {AGR_MigrationReportService.StopFileName} в папке прогона (Документы\\Agrovent\\Migration\\Migration_<время>).\n\n"
@@ -1040,7 +1042,7 @@ namespace Agrovent.Services
                 var run = await service.RunAsync();
                 AGR_Helper.ShowMessage(
                     (run.Stopped ? "ПРЕРВАНО файлом STOP.\n" : "")
-                    + $"Версий: {run.Total}, перенесено: {run.Copied}, уже в журнале: {run.Skipped}, ошибок: {run.Errors}.\n"
+                    + $"Версий: {run.Total}, перенесено: {run.Done}, уже Done: {run.Skipped}, ошибок: {run.Errors}.\n"
                     + $"Ссылок заменено: {run.ReferencesReplaced}, не разрешено: {run.ReferencesUnresolved}.\n"
                     + $"Время: {run.Elapsed:hh\\:mm\\:ss}\n\n{run.Folder}\n(summary.txt, refs.csv)",
                     run.Errors > 0 || run.ReferencesUnresolved > 0 ? Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning : Xarial.XCad.Base.Enums.MessageBoxIcon_e.Info,

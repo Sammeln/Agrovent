@@ -4,23 +4,33 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using Agrovent.DAL;
+using Agrovent.Infrastructure.Extensions;
+using Agrovent.Infrastructure.Helpers;
 using AgroventInfrastructure;
+using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using IModelDoc2 = SolidWorks.Interop.sldworks.IModelDoc2;
+using Xarial.XCad.Documents.Enums;
+using Xarial.XCad.Documents.Extensions;
 using Xarial.XCad.SolidWorks;
+using Xarial.XCad.SolidWorks.Documents;
 
 namespace Agrovent.Services.Migration
 {
     /// <summary>
-    /// Миграция хранилища (временно, ветка MarkerMigrationTest). Этап 3: перенос файлов и ссылок.
-    /// Каждая версия снизу вверх по AssemblyStructures: модель, чертёж и файлы с тем же именем копируются из
-    /// ComponentFiles.FilePath в StorageRoot\guid\версия; в копиях сборок и чертежей ссылки перенаправляются
-    /// на файлы версий в новой схеме (ReplaceReferencedDocument по закрытому файлу). Старые файлы не трогаются.
-    /// Журнал - MigrationLog (Status = Copied / Error), повторный запуск пропускает Copied и Done.
-    /// Открытие, «Обозначение», маркер и запись FilePath в БД - этап 4 (Copied → Done).
+    /// Миграция хранилища (временно, ветка MarkerMigrationTest). Каждая версия снизу вверх по AssemblyStructures:
+    /// 1. Копирование (Copied): модель, чертёж и файлы с тем же именем из ComponentFiles.FilePath в StorageRoot\guid\версия;
+    ///    в копиях сборок и чертежей ссылки перенаправляются на файлы версий в новой схеме (ReplaceReferencedDocument
+    ///    по закрытому файлу). Старые файлы не трогаются.
+    /// 2. Доводка (Done): копия модели открывается скрытой, «Обозначение» из БД пишется в Custom файла и удаляется
+    ///    из конфигураций, «Версия» и «Хэш-сумма» удаляются отовсюду, считаются отпечатки, сохраняется с маркером;
+    ///    в БД - ComponentFiles.FilePath (модель, чертёж; чертёж без записи получает её) и отпечатки версии.
+    /// Журнал - MigrationLog: повторный запуск пропускает Done, у Copied делает только доводку, Error повторяет целиком.
     /// </summary>
     public interface IAGR_StorageMigrationService
     {
@@ -28,7 +38,7 @@ namespace Agrovent.Services.Migration
         Task<AGR_StorageMigrationRun> RunAsync();
     }
 
-    public record AGR_StorageMigrationRun(string Folder, int Total, int Copied, int Skipped, int Errors,
+    public record AGR_StorageMigrationRun(string Folder, int Total, int Done, int Skipped, int Errors,
         int ReferencesReplaced, int ReferencesUnresolved, bool Stopped, TimeSpan Elapsed);
 
     public class AGR_StorageMigrationService : IAGR_StorageMigrationService
@@ -43,14 +53,19 @@ namespace Agrovent.Services.Migration
 
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ISwApplication _swApp;
+        private readonly IAGR_MarkerService _markers;
+        private readonly AGR_MissingReferenceResolver _missingRefs;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AGR_StorageMigrationService> _logger;
 
         public AGR_StorageMigrationService(IServiceScopeFactory scopeFactory, ISwApplication swApp,
+            IAGR_MarkerService markers, AGR_MissingReferenceResolver missingRefs,
             IConfiguration configuration, ILogger<AGR_StorageMigrationService> logger)
         {
             _scopeFactory = scopeFactory;
             _swApp = swApp;
+            _markers = markers;
+            _missingRefs = missingRefs;
             _configuration = configuration;
             _logger = logger;
         }
@@ -66,24 +81,27 @@ namespace Agrovent.Services.Migration
 
             // Все чтения БД до работы с SolidWorks; дальше цикл синхронный, журнал пишется синхронно
             var data = await LoadAsync(db);
-            var run = new AGR_MigrationRunState(folder, data, ReadAliases(), _swApp, db.Database.GetDbConnection(), _logger);
+            var run = new AGR_MigrationRunState(folder, data, ReadAliases(), _swApp, _markers, _missingRefs, db, _logger);
             run.Progress($"Версий: {data.Versions.Count}, в журнале: {data.Log.Count}, переведено дублей: {data.Merged.Count}. " +
                          $"Хранилище: {AGR_Options.StorageRootFolderPath}");
             foreach (var a in run.Aliases) run.Progress($"Алиас ссылок: {a.From} -> {a.To}");
 
             db.Database.OpenConnection();
+            Infrastructure.Handlers.AGR_DocumentHandler.AllowStorageSave = true;
             try
             {
                 run.Execute();
             }
             finally
             {
+                Infrastructure.Handlers.AGR_DocumentHandler.AllowStorageSave = false;
+                _missingRefs.PreferredPaths = null;
                 db.Database.CloseConnection();
                 run.WriteFiles(timer.Elapsed);
             }
 
-            _logger.LogInformation($"Миграция: перенос файлов завершён, {folder}");
-            return new AGR_StorageMigrationRun(folder, data.Versions.Count, run.CopiedCount, run.SkippedCount, run.ErrorCount,
+            _logger.LogInformation($"Миграция: завершена, {folder}");
+            return new AGR_StorageMigrationRun(folder, data.Versions.Count, run.DoneCount, run.SkippedCount, run.ErrorCount,
                 run.ReplacedCount, run.UnresolvedCount, run.Stopped, timer.Elapsed);
         }
 
@@ -210,6 +228,9 @@ namespace Agrovent.Services.Migration
         private readonly string _folder;
         private readonly AGR_StorageMigrationData _data;
         private readonly ISwApplication _swApp;
+        private readonly IAGR_MarkerService _markers;
+        private readonly AGR_MissingReferenceResolver _missingRefs;
+        private readonly DataContext _db;
         private readonly DbConnection _conn;
         private readonly ILogger _logger;
         private readonly string _machine = System.Environment.MachineName;
@@ -222,6 +243,7 @@ namespace Agrovent.Services.Migration
 
         public List<AGR_PathAlias> Aliases { get; }
         public int CopiedCount { get; private set; }
+        public int DoneCount { get; private set; }
         public int SkippedCount { get; private set; }
         public int ErrorCount { get; private set; }
         public int ReplacedCount { get; private set; }
@@ -229,13 +251,16 @@ namespace Agrovent.Services.Migration
         public bool Stopped { get; private set; }
 
         public AGR_MigrationRunState(string folder, AGR_StorageMigrationData data, List<AGR_PathAlias> aliases,
-            ISwApplication swApp, DbConnection conn, ILogger logger)
+            ISwApplication swApp, IAGR_MarkerService markers, AGR_MissingReferenceResolver missingRefs, DataContext db, ILogger logger)
         {
             _folder = folder;
             _data = data;
             Aliases = aliases;
             _swApp = swApp;
-            _conn = conn;
+            _markers = markers;
+            _missingRefs = missingRefs;
+            _db = db;
+            _conn = db.Database.GetDbConnection();
             _logger = logger;
 
             foreach (var v in data.Versions.Where(v => !string.IsNullOrWhiteSpace(v.OldModelPath)))
@@ -263,7 +288,7 @@ namespace Agrovent.Services.Migration
                     Fail(v, "Исключение: " + ex.Message);
                 }
             }
-            Progress($"Готово: перенесено {CopiedCount}, пропущено (уже в журнале) {SkippedCount}, ошибок {ErrorCount}.");
+            Progress($"Готово: скопировано {CopiedCount}, доведено (Done) {DoneCount}, пропущено (уже Done) {SkippedCount}, ошибок {ErrorCount}.");
         }
 
         #region Порядок обхода
@@ -308,14 +333,16 @@ namespace Agrovent.Services.Migration
 
         private void ProcessVersion(AGR_StorageMigrationVersion v)
         {
-            // Уже перенесена прошлым прогоном
+            // Прошлый прогон: Done - пропустить, Copied - только доводка (копия и ссылки уже есть)
             if (_data.Log.TryGetValue(v.VersionId, out var log)
                 && (log.Status == AGR_StorageMigrationService.StatusCopied || log.Status == AGR_StorageMigrationService.StatusDone)
                 && log.NewModelPath != null && File.Exists(log.NewModelPath))
             {
                 v.NewModelPath = log.NewModelPath;
                 v.NewDrawingPath = log.NewDrawingPath;
-                SkippedCount++;
+                v.SourceModelPath = log.OldModelPath;
+                if (log.Status == AGR_StorageMigrationService.StatusDone) { SkippedCount++; return; }
+                Finish(v, "доводка после прошлого прогона");
                 return;
             }
 
@@ -361,17 +388,165 @@ namespace Agrovent.Services.Migration
 
             var unresolved = UnresolvedCount - unresolvedBefore;
             var message = $"файлов рядом: {extras}" + (unresolved > 0 ? $"; НЕ разрешено ссылок: {unresolved} (refs.csv)" : "");
-            WriteLog(v, AGR_StorageMigrationService.StatusCopied, message);
+            WriteLog(v, AGR_StorageMigrationService.StatusCopied, message, null, null);
             CopiedCount++;
-            Count(unresolved > 0 ? "Версия: перенесена с неразрешёнными ссылками" : "Версия: перенесена");
+            Count(unresolved > 0 ? "Копирование: с неразрешёнными ссылками" : "Копирование: без замечаний");
+
+            Finish(v, message);
         }
 
+        #endregion
+
+        #region Доводка: открытие, свойства, маркер, БД
+
+        /// <summary>Открывает копию модели, приводит свойства, пишет маркер и сохраняет; затем БД и журнал (Done).
+        /// Ошибка - Error: повторный запуск скопирует версию заново.</summary>
+        private void Finish(AGR_StorageMigrationVersion v, string message)
+        {
+            string geometry, properties;
+
+            // Потерянные ссылки при открытии сборки: сначала среди файлов её детей в новой схеме
+            _missingRefs.TakeEvents();
+            _missingRefs.PreferredPaths = v.Children.Where(c => c.NewModelPath != null).Select(c => c.NewModelPath!).ToList();
+            ISwDocument3D? doc = null;
+            try
+            {
+                // Не ReadOnly: файл сохраняется; не Lightweight: отпечатку сборки нужен состав
+                doc = _swApp.Documents.Open(v.NewModelPath!, DocumentState_e.Silent | DocumentState_e.Hidden) as ISwDocument3D;
+                if (doc == null) { Fail(v, "копия модели не открылась: " + v.NewModelPath); return; }
+
+                var oldPartNumber = AGR_PropertyReader.Read(doc.Model, "", AGR_PropertyNames.Partnumber);
+                if (!string.IsNullOrWhiteSpace(oldPartNumber) && !string.Equals(oldPartNumber.Trim(), v.PartNumber, StringComparison.OrdinalIgnoreCase))
+                    Event(AGR_Severity.Info, "Обозначение файла заменено из БД", v, v.NewModelPath!, "", $"было {oldPartNumber}, стало {v.PartNumber}");
+                CleanProperties(doc, v.PartNumber);
+
+                geometry = AGR_GeometryFingerprint.Compute(doc, out _);
+                properties = AGR_PropertiesFingerprint.Compute(doc, out _);
+
+                var marker = new AGR_Marker
+                {
+                    ComponentId = v.ComponentId,
+                    PartNumber = v.PartNumber,
+                    Version = v.Version,
+                    StorageGuid = v.StorageGuid,
+                    GeometryFingerprint = geometry,
+                    PropertiesFingerprint = properties
+                };
+                if (!_markers.SaveWithMarker(doc, marker, out var error))
+                {
+                    Fail(v, "маркер / сохранение: " + error);
+                    return;
+                }
+            }
+            finally
+            {
+                // Все документы закрываются: SolidWorks подставляет уже открытый файл с тем же именем
+                try { _swApp.Sw.CloseAllDocuments(true); }
+                catch (Exception ex) { _logger.LogWarning(ex, $"Миграция: CloseAllDocuments после {v.Title}"); }
+                _missingRefs.PreferredPaths = null;
+                AddMissingReferences(v);
+            }
+
+            using (var transaction = _db.Database.BeginTransaction())
+            {
+                UpdateDatabase(v, geometry, properties);
+                WriteLog(v, AGR_StorageMigrationService.StatusDone, message, geometry, properties, transaction.GetDbTransaction());
+                transaction.Commit();
+            }
+            _db.ChangeTracker.Clear();
+            DoneCount++;
+            Count("Версия: Done");
+        }
+
+        /// <summary>«Обозначение» из БД - в Custom файла, из конфигураций удаляется; «Версия» и «Хэш-сумма» удаляются отовсюду.</summary>
+        private static void CleanProperties(ISwDocument3D doc, string partNumber)
+        {
+            var prop = doc.Properties.AGR_TryGetProp(AGR_PropertyNames.Partnumber);
+            if (prop != null) prop.Value = partNumber;
+
+            var model = doc.Model;
+            DeleteProperties(model, "", AGR_PropertyNames.Version, AGR_PropertyNames.HashSum);
+            if (model.GetConfigurationNames() is object[] configs)
+                foreach (var config in configs.OfType<string>())
+                    DeleteProperties(model, config, AGR_PropertyNames.Partnumber, AGR_PropertyNames.Version, AGR_PropertyNames.HashSum);
+        }
+
+        private static void DeleteProperties(IModelDoc2 model, string config, params string[] names)
+        {
+            var mgr = model.Extension.get_CustomPropertyManager(config);
+            if (mgr?.GetNames() is not object[] existing) return;
+            foreach (var actual in existing.OfType<string>())
+                if (names.Any(n => string.Equals(n, actual, StringComparison.OrdinalIgnoreCase)))
+                    mgr.Delete2(actual);
+        }
+
+        /// <summary>ComponentFiles: StorageModel и StorageDrawing → новые пути (чертёж без записи получает её); отпечатки версии.</summary>
+        private void UpdateDatabase(AGR_StorageMigrationVersion v, string geometry, string properties)
+        {
+            var files = _db.ComponentFiles
+                .Where(f => f.ComponentVersionId == v.VersionId
+                            && (f.FileType == AGR_FileType_e.StorageModel || f.FileType == AGR_FileType_e.StorageDrawing))
+                .ToList();
+
+            foreach (var f in files.Where(f => f.FileType == AGR_FileType_e.StorageModel))
+                SetFile(f, v.NewModelPath!);
+
+            var drawings = files.Where(f => f.FileType == AGR_FileType_e.StorageDrawing).ToList();
+            if (v.NewDrawingPath != null)
+            {
+                if (drawings.Count == 0)
+                {
+                    var record = new ComponentFile { ComponentVersionId = v.VersionId, FileType = AGR_FileType_e.StorageDrawing };
+                    SetFile(record, v.NewDrawingPath);
+                    _db.ComponentFiles.Add(record);
+                    Count("БД: добавлена запись чертежа");
+                }
+                foreach (var f in drawings) SetFile(f, v.NewDrawingPath);
+            }
+            else if (drawings.Count > 0)
+                Event(AGR_Severity.Warning, "Запись чертежа осталась со старым путём", v, drawings[0].FilePath, "", "файл чертежа не найден при копировании");
+
+            var version = _db.ComponentVersions.Single(cv => cv.Id == v.VersionId);
+            version.GeometryFingerprint = geometry;
+            version.PropertiesFingerprint = properties;
+            version.UpdatedAt = DateTime.UtcNow;
+
+            _db.SaveChanges();
+        }
+
+        private static void SetFile(ComponentFile f, string path)
+        {
+            f.FilePath = path;
+            f.LastModified = File.GetLastWriteTimeUtc(path);
+            f.FileSize = new FileInfo(path).Length;
+            f.UpdatedAt = DateTime.UtcNow;
+        }
+
+        /// <summary>События ReferenceNotFound при открытии копии - в refs.csv.</summary>
+        private void AddMissingReferences(AGR_StorageMigrationVersion v)
+        {
+            foreach (var e in _missingRefs.TakeEvents())
+            {
+                var (severity, category) = e.How switch
+                {
+                    AGR_MissingReferenceHow_e.Preferred => (AGR_Severity.Warning, "Открытие: потерянная ссылка найдена среди детей"),
+                    AGR_MissingReferenceHow_e.ByNameUnique => (AGR_Severity.Warning, "Открытие: потерянная ссылка найдена по имени в хранилище"),
+                    AGR_MissingReferenceHow_e.ByNameAmbiguous => (AGR_Severity.Error, "Открытие: потерянная ссылка по имени неоднозначна"),
+                    _ => (AGR_Severity.Error, "Открытие: потерянная ссылка не найдена")
+                };
+                Event(severity, category, v, v.NewModelPath ?? "", e.Missing, e.Resolved ?? "");
+            }
+        }
+
+        /// <summary>Ошибка версии. Если копия уже есть (ошибка доводки), родители продолжают ссылаться на неё;
+        /// повторный запуск скопирует версию заново.</summary>
         private void Fail(AGR_StorageMigrationVersion v, string message)
         {
-            v.NewModelPath = null;
+            _db.ChangeTracker.Clear(); // несохранённые изменения упавшей версии не должны уйти со следующей
+            if (v.NewModelPath != null && !File.Exists(v.NewModelPath)) v.NewModelPath = null;
             ErrorCount++;
             Event(AGR_Severity.Error, "Версия не перенесена", v, v.OldModelPath ?? "", "", message);
-            try { WriteLog(v, AGR_StorageMigrationService.StatusError, message); }
+            try { WriteLog(v, AGR_StorageMigrationService.StatusError, message, null, null); }
             catch (Exception ex) { _logger.LogError(ex, $"Миграция: журнал {v.Title}"); }
         }
 
@@ -608,18 +783,24 @@ namespace Agrovent.Services.Migration
 
         #region Журнал и файлы прогона
 
-        private void WriteLog(AGR_StorageMigrationVersion v, string status, string message)
+        private void WriteLog(AGR_StorageMigrationVersion v, string status, string message,
+            string? geometry, string? properties, DbTransaction? transaction = null)
         {
             using var cmd = _conn.CreateCommand();
+            cmd.Transaction = transaction;
             cmd.CommandText =
                 "INSERT INTO public.\"MigrationLog\" (\"ComponentVersionId\", \"Status\", \"OldModelPath\", \"NewModelPath\", " +
-                "\"OldDrawingPath\", \"NewDrawingPath\", \"Message\", \"Attempts\", \"MachineName\", \"StartedAt\", \"FinishedAt\") " +
-                "VALUES (@v, @status, @oldModel, @newModel, @oldDrawing, @newDrawing, @msg, 1, @machine, now(), now()) " +
+                "\"OldDrawingPath\", \"NewDrawingPath\", \"GeometryFingerprint\", \"PropertiesFingerprint\", " +
+                "\"Message\", \"Attempts\", \"MachineName\", \"StartedAt\", \"FinishedAt\") " +
+                "VALUES (@v, @status, @oldModel, @newModel, @oldDrawing, @newDrawing, @geometry, @properties, @msg, 1, @machine, now(), now()) " +
                 "ON CONFLICT (\"ComponentVersionId\") DO UPDATE SET \"Status\" = EXCLUDED.\"Status\", " +
                 "\"OldModelPath\" = EXCLUDED.\"OldModelPath\", \"NewModelPath\" = EXCLUDED.\"NewModelPath\", " +
                 "\"OldDrawingPath\" = EXCLUDED.\"OldDrawingPath\", \"NewDrawingPath\" = EXCLUDED.\"NewDrawingPath\", " +
+                "\"GeometryFingerprint\" = EXCLUDED.\"GeometryFingerprint\", \"PropertiesFingerprint\" = EXCLUDED.\"PropertiesFingerprint\", " +
                 "\"Message\" = EXCLUDED.\"Message\", \"Attempts\" = public.\"MigrationLog\".\"Attempts\" + 1, " +
                 "\"MachineName\" = EXCLUDED.\"MachineName\", \"StartedAt\" = now(), \"FinishedAt\" = now()";
+            AddParam(cmd, "geometry", geometry);
+            AddParam(cmd, "properties", properties);
             AddParam(cmd, "v", v.VersionId);
             AddParam(cmd, "status", status);
             AddParam(cmd, "oldModel", v.SourceModelPath ?? v.OldModelPath);
@@ -677,7 +858,7 @@ namespace Agrovent.Services.Migration
             if (Stopped) sb.AppendLine("ПРЕРВАНО файлом STOP: повторный запуск продолжит с неперенесённых.");
             sb.AppendLine($"Время: {elapsed:hh\\:mm\\:ss}");
             sb.AppendLine();
-            sb.AppendLine($"Версий: {_data.Versions.Count}, перенесено: {CopiedCount}, уже в журнале: {SkippedCount}, ошибок: {ErrorCount}");
+            sb.AppendLine($"Версий: {_data.Versions.Count}, скопировано: {CopiedCount}, доведено (Done): {DoneCount}, уже были Done: {SkippedCount}, ошибок: {ErrorCount}");
             sb.AppendLine($"Ссылок заменено: {ReplacedCount}, не разрешено: {UnresolvedCount}");
             sb.AppendLine();
             foreach (var kv in _counters.OrderBy(k => k.Key))
