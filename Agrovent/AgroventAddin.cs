@@ -409,6 +409,19 @@ namespace Agrovent
                     newdocVM.Article = "";
                     newdocVM.PartNumber = string.Empty;
                     newdocVM.StorageGuid = null;
+                    newdocVM.Version = 0;
+
+                    // Маркер скопирован из исходного файла и указывает на исходный компонент: без обнуления
+                    // копия сохранится как его версия. Сохранение записывает и очищенные «Обозначение» и «Артикул».
+                    // CHECK: Save() внутри CommandCloseNotify сразу после «Сохранить как»
+                    var markers = AGR_ServiceContainer.GetService<IAGR_MarkerService>();
+                    if (!markers.SaveWithMarker(doc, null, out var markerError))
+                    {
+                        _logger.LogError($"Сохранить как: маркер не обнулён ({doc.Path}): {markerError}");
+                        Application.ShowMessageBox(
+                            $"Не удалось очистить идентификатор файла:\n{markerError}\n\nНе сохраняйте эту деталь в базу, обратитесь к администратору.",
+                            Xarial.XCad.Base.Enums.MessageBoxIcon_e.Warning);
+                    }
 
                     taskPaneVM.OnDocumentActivatedAsync(doc);
                 }
