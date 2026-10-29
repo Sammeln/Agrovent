@@ -16,6 +16,8 @@ namespace Agrovent.Services
     /// - есть маркер и мой замок → новая версия (BasedOnVersion = BaseVersion замка);
     /// - есть маркер, замка нет → существующая версия из маркера; изменена геометрия → ошибка (взять на редактирование);
     ///   изменены только свойства (этап 6.3) → свойства версии в БД и перезапись файла версии (PropertiesChanged);
+    /// - маркер от другого PartNumber (обозначение очищено и выдано заново, копия штатным Pack'n'Go) → как без маркера;
+    ///   если PartNumber файла уже в БД → ошибка (маркер от одного компонента, обозначение от другого);
     /// - маркера нет → новый компонент, сохраняется как есть (новая версия; если PartNumber уже в БД
     ///   и на нём мой замок, замок снимается, BasedOnVersion = BaseVersion);
     /// - покупной без маркера → последняя версия из БД, если есть (+ маркер в файл, если доступен на запись; поиск
@@ -54,6 +56,7 @@ namespace Agrovent.Services
             // 1. Маркеры (по одному на ключ файл+конфигурация)
             var entries = new List<(IAGR_BaseComponent Comp, AGR_Marker? Marker)>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var staleMarkers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); // ключ → PartNumber из маркера
             foreach (var comp in components)
             {
                 if (!seen.Add(AGR_SavePlan.KeyOf(comp))) continue;
@@ -70,8 +73,14 @@ namespace Agrovent.Services
                     case AGR_MarkerReadResult_e.Ok:
                         if (!string.Equals(marker!.PartNumber, comp.PartNumber, StringComparison.Ordinal))
                         {
-                            // CHECK этап 5: PartNumber файла разошёлся с маркером. Пока верим маркеру.
-                            _logger.LogWarning($"{comp.Name}: PartNumber файла '{comp.PartNumber}' не совпадает с маркером '{marker.PartNumber}'.");
+                            // «Обозначение» очищено вручную (копия через штатный Pack'n'Go или «Сохранить как» без
+                            // очистки идентификаторов) и выдано заново: маркер остался от исходного компонента.
+                            // Это новый компонент, маркер перезапишется при сохранении его версии.
+                            _logger.LogWarning($"{comp.Name}: PartNumber файла '{comp.PartNumber}' не совпадает с маркером " +
+                                               $"'{marker.PartNumber}' v{marker.Version}, маркер не учитывается (новый компонент).");
+                            staleMarkers[AGR_SavePlan.KeyOf(comp)] = marker.PartNumber;
+                            entries.Add((comp, null));
+                            break;
                         }
                         entries.Add((comp, marker));
                         break;
@@ -127,6 +136,14 @@ namespace Agrovent.Services
             {
                 int componentId = marker?.ComponentId
                     ?? (editInfo.TryGetValue(comp.PartNumber ?? "", out var info) ? info.ComponentId : 0);
+
+                if (componentId > 0 && staleMarkers.TryGetValue(AGR_SavePlan.KeyOf(comp), out var markerPartNumber))
+                {
+                    // Маркер от одного компонента, «Обозначение» от другого, уже существующего: не угадываем
+                    errors.Add($"{comp.Name} ({comp.PartNumber}): обозначение уже есть в БД, а маркер файла от компонента {markerPartNumber}. " +
+                               $"Очистите обозначение (будет выдано новое) или верните {markerPartNumber}.");
+                    continue;
+                }
 
                 locks.TryGetValue(componentId, out var lck);
                 if (lck != null && lck.UserId != userId)

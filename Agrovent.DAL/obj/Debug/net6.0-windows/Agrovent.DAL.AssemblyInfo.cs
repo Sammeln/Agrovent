@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Agrovent.DAL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bfe0bcfe9dbd863a513b2c802bcf2184c6ea7ea7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9263900fcaed09572889339e42420449620a85a5")]
 [assembly: System.Reflection.AssemblyProductAttribute("Agrovent.DAL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Agrovent.DAL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -188,15 +188,24 @@ namespace Agrovent.ViewModels.Base
             }
         }
 
-        /// <summary>Версия и GUID из маркера файла. Маркер повреждён или отсутствует - версия 0.</summary>
+        /// <summary>Версия и GUID из маркера файла. Маркер повреждён или отсутствует - версия 0.
+        /// Маркер от другого «Обозначения» (обозначение очищено/выдано заново) - новый компонент: версия 0, GUID сброшен.</summary>
         private void ReadMarker()
         {
             var markers = AGR_ServiceContainer.GetService<Agrovent.Services.IAGR_MarkerService>();
             if (markers != null
                 && markers.TryRead(mDocument!, out var marker, out _) == Agrovent.Services.AGR_MarkerReadResult_e.Ok)
             {
-                _version = marker!.Version;
-                _storageGuid = marker.StorageGuid;
+                if (string.Equals(marker!.PartNumber, _partNumber, StringComparison.Ordinal))
+                {
+                    _version = marker.Version;
+                    _storageGuid = marker.StorageGuid;
+                }
+                else
+                {
+                    _version = 0;
+                    _storageGuid = null;
+                }
             }
             else
             {

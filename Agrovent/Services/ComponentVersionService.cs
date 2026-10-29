@@ -286,8 +286,9 @@ namespace Agrovent.Infrastructure.Services
             foreach (var file in files)
             {
                 var comp = file.First();
-                // Маркер есть (или повреждён) - компонент определится по нему, не угадываем
-                if (_markers.TryRead(comp.SwDocument, out _, out _) != AGR_MarkerReadResult_e.Missing) continue;
+                // Маркер повреждён - не угадываем. Целый маркер при пустом PartNumber устарел (обозначение очищено,
+                // AGR_SavePlanBuilder его не учтёт) - ищем, как без маркера.
+                if (_markers.TryRead(comp.SwDocument, out _, out _) == AGR_MarkerReadResult_e.Invalid) continue;
 
                 var candidates = new List<AGR_PurchasedCandidate>();
                 if (int.TryParse(comp.Article, out var article))
