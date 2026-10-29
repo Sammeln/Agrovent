@@ -71,6 +71,7 @@ namespace Agrovent.DAL.Services.Repositories
         Task<List<TemplateOperation>> GetAllTemplateOperationsAsync();
         Task<Dictionary<string, AvaArticleModel>> GetAvaArticlesByNameAsync(List<string> names);
         Task<AvaArticleModel?> GetAvaArticleByArticleNumberAsync(int articleNumber);
+        Task<Dictionary<string, Dictionary<int, AvaArticleModel?>>> GetVersionAvaArticlesByPartNumbersAsync(List<string> partNumbers);
 
         Task UpdateComponentVersionEditAsync(AGR_ComponentEditData data);
         Task UpdateComponentVersionEditsAsync(IEnumerable<AGR_ComponentEditData> data);
@@ -857,7 +858,7 @@ namespace Agrovent.DAL.Services.Repositories
         /// - свойства (ComponentProperties) по составу VM, значение из файла: новые добавляются, изменённые
         ///   перезаписываются, отсутствующие в файле не удаляются;
         /// - «Признак» (AvaType) и «Артикул» (если такой артикул есть в AvaArticles);
-        /// - материал и покраска деталей (по наименованию; артикул ищется по наименованию в AvaArticles).
+        /// - материал и покраска деталей, покраска сборок (по наименованию; артикул ищется по наименованию в AvaArticles).
         /// «Обозначение» не меняется: это идентичность компонента. SaveChanges - через CompleteAsync снаружи.
         /// fileValues - AGR_PropertiesFingerprint.ReadEffective (конфигурация, иначе Custom файла).
         /// </summary>
@@ -926,10 +927,13 @@ namespace Agrovent.DAL.Services.Repositories
                 }
             }
 
-            // Материал и покраска (только детали, как SaveMaterialData)
+            // Материал и покраска (как SaveMaterialData): детали - оба, сборки - только покраска
             if (component.ComponentType == AGR_ComponentType_e.Part || component.ComponentType == AGR_ComponentType_e.SheetMetallPart)
                 changed += await UpdateMaterialFromFileAsync(componentVersion, component,
                     FileValue(AGR_PropertyNames.Material), FileValue(AGR_PropertyNames.Color));
+            else if (component.ComponentType == AGR_ComponentType_e.Assembly)
+                changed += await UpdateMaterialFromFileAsync(componentVersion, component,
+                    null, FileValue(AGR_PropertyNames.Color), updateMaterial: false);
 
             if (changed > 0)
             {
@@ -940,13 +944,13 @@ namespace Agrovent.DAL.Services.Repositories
         }
 
         private async Task<int> UpdateMaterialFromFileAsync(ComponentVersion componentVersion, IAGR_BaseComponent component,
-            string? materialName, string? paintName)
+            string? materialName, string? paintName, bool updateMaterial = true)
         {
             var material = await _context.ComponentMaterials.FirstOrDefaultAsync(m => m.ComponentVersionId == componentVersion.Id);
             materialName = string.IsNullOrEmpty(materialName) ? null : materialName;
             paintName = string.IsNullOrEmpty(paintName) ? null : paintName;
 
-            bool materialChanged = material?.BaseMaterial != materialName;
+            bool materialChanged = updateMaterial && material?.BaseMaterial != materialName;
             bool paintChanged = material?.Paint != paintName;
             if (!materialChanged && !paintChanged) return 0;
 
@@ -981,6 +985,13 @@ namespace Agrovent.DAL.Services.Repositories
 
         private async Task SaveMaterialData(ComponentVersion componentVersion, IAGR_BaseComponent component)
         {
+            // Для сборки - только покраска
+            if (component.ComponentType == AGR_ComponentType_e.Assembly)
+            {
+                await SaveAssemblyPaintData(componentVersion, component);
+                return;
+            }
+
             // Сохраняем материал только для деталей и листовых деталей
             if (component.ComponentType != AGR_ComponentType_e.Part &&
                 component.ComponentType != AGR_ComponentType_e.SheetMetallPart)
@@ -1019,6 +1030,38 @@ namespace Agrovent.DAL.Services.Repositories
             };
 
             _context.ComponentMaterials.Add(material);
+        }
+
+        /// <summary>
+        /// Покраска сборки в новую версию. Материала у сборки нет. Покраска из файла (AGR_Paint) приходит без AvaModel:
+        /// артикул ищется по наименованию, не найден → пусто + сообщение. Без покраски запись не создаётся.
+        /// </summary>
+        private async Task SaveAssemblyPaintData(ComponentVersion componentVersion, IAGR_BaseComponent component)
+        {
+            if (component is not IAGR_HasPaint assemblyPaint) return;
+
+            var paint = assemblyPaint.Paint;
+            var paintName = string.IsNullOrWhiteSpace(paint?.Name) ? null : paint!.Name.Trim();
+            if (paintName == null) return;
+
+            var paintArticle = paint!.AvaModel?.Article;
+            if (paintArticle == null)
+            {
+                var articles = await GetAvaArticlesByNameAsync(new List<string> { paintName });
+                paintArticle = articles.TryGetValue(paintName, out var p) ? p.Article : null;
+                if (paintArticle == null)
+                    _saveProgress.AddLogMessage($"{component.Name}: покраска «{paintName}» не найдена в справочнике, артикул покраски пуст.");
+            }
+
+            _logger.LogDebug($"Сохранение покраски для сборки: {component.PartNumber}");
+
+            _context.ComponentMaterials.Add(new ComponentMaterial
+            {
+                ComponentVersion = componentVersion,
+                Paint = paintName,
+                PaintCount = assemblyPaint.PaintCount,
+                PaintAvaArticleID = paintArticle
+            });
         }
         private async Task SaveFileData(ComponentVersion componentVersion, IAGR_BaseComponent component)
         {
@@ -1243,6 +1286,25 @@ namespace Agrovent.DAL.Services.Repositories
                 //_logger.LogError(ex, $"Ошибка при поиске AvaArticle по Article: {articleNumber}");
                 throw; // Перебрасываем исключение для обработки на более высоком уровне
             }
+        }
+
+        /// <summary>
+        /// Артикулы всех версий компонентов одним запросом: PartNumber → (Version → AvaArticle, null если не присвоен).
+        /// Компонентов, которых нет в БД, в словаре нет.
+        /// </summary>
+        public async Task<Dictionary<string, Dictionary<int, AvaArticleModel?>>> GetVersionAvaArticlesByPartNumbersAsync(List<string> partNumbers)
+        {
+            if (partNumbers == null || !partNumbers.Any())
+                return new Dictionary<string, Dictionary<int, AvaArticleModel?>>();
+
+            var rows = await _context.ComponentVersions
+                .Where(v => partNumbers.Contains(v.Component.PartNumber))
+                .Select(v => new { v.Component.PartNumber, v.Version, v.AvaArticle })
+                .ToListAsync();
+
+            return rows
+                .GroupBy(r => r.PartNumber)
+                .ToDictionary(g => g.Key, g => g.ToDictionary(r => r.Version, r => r.AvaArticle));
         }
 
         #region Загрузка техпроцесса

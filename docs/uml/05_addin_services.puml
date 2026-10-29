@@ -1,0 +1,271 @@
+@startuml 05_addin_services
+title Agrovent (add-in) — точка входа, сервисы, маркер, хелперы
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "xCAD (Xarial)" #F5F5F5 {
+  abstract class SwAddInEx
+  abstract class SwDocumentHandler
+  interface ISwApplication
+  interface ISwDocument3D
+  interface IXDocument
+}
+interface ICommand
+
+package "Agrovent" {
+  enum AGR_Commands_e {
+    SaveComponent
+    ExportToIges
+    UpdateProperties
+    GetSheetMetallPartsAssmbly
+    ProjectsExplorer
+    MoveComponentWithTriade
+    CopyFilesToStorage
+    CopyFilesToProd
+    UpdateDrawings
+    PackNGo
+    EditComponent
+    CancelEditing
+  }
+
+  class AgroventAddin <<COM add-in>> {
+    - _versionService : IAGR_ComponentVersionService
+    - _commandService : IAGR_CommandService
+    - _viewModelCache : IAGR_ViewModelCacheService
+    - _viewModelFactory : IAGR_ComponentViewModelFactory
+    - _unitOfWork : IUnitOfWork
+    - _dbContext : DataContext
+    + MainTaskPane : AGR_TaskPaneViewModel
+    + TaskPaneControl : ISwTaskPane<AGR_TaskPaneView>
+    + LastComponent : IAGR_BaseComponent?
+    + LastDocPath : string
+    + OnConnect()
+    + OnDisconnect()
+    - OnCommandClickExecute(cmd : AGR_Commands_e)
+    - OnCommandStateResolve(cmd, state)  // только кэш VM
+    - OnStreamWriteAvailable(doc) / OnStreamReadAvailable(doc)
+    .. отладочные команды ..
+    + WriteMarkerCommand / ReadMarkerCommand : ICommand
+  }
+  SwAddInEx <|-- AgroventAddin
+  AgroventAddin ..> AGR_Commands_e
+}
+
+package "Agrovent.Services" {
+  class ServiceConfiguration <<static>> {
+    + ConfigureServices(services) : IServiceCollection
+  }
+  class AGR_ServiceContainer <<static>> {
+    + Initialize(configureServices)
+    + GetService<T>() : T
+    + GetServiceProvider() : IServiceProvider
+    + CreateScope() : IServiceScope
+  }
+  AGR_ServiceContainer ..> ServiceConfiguration
+
+  class AGR_CommandService <<singleton>> {
+    - _componentVersionService : IAGR_ComponentVersionService
+    - _serviceProvider : IServiceProvider
+    - _viewModelCache : IAGR_ViewModelCacheService
+    - _ComponentViewModelFactory : IAGR_ComponentViewModelFactory
+    - _swApp : ISwApplication
+    - _editLocks : IAGR_EditLockService
+  }
+  interface IAGR_CommandService
+  IAGR_CommandService <|.. AGR_CommandService
+
+  interface IAGR_ComponentVersionService {
+    + CheckAndSaveComponentAsync(component) : Task<bool>
+    + CheckAndSaveAssemblyAsync(assembly : AGR_AssemblyComponentVM) : Task<bool>
+    + GetComponentVersionAsync(partNumber, version)
+    + GetLatestComponentVersionAsync(partNumber)
+    + GetAssemblyStructureAsync(partNumber, version)
+    + CreateNewComponent(component) / CreateNewComponents(list)
+    + CopyFilesToStorageAsync(root) : Task
+    + CopyFilesToProdAsync(root) : Task
+  }
+  class ComponentVersionService <<scoped>> {
+    - _unitOfWork : IUnitOfWork
+    - _saveProgress : AGR_SaveProgressVM
+    - _scopeFactory : IServiceScopeFactory
+    - _editLocks : IAGR_EditLockService
+    - _planBuilder : AGR_SavePlanBuilder
+    - _markers : IAGR_MarkerService
+  }
+  IAGR_ComponentVersionService <|.. ComponentVersionService
+
+  class AGR_SavePlanBuilder <<internal>> {
+    - _markers : IAGR_MarkerService
+    - _locks : IAGR_EditLockService
+    + {static} FindLightweight(assembly : ISwAssembly) : List<string>
+    + BuildAsync(components) : Task<(AGR_SavePlan, List<string> Errors)>
+  }
+  class AGR_StorageWriter <<internal>> {
+    - _swApp : ISwApplication
+    - _markers : IAGR_MarkerService
+    - _backups : Dictionary<string,string>
+    + CreatedFolders : List<string>
+    + {static} IsWritable(comp) : bool
+    + WriteMarkers(plan : AGR_SavePlan)
+    + CopyToStorage(plan, root)
+    + RollbackFiles()
+    + DiscardBackups()
+  }
+
+  interface IAGR_MarkerService {
+    + TryRead(doc : IXDocument, out marker, out error) : AGR_MarkerReadResult_e
+    + SaveWithMarker(doc : IXDocument, marker?, out error) : bool
+  }
+  class AGR_MarkerService <<singleton>> {
+    + {static} StreamName = "Agrovent.Marker"
+  }
+  IAGR_MarkerService <|.. AGR_MarkerService
+  class AGR_Marker {
+    + {static} CurrentSchemaVersion = 2
+    + {static} CurrentFingerprintVersion = 1
+    + SchemaVersion : int
+    + ComponentId : int
+    + PartNumber : string
+    + Version : int
+    + StorageGuid : Guid
+    + GeometryFingerprint : string
+    + PropertiesFingerprint : string
+    + FingerprintVersion : int
+    + FingerprintsComparable : bool
+  }
+  enum AGR_MarkerReadResult_e {
+    Ok
+    Missing
+    Invalid
+  }
+  AGR_MarkerService ..> AGR_Marker
+  AGR_MarkerService ..> AGR_MarkerReadResult_e
+  AGR_MarkerService ..> IXDocument
+
+  interface IAGR_ViewModelCacheService {
+    + ViewModelsDictonary : ConcurrentDictionary<string, (ISwDocument3D, IAGR_BaseComponent)>
+    + GetOrCreate(document, factory) : IAGR_BaseComponent?
+    + GetOrCreateAsync(document, factory)
+    + Get(doc) : (ISwDocument3D, IAGR_BaseComponent)?
+    + Remove(document)
+    + Clear()
+    + Count : int
+  }
+  class AGR_ViewModelCacheService <<singleton>>
+  IAGR_ViewModelCacheService <|.. AGR_ViewModelCacheService
+
+  interface IAGR_ComponentViewModelFactory {
+    + CreateComponent(document) : IAGR_BaseComponent
+    + CreateComponentAsync(document)
+    + CreatePartComponent(document) : AGR_PartComponentVM
+    + CreateAssemblyComponent(document) : AGR_AssemblyComponentVM
+  }
+  class AGR_ComponentViewModelFactory <<scoped>>
+  IAGR_ComponentViewModelFactory <|.. AGR_ComponentViewModelFactory
+}
+
+package "Agrovent.Infrastructure" {
+  class AGR_DocumentHandler {
+    - _viewModelCache : IAGR_ViewModelCacheService
+    - _viewModelFactory : IAGR_ComponentViewModelFactory
+    - _BaseComponent : IAGR_BaseComponent
+    - _unitOfWork : IUnitOfWork
+    # OnInit(app, doc)
+    # Dispose(disposing)
+  }
+  SwDocumentHandler <|-- AGR_DocumentHandler
+
+  class AGR_GeometryFingerprint <<static>> {
+    + Compute(doc : ISwDocument3D, out canonical) : string
+  }
+  class AGR_PropertiesFingerprint <<static>> {
+    + Compute(doc, out canonical) : string
+    + ReadEffective(doc) : Dictionary<string,string>
+  }
+  class AGR_Helper <<static>> {
+    + ShowMessage(message, icon, buttons)
+  }
+  class AGR_ComponentExtension <<static, ext>> {
+    + AvaType(this ISwDocument3D) : AGR_AvaType_e
+    + ComponentType(this ISwDocument3D) : AGR_ComponentType_e
+    + AGR_BaseComponent(this IXComponent / IXDocument) : IAGR_BaseComponent
+  }
+  class AGR_XComponentsRepoExtension <<static, ext>> {
+    + AGR_TryFlatten(this IXComponentRepository)
+    + AGR_ActiveComponents(this IXComponentRepository)
+    + AGR_BaseComponents(...) : IEnumerable<IAGR_BaseComponent>
+  }
+  class AGR_IXPropertyRepoExtension <<static, ext>> {
+    + AGR_TryGetProp(this IXPropertyRepository, name) : IXProperty?
+    + AGR_TryReadProp(this IXPropertyRepository, name) : string?
+    + AGR_ReadPartNumber(this IXDocument3D) : string
+  }
+
+  abstract class BaseCommand {
+    + {abstract} CanExecute(parameter) : bool
+    + {abstract} Execute(parameter)
+    + CanExecuteChanged : EventHandler
+  }
+  class RelayCommand
+  class "RelayCommand<T>" as RelayCommandT
+  ICommand <|.. BaseCommand
+  BaseCommand <|-- RelayCommand
+  BaseCommand <|-- RelayCommandT
+}
+
+package "Agrovent.Models" {
+  class AGR_User
+}
+interface IAGR_User
+IAGR_User <|.. AGR_User
+
+' --- внешние типы из других диаграмм ---
+interface IUnitOfWork
+interface IAGR_EditLockService
+class AGR_SavePlan
+class DataContext
+class AGR_TaskPaneViewModel
+class AGR_SaveProgressVM
+class AGR_PartComponentVM
+class AGR_AssemblyComponentVM
+
+' --- зависимости ---
+AgroventAddin --> IAGR_CommandService
+AgroventAddin --> IAGR_ComponentVersionService
+AgroventAddin --> IAGR_ViewModelCacheService
+AgroventAddin --> IAGR_ComponentViewModelFactory
+AgroventAddin --> AGR_TaskPaneViewModel
+AgroventAddin ..> AGR_DocumentHandler : регистрирует
+AgroventAddin ..> AGR_ServiceContainer
+
+AGR_CommandService --> IAGR_ComponentVersionService
+AGR_CommandService --> IAGR_ViewModelCacheService
+AGR_CommandService --> IAGR_ComponentViewModelFactory
+AGR_CommandService --> IAGR_EditLockService
+AGR_CommandService --> ISwApplication
+
+ComponentVersionService --> IUnitOfWork
+ComponentVersionService --> IAGR_EditLockService
+ComponentVersionService --> IAGR_MarkerService
+ComponentVersionService *-- AGR_SavePlanBuilder
+ComponentVersionService ..> AGR_StorageWriter : создаёт на сохранение
+ComponentVersionService --> AGR_SaveProgressVM
+ComponentVersionService ..> AGR_SavePlan
+
+AGR_SavePlanBuilder --> IAGR_MarkerService
+AGR_SavePlanBuilder --> IAGR_EditLockService
+AGR_SavePlanBuilder ..> AGR_SavePlan : строит
+AGR_SavePlanBuilder ..> AGR_GeometryFingerprint
+AGR_SavePlanBuilder ..> AGR_PropertiesFingerprint
+AGR_StorageWriter --> IAGR_MarkerService
+AGR_StorageWriter ..> AGR_SavePlan
+
+AGR_ViewModelCacheService --> IUnitOfWork
+AGR_ComponentViewModelFactory ..> AGR_PartComponentVM : создаёт
+AGR_ComponentViewModelFactory ..> AGR_AssemblyComponentVM : создаёт
+
+AGR_DocumentHandler --> IAGR_ViewModelCacheService
+AGR_DocumentHandler --> IAGR_ComponentViewModelFactory
+AGR_DocumentHandler --> IUnitOfWork
+@enduml

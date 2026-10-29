@@ -1,0 +1,397 @@
+@startuml 07_viewmodels_windows
+title Agrovent.ViewModels — окна (спецификация, сохранение, правка, реестр, проекты, Pack'n'Go) и View
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+class BaseViewModel
+interface IAGR_SaveProgressVM
+interface IUnitOfWork
+interface IAGR_EditLockService
+interface IServiceScopeFactory
+class AGR_AssemblyComponentVM
+class AGR_SpecificationItemVM
+class AGR_ComponentRegistryItemVM
+interface IAGR_BaseComponent
+class ComponentVersion <<entity>>
+class ComponentFile <<entity>>
+class ComponentProperty <<entity>>
+class DataContext
+interface INotifyPropertyChanged
+class AGR_ComponentRegistryTaskPaneVM
+class AGR_PartComponentVM
+class AGR_TaskPaneViewModel
+
+package "Specification" {
+  class AGR_SpecificationViewModel {
+    - _baseComponent : AGR_AssemblyComponentVM
+    - _unitOfWork : IUnitOfWork
+    - _scopeFactory : IServiceScopeFactory
+    + Components : ObservableCollection<AGR_SpecificationItemVM>
+    + SelectedComponents : ObservableCollection<AGR_SpecificationItemVM>
+    + GroupedComponentsView : ICollectionView
+    + BaseAssemblyArticle / BaseAssemblyPaint
+    + Errors / Warnings : string
+    + IgnoreErrors : bool
+    + DialogResult : bool?
+    + Refresh()
+    .. COMMANDS ..
+    + SelectComponentCommand
+    + SetBaseMaterialCommand / SetPaintCommand
+    + SetAvaArticleCommand / SetAvaTypeCommand
+    + MatchArticlesCommand
+    + SelectArticleCommand / SelectPaintCommand
+    + ExportToExcelCommand
+    + SaveCommand / CancelCommand
+    .. events ..
+    + CloseWindow : Action
+    + DialogResultChanged : Action<bool?>
+  }
+  enum AGR_WindowMode_e {
+    FullSave
+    EditExisting
+  }
+  class AGR_AssemblyEditVM {
+    - _unitOfWork : IUnitOfWork
+    + Mode : AGR_WindowMode_e
+    + Components / SelectedComponents : ObservableCollection<AGR_AssemblyEditItemVM>
+    + InitializeAsync(partNumber, version) : Task
+    + DialogResult : bool?
+    .. COMMANDS ..
+    + SelectComponentCommand, SetBaseMaterialCommand, SetPaintCommand
+    + SetAvaArticleCommand, SetAvaTypeCommand, SelectArticleCommand
+    + SelectPaintCommand, SaveCommand, CancelCommand
+  }
+  class AGR_AssemblyEditItemVM {
+    - _entity : ComponentVersion
+    + Quantity : int
+    + IsSelected : bool
+    + BaseMaterial / BasePaint : IAGR_Material?
+    + AvaArticle : IAGR_AvaArticleModel?
+  }
+  class AGR_MatchArticlesVM {
+    - _sourceComponents : IEnumerable<AGR_SpecificationItemVM>
+    - _scopeFactory : IServiceScopeFactory
+    + Items : ObservableCollection<AGR_ArticleMatchItemVM>
+    + UnresolvedCount : int
+    + DialogSaved : bool
+    .. COMMANDS ..
+    + SaveCommand / CancelCommand / ClearSelectionCommand
+  }
+  class AGR_ArticleMatchItemVM {
+    + SpecificationItem : AGR_SpecificationItemVM
+    + Candidates : ObservableCollection<AGR_ArticleCandidateVM>
+    + SelectedCandidate : AGR_ArticleCandidateVM
+    + IsResolved : bool
+    + PreselectDefault()
+    + NotifyCandidateSelected(candidate)
+    + ClearSelection()
+  }
+  class AGR_ArticleCandidateVM {
+    - _owner : AGR_ArticleMatchItemVM
+    + AvaArticle : IAGR_AvaArticleModel
+    + IsSelected / IsPartNumberMatch / IsNameMatch : bool
+  }
+  class AGR_SpecificationExcelExporter <<static>> {
+    + Export(...)  // NPOI XSSFWorkbook
+  }
+}
+
+package "Windows: сохранение" {
+  class AGR_SaveConfirmationVM {
+    + ComponentName / PartNumber / ConfigName : string
+    + BaseMaterial / Paint : IAGR_Material
+    + AvaArticle : IAGR_AvaArticleModel?
+    + BlankProperties : ObservableCollection<IXProperty>
+    + ErrorMessages : string
+    + HasErrors : bool
+    + DialogResult : bool?
+    .. COMMANDS ..
+    + SaveCommand / CancelCommand
+    + SelectMaterialCommand / SelectColorCommand / SelectArticleCommand
+  }
+  class AGR_SaveConfirmationErrors <<static>>
+  class AGR_SaveProgressVM <<singleton>> {
+    + LogMessages : ObservableCollection<string>
+    + IsFinished : bool
+    + CancelationToken : CancellationTokenSource
+    + AddLogMessage(message)
+    + SetFinished()
+    .. COMMANDS ..
+    + CloseCommand / SaveLogCommand
+    .. events ..
+    + CloseRequested
+  }
+}
+
+package "Windows: взятие на редактирование" {
+  enum AGR_EditSelectionMode_e {
+    Edit
+    Cancel
+  }
+  class AGR_EditSelectionViewModel {
+    + Mode : AGR_EditSelectionMode_e
+    + Roots : ObservableCollection<AGR_EditNodeVM>
+    + IsCopyRequired : bool
+    + TargetFolder : string
+    + DialogResult : bool?
+    + {static} CreateAsync(mode, root, editLocks, ...) : Task<AGR_EditSelectionViewModel>
+    + {static} IsUnderFolder(path, folder) : bool
+    + SetChecked(node, value)
+    + Flatten() : IEnumerable<AGR_EditNodeVM>
+    + GetCheckedComponents() : List<AGR_EditNodeVM>
+    .. COMMANDS ..
+    + ConfirmEditSelectionCommand
+    + CancelEditSelectionCommand
+    + BrowseTargetFolderCommand
+  }
+  class AGR_EditNodeVM {
+    + ComponentId : int
+    + PartNumber / Name / FilePath : string
+    + Version / LatestVersion / Quantity : int
+    + IsMarkerInvalid / IsPurchased : bool
+    + State : AGR_EditState_e
+    + LockedByUser : string?
+    + LockedAt : DateTime?
+    + IsBlockedByParent / CanToggle / IsChecked : bool
+    + Parent : AGR_EditNodeVM?
+    + Children : ObservableCollection<AGR_EditNodeVM>
+  }
+}
+
+package "Windows: правка записи из реестра" {
+  class AGR_ComponentEditVM {
+    - _unitOfWork : IUnitOfWork
+    - _newFiles / _removedFiles : List<ComponentFile>
+    + IsEditMode / PropertiesReadOnly : bool
+    + BaseMaterial / Paint : IAGR_Material
+    + AvaArticle : IAGR_AvaArticleModel?
+    + BlankProperties : ObservableCollection<AGR_ComponentPropertyEditVM>
+    + Files : ObservableCollection<AGR_ComponentFileEditVM>
+    + InitializeAsync(partNumber, version) : Task
+    .. COMMANDS ..
+    + SelectMaterialCommand, SelectColorCommand, SelectArticleCommand
+    + OpenFileCommand, ReplaceFileCommand, AddFileCommand, RemoveFileCommand
+    + UpdateFromModelCommand, SaveCommand, CancelCommand
+  }
+  class AGR_ComponentFileEditVM {
+    - _entity : ComponentFile
+    - _storageGuid : Guid
+    + FileName / FullName : string
+    + FileType : AGR_FileType_e
+    + ResolveStoragePath() : string
+    + UpdateFromSource(sourceFilePath)
+  }
+  class AGR_ComponentPropertyEditVM {
+    - _entity : ComponentProperty
+    + Name / Value / Unit : string
+  }
+  class AGR_ComponentDetailsVM {
+    - _registryItem : AGR_ComponentRegistryItemVM
+    - _unitOfWork : IUnitOfWork
+    + MaterialName / PaintName ... : string
+    + TechProcessSteps : ObservableCollection<string>
+  }
+  class AGR_SelectAvaArticleVM {
+    - _dataContext : DataContext
+    + AvaArticles : ObservableCollection<IAGR_AvaArticleModel>
+    + AvaArticlesView : ICollectionView
+    + SelectedArticle : AvaArticleModel?
+    + SearchText / SelectedAvaType : string?
+    + IsDialogResultAccepted : bool
+    .. COMMANDS ..
+    + LoadDataCommand, AcceptSelectionCommand
+    + CancelSelectionCommand, SelectItemCommand
+  }
+  class AGR_ComponentRegistryVM {
+    - _componentRepository : IAGR_ComponentRepository
+    + RegistryItems : ObservableCollection<AGR_ComponentRegistryItemVM>
+    .. COMMANDS ..
+    + LoadDataCommand, OpenComponentCommand
+    + AddToAssemblyCommand, ShowDetailsCommand
+  }
+}
+
+package "Windows: проекты (Tree)" {
+  class AGR_ProjectExplorerVM {
+    - _scopeFactory : IServiceScopeFactory
+    + RootNodes : ObservableCollection<object>
+    + SelectedNode : object?
+    + LoadProjectsAsync() : Task
+    .. COMMANDS ..
+    + LoadProjectsCommand, AddFolderCommand, RenameNodeCommand
+    + DeleteNodeCommand, MoveNodeCommand, CopyComponentToProjectCommand
+    + OpenComponentCommand, CopyToProjectCommand, SelectNodeCommand
+    .. events ..
+    + CloseRequested
+  }
+  class AGR_ProjectPickerVM {
+    + Projects : ObservableCollection<AGR_ProjectNode>
+    + SelectedProject : AGR_ProjectNode?
+    .. COMMANDS ..
+    + AcceptCommand / CancelCommand
+  }
+  class AGR_ProjectNode {
+    + DatabaseId : int?
+    + Name : string
+    + IsUnsortedRoot : bool
+    + Parent : AGR_ProjectNode?
+    + Children : ObservableCollection<object>
+    + NodeType : AGR_NodeType_e
+    + AddChild(child) / RemoveChild(child)
+  }
+  class AGR_ComponentNode {
+    + ComponentVersion : ComponentVersion
+    + Name / PartNumber : string
+    + Version : int
+    + Parent : AGR_ProjectNode?
+    + NodeType : AGR_NodeType_e
+  }
+}
+
+package "PackNGo" {
+  class AGR_PackNGoVM {
+    - _swApp : ISwApplication
+    - _componentVMsByPath : Dictionary<string, AGR_PackNGoComponentVM>
+    + AllComponents : List<AGR_PackNGoComponentVM>
+    + VisibleNodes : ObservableCollection<AGR_PackNGoNodeVM>
+    + RootNode : AGR_PackNGoNodeVM
+    + SaveFolder : string
+    + IsSaving : bool
+    .. COMMANDS ..
+    + BrowseFolderCommand, FindReplaceCommand
+    + SaveCommand, CancelCommand
+  }
+  class AGR_PackNGoNodeVM {
+    + ComponentVM : AGR_PackNGoComponentVM
+    + Parent : AGR_PackNGoNodeVM?
+    + Children : ObservableCollection<AGR_PackNGoNodeVM>
+    + Level / Quantity : int
+    + IsExpanded : bool
+    + ToggleExpandCommand
+  }
+  class AGR_PackNGoComponentVM {
+    + Component : IAGR_BaseComponent
+    + SaveAsName / PartNumber : string
+    + IsNewPartNumber / IsChecked : bool
+    + ClearPartNumber()
+    + SetNewCommand
+  }
+  class AGR_PackNGoFindReplaceVM {
+    + FindWhat / ReplaceWith : string
+    + OkCommand / CancelCommand
+  }
+}
+
+package "Views (WPF, code-behind)" #F5F5F5 {
+  class AGR_TaskPaneView <<UserControl>>
+  class AGR_PartPageView <<UserControl>>
+  class AGR_AssemblyPageView <<UserControl>>
+  class AGR_EmptyPage <<UserControl>>
+  class AGR_ComponentRegistryTaskPaneView <<UserControl>>
+  class AGR_ComponentDetailsView <<UserControl>>
+  class AGR_SpecificationWindow <<Window>>
+  class SaveConfirmationView <<Window>>
+  class SaveProgressView <<Window>>
+  class AGR_EditSelectionWindow <<Window>>
+  class AGR_MatchArticlesWindow <<Window>>
+  class AGR_SelectAvaArticleView <<Window>>
+  class AGR_ComponentRegistryView <<Window>>
+  class AGR_ProjectExplorerView <<Window>>
+  class AGR_ProjectPickerView <<Window>>
+  class AGR_PackNGoWindow <<Window>>
+  class AGR_PackNGoFindReplaceWindow <<Window>>
+  class AGR_PurchasedCandidateDialog <<static>>
+}
+
+' --- наследование ---
+BaseViewModel <|-- AGR_SpecificationViewModel
+BaseViewModel <|-- AGR_AssemblyEditVM
+BaseViewModel <|-- AGR_AssemblyEditItemVM
+BaseViewModel <|-- AGR_MatchArticlesVM
+BaseViewModel <|-- AGR_ArticleMatchItemVM
+BaseViewModel <|-- AGR_ArticleCandidateVM
+BaseViewModel <|-- AGR_SaveConfirmationVM
+BaseViewModel <|-- AGR_SaveProgressVM
+IAGR_SaveProgressVM <|.. AGR_SaveProgressVM
+BaseViewModel <|-- AGR_EditSelectionViewModel
+INotifyPropertyChanged <|.. AGR_EditNodeVM
+BaseViewModel <|-- AGR_ComponentEditVM
+BaseViewModel <|-- AGR_ComponentFileEditVM
+BaseViewModel <|-- AGR_ComponentPropertyEditVM
+BaseViewModel <|-- AGR_ComponentDetailsVM
+BaseViewModel <|-- AGR_SelectAvaArticleVM
+BaseViewModel <|-- AGR_ComponentRegistryVM
+BaseViewModel <|-- AGR_ProjectExplorerVM
+BaseViewModel <|-- AGR_ProjectPickerVM
+BaseViewModel <|-- AGR_ProjectNode
+BaseViewModel <|-- AGR_ComponentNode
+BaseViewModel <|-- AGR_PackNGoVM
+BaseViewModel <|-- AGR_PackNGoNodeVM
+BaseViewModel <|-- AGR_PackNGoComponentVM
+BaseViewModel <|-- AGR_PackNGoFindReplaceVM
+
+' --- ассоциации ---
+AGR_SpecificationViewModel --> AGR_AssemblyComponentVM
+AGR_SpecificationViewModel o-- "0..*" AGR_SpecificationItemVM
+AGR_SpecificationViewModel --> IUnitOfWork
+AGR_SpecificationViewModel ..> AGR_MatchArticlesVM : MatchArticlesCommand
+AGR_SpecificationViewModel ..> AGR_SpecificationExcelExporter
+AGR_AssemblyEditVM --> AGR_WindowMode_e
+AGR_AssemblyEditVM *-- "0..*" AGR_AssemblyEditItemVM
+AGR_AssemblyEditVM --> IUnitOfWork
+AGR_AssemblyEditItemVM --> ComponentVersion
+AGR_MatchArticlesVM *-- "0..*" AGR_ArticleMatchItemVM
+AGR_ArticleMatchItemVM *-- "0..*" AGR_ArticleCandidateVM
+AGR_ArticleMatchItemVM --> AGR_SpecificationItemVM
+AGR_SaveConfirmationVM --> IAGR_BaseComponent
+AGR_SaveConfirmationVM ..> AGR_SaveConfirmationErrors
+
+AGR_EditSelectionViewModel --> AGR_EditSelectionMode_e
+AGR_EditSelectionViewModel *-- "0..*" AGR_EditNodeVM : Roots
+AGR_EditNodeVM "0..1" *-- "0..*" AGR_EditNodeVM : Children
+AGR_EditSelectionViewModel ..> IAGR_EditLockService : CreateAsync
+
+AGR_ComponentEditVM *-- "0..*" AGR_ComponentFileEditVM
+AGR_ComponentEditVM *-- "0..*" AGR_ComponentPropertyEditVM
+AGR_ComponentEditVM --> IUnitOfWork
+AGR_ComponentFileEditVM --> ComponentFile
+AGR_ComponentPropertyEditVM --> ComponentProperty
+AGR_ComponentDetailsVM --> AGR_ComponentRegistryItemVM
+AGR_SelectAvaArticleVM --> DataContext
+AGR_ComponentRegistryVM o-- "0..*" AGR_ComponentRegistryItemVM
+
+AGR_ProjectExplorerVM --> IServiceScopeFactory
+AGR_ProjectExplorerVM *-- "0..*" AGR_ProjectNode : RootNodes
+AGR_ProjectNode "0..1" *-- "0..*" AGR_ProjectNode : Children
+AGR_ProjectNode "0..1" *-- "0..*" AGR_ComponentNode : Children
+AGR_ComponentNode --> ComponentVersion
+AGR_ProjectPickerVM o-- "0..*" AGR_ProjectNode
+
+AGR_PackNGoVM *-- "1..*" AGR_PackNGoComponentVM
+AGR_PackNGoVM *-- AGR_PackNGoNodeVM : RootNode
+AGR_PackNGoNodeVM "0..1" *-- "0..*" AGR_PackNGoNodeVM : Children
+AGR_PackNGoNodeVM --> AGR_PackNGoComponentVM
+AGR_PackNGoComponentVM --> IAGR_BaseComponent
+AGR_PackNGoVM ..> AGR_PackNGoFindReplaceVM
+
+' --- View -> ViewModel (DataContext) ---
+AGR_SpecificationWindow ..> AGR_SpecificationViewModel
+AGR_SpecificationWindow ..> AGR_AssemblyEditVM : из реестра
+SaveConfirmationView ..> AGR_SaveConfirmationVM
+SaveConfirmationView ..> AGR_ComponentEditVM : из реестра
+SaveProgressView ..> AGR_SaveProgressVM
+AGR_EditSelectionWindow ..> AGR_EditSelectionViewModel
+AGR_MatchArticlesWindow ..> AGR_MatchArticlesVM
+AGR_SelectAvaArticleView ..> AGR_SelectAvaArticleVM
+AGR_ComponentRegistryView ..> AGR_ComponentRegistryVM
+AGR_ProjectExplorerView ..> AGR_ProjectExplorerVM
+AGR_ProjectPickerView ..> AGR_ProjectPickerVM
+AGR_PackNGoWindow ..> AGR_PackNGoVM
+AGR_PackNGoFindReplaceWindow ..> AGR_PackNGoFindReplaceVM
+AGR_ComponentDetailsView ..> AGR_ComponentDetailsVM
+AGR_ComponentRegistryTaskPaneView ..> AGR_ComponentRegistryTaskPaneVM
+AGR_PartPageView ..> AGR_PartComponentVM
+AGR_AssemblyPageView ..> AGR_AssemblyComponentVM
+AGR_TaskPaneView ..> AGR_TaskPaneViewModel
+@enduml

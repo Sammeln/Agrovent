@@ -1,0 +1,271 @@
+@startuml 03_infrastructure_contracts
+title Agrovent.Infrastructure — интерфейсы компонентов, сущностей и перечисления
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "Interfaces.Components" {
+  interface IAGR_BaseObject
+  interface IAGR_PageView
+
+  interface IAGR_BaseComponent {
+    + SwDocument : ISwDocument3D
+    + Name : string
+    + ConfigName : string
+    + Extension : string
+    + PartNumber : string
+    + Article : string
+    + Version : int
+    + StorageGuid : Guid?
+    + Preview : byte[]
+    + AvaArticle : IAGR_AvaArticleModel?
+    + ComponentType : AGR_ComponentType_e
+    + AvaType : AGR_AvaType_e
+    + PropertiesCollection : IAGR_PropertiesCollection
+    + IsInDatabase : AGR_ComponentDatabaseState_e
+    + EditState : AGR_EditState_e
+    + EditLockedBy : string?
+    + HasMyLocks : bool
+    + ComponentVersion : ComponentVersion?
+    + ParentAssemblies : ICollection<IAGR_ComponentRegistryItemVM>?
+    + ParentAssembliesCount : int
+    + CanUserEdit : bool
+    + IsPurchased : bool
+    + PrecomputePreview()
+    .. events ..
+    + PartnumberChanged : EventHandler
+  }
+
+  interface IAGR_Part {
+    + BaseMaterial : IAGR_Material
+    + BaseMaterialCount : decimal
+    + Paint : IAGR_Material?
+    + PaintCount : decimal?
+  }
+  interface IAGR_Assembly {
+    + GetChildComponents() : IEnumerable<IAGR_SpecificationItem>
+  }
+  interface IAGR_HasFile {
+    + CurrentModelFilePath : string?
+    + CurrentDrawFilePath : string?
+    + StorageModelFilePath : string?
+    + StorageDrawFilePath : string?
+    + ProductionModelFilePath : string?
+    + ProductionDrawFilePath : string?
+  }
+  interface IAGR_HasMaterial {
+    + BaseMaterial : IAGR_Material
+    + BaseMaterialCount : decimal
+  }
+  interface IAGR_HasPaint {
+    + Paint : IAGR_Material?
+    + PaintCount : decimal?
+  }
+  interface IAGR_Material {
+    + Name : string
+    + Article : string
+    + UOM : string
+    + AvaModel : AvaArticleModel
+  }
+  interface IAGR_ComponentRegistryItemVM {
+    + Id : int
+    + Name : string
+    + PartNumber : string
+    + Version : int
+    + CreatedAt : DateTime
+    + Preview : BitmapImage?
+    + SavedByUserInitials : string
+    + StoragePath : string
+    + ComponentTypeDisplay : string
+    + AvaTypeDisplay : string
+  }
+}
+
+package "Interfaces.Specification" {
+  interface IAGR_SpecificationItem {
+    + Name : string
+    + ConfigName : string
+    + PartNumber : string
+    + Quantity : int
+    + Component : IAGR_BaseComponent
+    + ComponentType : AGR_ComponentType_e
+    + MaterialName : string?
+    + MaterialCount : decimal?
+    + PaintName : string?
+  }
+}
+
+package "Interfaces.Properties" {
+  interface IAGR_PropertiesCollection {
+    + Properties : ICollection<IXProperty>
+    + UpdateProperties()
+  }
+  interface IAGR_BasePropertiesCollection {
+    + Volume : IXProperty
+    + Mass : IXProperty
+    + SurfaceArea : IXProperty
+  }
+  interface IAGR_PartPropertiesCollection {
+    + Length : IXProperty
+    + Width : IXProperty
+  }
+  interface IAGR_SheetMetallPropertiesCollection {
+    + SheetMetall_Length / Width / Thickness
+    + SheetMetall_Holes / Bends
+    + SheetMetall_SurfaceArea / PlateArea
+    + SheetMetall_OuterContour / InnerContour
+  }
+}
+
+package "Interfaces (общие)" {
+  interface IAGR_User {
+    + FirstName : string
+    + LastName : string
+    + Patronymic : string
+    + Initials : string
+    + FullName : string
+  }
+  interface IAGR_AvaArticleModel {
+    + Article : int
+    + Name, PartNumber, Type, Folder : string?
+    + MainUOM, SecondaryUOM : string?
+    + Brand, Company, ArchiveType : string?
+    + Count : decimal?
+  }
+  interface IAGR_SaveProgressVM {
+    + AddLogMessage(message : string)
+  }
+  interface IAGR_SaveConfirmationVM {
+    + ShowDialog() : bool?
+  }
+  interface IAGR_CommandService {
+    + UpdatePropertiesAsync() : Task<bool>
+    + OpenComponentRegistryAsync() : Task<bool>
+    + OpenProjectExplorerWindowAsync() : Task<bool>
+    + SaveActiveComponentAsync() : Task<bool>
+    + CopyFilesToStorageAsync() : Task<bool>
+    + CopyFilesToProdAsync() : Task<bool>
+    + UpdateDrawingsAsync() : Task<bool>
+    + GetSheetMetallPartsAssmbly() : Task<bool>
+    + PackNGoAsync() : Task<bool>
+    + EditActiveComponentAsync() : Task<bool>
+    + CancelEditingAsync() : Task<bool>
+  }
+}
+
+package "Interfaces.Entities (зеркало сущностей, используется только ComponentVersion2)" #EEEEEE {
+  interface IAGR_BaseEntity {
+    + Id : int
+  }
+  interface IAGR_DateStampEntity {
+    + CreatedAt : DateTime
+    + UpdatedAt : DateTime?
+  }
+  interface IAGR_UserEntity
+  interface IAGR_ComponentEntity
+  interface IAGR_ComponentVersionEntity
+  interface IAGR_ComponentPropertyEntity
+  interface IAGR_ComponentMaterialEntity
+  interface IAGR_ComponentFileEntity
+  interface IAGR_ProjectEntity
+  interface IAGR_ProjectComponentEntity
+  interface IAGR_TechnologicalProcessEntity
+  interface IAGR_OperationEntity
+  IAGR_BaseEntity <|-- IAGR_DateStampEntity
+  IAGR_BaseEntity <|-- IAGR_UserEntity
+  IAGR_DateStampEntity <|-- IAGR_ComponentEntity
+  IAGR_DateStampEntity <|-- IAGR_ComponentVersionEntity
+  IAGR_DateStampEntity <|-- IAGR_ComponentPropertyEntity
+  IAGR_DateStampEntity <|-- IAGR_ComponentMaterialEntity
+  IAGR_DateStampEntity <|-- IAGR_ComponentFileEntity
+  IAGR_DateStampEntity <|-- IAGR_TechnologicalProcessEntity
+  IAGR_DateStampEntity <|-- IAGR_OperationEntity
+  IAGR_ComponentEntity "1" -- "*" IAGR_ComponentVersionEntity
+  IAGR_ProjectEntity "1" -- "*" IAGR_ProjectComponentEntity
+}
+
+package "Enums" {
+  enum AGR_ComponentType_e {
+    Assembly
+    Part
+    SheetMetallPart
+    Purchased
+    NA
+  }
+  enum AGR_AvaType_e {
+    Production = 3
+    Component = 5
+    DontBuy = 32
+    Purchased = 20021
+    VirtualComponent = 50625
+    NA = 0
+  }
+  enum AGR_ComponentDatabaseState_e {
+    SavedInDataBase
+    NotLoaded
+    NotSavedInDB
+  }
+  enum AGR_EditState_e {
+    Unknown
+    Free
+    EditingByMe
+    EditingByOther
+  }
+  enum AGR_FileType_e {
+    CurrentModel
+    CurrentDrawing
+    StorageModel
+    StorageDrawing
+    ProductionModel
+    ProductionDrawing
+  }
+  enum AGR_ComponentBOMState_e {
+    Normal
+    Excluded
+  }
+  enum AGR_NodeType_e {
+    Project
+    Component
+  }
+  class AGR_PropertyNames <<static, const>>
+  class AGR_SheetMetallPropNames <<static, const>>
+  class AGR_AvaTypeNames <<static, const>>
+  class AGR_ComponentTypeNames <<static, const>>
+}
+
+package "Конфигурация" {
+  class AGR_Options <<static>> {
+    + StorageRootFolderPath : string
+    + ProductionRootFolderPath : string
+    + LocalWorkFolder : string
+    + Initialize(configuration : IConfiguration)
+  }
+  class AGR_StoragePaths <<static>> {
+    + GetComponentFolder(storageGuid) : string
+    + GetVersionFolder(storageGuid, version) : string
+    + GetFilePath(storageGuid, version, fileName) : string
+    + ResolveExistingFilePath(storageGuid?, version, fileName, recordedPath?) : string
+  }
+  AGR_StoragePaths ..> AGR_Options
+}
+
+class AvaArticleModel <<entity>>
+IAGR_AvaArticleModel <|.. AvaArticleModel
+
+IAGR_BaseObject <|-- IAGR_BaseComponent
+IAGR_PageView <|-- IAGR_BaseComponent
+IAGR_BaseComponent <|-- IAGR_Part
+IAGR_BaseComponent <|-- IAGR_Assembly
+IAGR_PropertiesCollection <|-- IAGR_BasePropertiesCollection
+IAGR_PropertiesCollection <|-- IAGR_PartPropertiesCollection
+IAGR_PropertiesCollection <|-- IAGR_SheetMetallPropertiesCollection
+
+IAGR_BaseComponent --> IAGR_PropertiesCollection
+IAGR_BaseComponent --> IAGR_AvaArticleModel
+IAGR_BaseComponent --> "0..*" IAGR_ComponentRegistryItemVM : ParentAssemblies
+IAGR_Assembly ..> IAGR_SpecificationItem : GetChildComponents()
+IAGR_SpecificationItem --> IAGR_BaseComponent
+IAGR_Part --> IAGR_Material
+IAGR_HasMaterial --> IAGR_Material
+IAGR_HasPaint --> IAGR_Material
+@enduml

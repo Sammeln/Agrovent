@@ -13,6 +13,7 @@ using Agrovent.ViewModels.Base;
 using Agrovent.ViewModels.Components;
 using Agrovent.ViewModels.Windows;
 using Agrovent.Views.Windows;
+using AgroventInfrastructure.Entities.Components;
 using AgroventInfrastructure.Enums;
 using AgroventInfrastructure.Interfaces;
 using AgroventInfrastructure.Interfaces.Components.Base;
@@ -63,8 +64,8 @@ namespace Agrovent.ViewModels.Specification
             await LoadMaterialsForComponentsAsync();
 
             await LoadPaintForComponentsAsync();
-            // Загружаем AvaArticle для покупных компонентов асинхронно
-            await LoadAvaArticlesForPurchasedComponentsAsync();
+            // Загружаем AvaArticle: покупные - версия, затем свойство; производимые - только версия
+            await LoadAvaArticlesForComponentsAsync();
 
             // Выполняем валидацию после загрузки всех данных
             ValidateSpecification();
@@ -609,48 +610,85 @@ namespace Agrovent.ViewModels.Specification
                 // Можно показать сообщение пользователю, если необходимо
             }
         }
-        private async Task LoadAvaArticlesForPurchasedComponentsAsync()
+        /// <summary>
+        /// Артикулы компонентов, у которых в VM ещё нет AvaArticle (уже выбранный в VM - загружен из БД
+        /// при активации или выбран пользователем - не трогаем).
+        /// Источник - ComponentVersion: версия из маркера, если её нет в БД - последняя.
+        /// Покупные: артикул версии, если пусто - свойство файла «Артикул» (модели покупных почти не меняются).
+        /// Производимые: только артикул версии, если пусто - свойство «Артикул» в файле очищается (там часто мусор).
+        /// </summary>
+        private async Task LoadAvaArticlesForComponentsAsync()
         {
             try
             {
-                // 1. Собрать компоненты типа Purchased, у которых AvaArticle == null и Article не пуст
                 var componentsToSearch = Components
-                    //.Where(c => c.ComponentType == AGR_ComponentType_e.Purchased && c.AvaArticle == null &&  !string.IsNullOrEmpty(c.Component.Article))
-                    .Where(c => c.AvaArticle == null &&  !string.IsNullOrEmpty(c.Component.Article))
+                    .Where(c => c.AvaArticle == null)
                     .ToList();
 
                 if (!componentsToSearch.Any()) return; // Нечего загружать
 
-                //_logger.LogInformation($"Поиск AvaArticle для {componentsToSearch.Count} покупных компонентов по Article.");
+                // 1. Артикулы версий одним запросом
+                var partNumbers = componentsToSearch
+                    .Select(c => c.Component.PartNumber)
+                    .Where(pn => !string.IsNullOrEmpty(pn))
+                    .Distinct()
+                    .ToList();
+                var versionArticles = await _unitOfWork.ComponentRepository.GetVersionAvaArticlesByPartNumbersAsync(partNumbers);
 
-                // 2. Для каждого компонента, выполнить поиск по Article и обновить VM
+                // 2. Разбор по типам
                 foreach (var specItem in componentsToSearch)
                 {
-                    int articleNumber;
-                    int.TryParse(specItem.Component.Article, out articleNumber); // Уже проверено на HasValue
+                    var versionArticle = GetVersionAvaArticle(specItem.Component, versionArticles);
 
-                    //_logger.LogDebug($"Поиск AvaArticle для компонента {specItem.PartNumber} по Article {articleNumber}.");
-
-                    var avaArticleModel = await _unitOfWork.ComponentRepository.GetAvaArticleByArticleNumberAsync(articleNumber);
-
-                    if (avaArticleModel != null)
+                    if (specItem.ComponentType == AGR_ComponentType_e.Purchased)
                     {
-                        specItem.AvaArticle = avaArticleModel; // Устанавливаем найденный AvaArticleModel в VM
-                        //_logger.LogDebug($"Установлен AvaArticle ({avaArticleModel.Article}: {avaArticleModel.Name}) для компонента {specItem.PartNumber} по Article {articleNumber}.");
+                        if (versionArticle != null)
+                        {
+                            specItem.AvaArticle = versionArticle;
+                            continue;
+                        }
+
+                        // Нет в версии - свойство файла
+                        if (int.TryParse(specItem.Component.Article, out var articleNumber) && articleNumber > 0)
+                        {
+                            var avaArticleModel = await _unitOfWork.ComponentRepository.GetAvaArticleByArticleNumberAsync(articleNumber);
+                            if (avaArticleModel != null)
+                                specItem.AvaArticle = avaArticleModel;
+                        }
                     }
                     else
                     {
-                        //_logger.LogWarning($"AvaArticle не найден в БД по Article '{articleNumber}' для компонента {specItem.PartNumber}.");
+                        if (versionArticle != null)
+                        {
+                            specItem.AvaArticle = versionArticle;
+                        }
+                        else if (!string.IsNullOrEmpty(specItem.Component.Article))
+                        {
+                            // Артикул в свойствах производимого не из БД - очищаем
+                            specItem.Component.Article = string.Empty;
+                        }
                     }
                 }
-
-                //_logger.LogInformation("Загрузка AvaArticle для покупных компонентов завершена.");
             }
             catch (Exception ex)
             {
-                //_logger.LogError(ex, "Ошибка при загрузке AvaArticle для покупных компонентов спецификации.");
-                // Можно показать сообщение пользователю, если необходимо
+                _logger?.LogError(ex, "Ошибка при загрузке артикулов компонентов спецификации.");
             }
+        }
+
+        private static IAGR_AvaArticleModel? GetVersionAvaArticle(IAGR_BaseComponent component,
+            Dictionary<string, Dictionary<int, AvaArticleModel?>> versionArticles)
+        {
+            if (string.IsNullOrEmpty(component.PartNumber)
+                || !versionArticles.TryGetValue(component.PartNumber, out var byVersion)
+                || byVersion.Count == 0)
+                return null;
+
+            // Версия из маркера; артикул могли присвоить позже - тогда из последней версии
+            if (component.Version > 0 && byVersion.TryGetValue(component.Version, out var markerArticle) && markerArticle != null)
+                return markerArticle;
+
+            return byVersion[byVersion.Keys.Max()];
         }
         private void UpdateGroupedView()
         {

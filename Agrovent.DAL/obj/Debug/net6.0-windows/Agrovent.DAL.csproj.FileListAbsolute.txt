@@ -27,3 +27,8 @@ C:\Users\Usr\AppData\Local\Temp\claude\C--Users-Usr-source-repos-Agrovent\c73e6b
 C:\Users\Usr\AppData\Local\Temp\claude\C--Users-Usr-source-repos-Agrovent\c73e6b67-246c-47f6-92b9-95b3baaf9d68\scratchpad\out-main\Agrovent.DAL.runtimeconfig.json
 C:\Users\Usr\AppData\Local\Temp\claude\C--Users-Usr-source-repos-Agrovent\c73e6b67-246c-47f6-92b9-95b3baaf9d68\scratchpad\out-main\Agrovent.DAL.dll
 C:\Users\Usr\AppData\Local\Temp\claude\C--Users-Usr-source-repos-Agrovent\c73e6b67-246c-47f6-92b9-95b3baaf9d68\scratchpad\out-main\Agrovent.DAL.pdb
+C:\Users\Usr\AppData\Local\Temp\agrbuild\AgroventInfrastructure.comhost.dll
+C:\Users\Usr\AppData\Local\Temp\agrbuild\Agrovent.DAL.deps.json
+C:\Users\Usr\AppData\Local\Temp\agrbuild\Agrovent.DAL.runtimeconfig.json
+C:\Users\Usr\AppData\Local\Temp\agrbuild\Agrovent.DAL.dll
+C:\Users\Usr\AppData\Local\Temp\agrbuild\Agrovent.DAL.pdb

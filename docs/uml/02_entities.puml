@@ -1,0 +1,217 @@
+@startuml 02_entities
+title Agrovent — сущности БД (EF Core / PostgreSQL)\nAgroventInfrastructure.Entities, DbSet в Agrovent.DAL.DataContext
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+package "Entities.Base" {
+  class BaseEntity {
+    + Id : int <<PK>>
+  }
+  class DateStampEntity {
+    + CreatedAt : DateTime
+    + UpdatedAt : DateTime?
+  }
+  class UserEntity <<table Users>> {
+    + FirstName : string
+    + LastName : string
+    + Patronymic : string
+    + Initials : string {readOnly}
+    + FullName : string {readOnly}
+    + SavedComponentVersions : ICollection<ComponentVersion>
+  }
+}
+
+package "Entities.Components" {
+  class Component <<table Components>> {
+    + PartNumber : string <<unique, default get_next_formatted_part_number()>>
+    + StorageGuid : Guid <<unique>>
+    + Versions : ICollection<ComponentVersion>
+    + TechnologicalProcess : TechnologicalProcess?
+    + GetLatestVersion() : ComponentVersion?
+  }
+
+  class ComponentVersion <<table ComponentVersions>> {
+    + ComponentId : int <<FK>>
+    + Version : int
+    + BasedOnVersion : int?
+    + Name : string
+    + ConfigName : string
+    + GeometryFingerprint : string?
+    + PropertiesFingerprint : string?
+    + PreviewImage : byte[]
+    + AvaArticleArticle : int? <<FK>>
+    + ComponentType : AGR_ComponentType_e
+    + AvaType : AGR_AvaType_e
+    + SavedByUserId : int <<FK>>
+    + Material : ComponentMaterial?
+    + Properties : ICollection<ComponentProperty>
+    + Files : ICollection<ComponentFile>
+    + ProjectComponents : ICollection<ProjectComponent>
+    + ParentAssemblies : List<ComponentVersion> <<NotMapped>>
+    + ParentAssembliesCount : int {readOnly}
+    + IsLatestVersion() : bool
+  }
+  note right of ComponentVersion
+    unique (ComponentId, Version)
+  end note
+
+  class ComponentProperty <<table ComponentProperties>> {
+    + ComponentVersionId : int <<FK>>
+    + Name : string
+    + Value : string
+  }
+
+  class ComponentMaterial <<table ComponentMaterials>> {
+    + ComponentVersionId : int <<FK>>
+    + BaseMaterial : string?
+    + BaseMaterialCount : decimal
+    + MaterialAvaArticleID : int? <<FK>>
+    + Paint : string?
+    + PaintCount : decimal?
+    + PaintAvaArticleID : int? <<FK>>
+    + HasMaterial : bool {readOnly}
+    + HasPaint : bool {readOnly}
+  }
+
+  class ComponentFile <<table ComponentFiles>> {
+    + ComponentVersionId : int <<FK>>
+    + FileType : AGR_FileType_e
+    + FilePath : string
+    + LastModified : DateTime?
+    + FileSize : long?
+  }
+
+  class AssemblyStructure <<table AssemblyStructures>> {
+    + ParentComponentVersionId : int <<FK>>
+    + ChildComponentVersionId : int <<FK>>
+    + Quantity : int
+    + Order : int
+  }
+
+  class ComponentEditLock <<table ComponentEditLocks>> {
+    + ComponentId : int <<FK, unique>>
+    + UserId : int <<FK>>
+    + BaseVersion : int
+    + MachineName : string
+  }
+
+  class AvaArticleModel <<table AvaArticles>> {
+    + Article : int <<PK>>
+    + Name : string?
+    + PartNumber : string?
+    + Count : decimal?
+    + MainUOM : string?
+    + SecondaryUOM : string?
+    + Type : string?
+    + Folder : string?
+    + Brand : string?
+    + Company : string?
+    + ArchiveType : string?
+  }
+}
+
+package "Entities.Projects" {
+  class Project <<table Projects>> {
+    + Id : int <<PK>>
+    + Name : string [255]
+    + ParentId : int? <<FK>>
+    + Children : ICollection<Project>
+    + ProjectComponents : ICollection<ProjectComponent>
+  }
+  class ProjectComponent <<table ProjectComponents>> {
+    + Id : int <<PK>>
+    + ProjectId : int <<FK>>
+    + ComponentVersionId : int <<FK>>
+  }
+}
+
+package "Entities.TechProcess" {
+  class TechnologicalProcess <<table TechnologicalProcesses>> {
+    + PartNumber : string <<FK -> Component.PartNumber>>
+    + Operations : ICollection<Operation>
+  }
+  class Operation <<table Operations>> {
+    + Name : string
+    + WorkstationName : string
+    + CostPerHour : decimal(10,4)
+    + SequenceNumber : int
+    + TechnologicalProcessId : int <<FK>>
+  }
+  note bottom of Operation
+    unique (TechnologicalProcessId, SequenceNumber)
+  end note
+  class TemplateOperation <<table TemplateOperations>> {
+    + AvaId : int?
+    + Name : string
+    + WorkstationId : int <<FK>>
+    + CostPerHour : decimal(10,4)
+  }
+  class Workstation <<table Workstations>> {
+    + Name : string
+    + AvaId : int
+    + TemplateOperations : ICollection<TemplateOperation>
+  }
+}
+
+package "Не таблицы (DTO)" #EEEEEE {
+  class AGR_ComponentEditData {
+    + ComponentVersionId : int
+    + AvaType : AGR_AvaType_e
+    + AvaArticleArticle : int?
+    + MaterialAvaArticleId : int?
+    + MaterialName : string?
+    + PaintAvaArticleId : int?
+    + PaintName : string?
+  }
+  class AGR_FlatAssemblyComponent {
+    + Entity : ComponentVersion
+    + TotalQuantity : int
+  }
+  class ComponentVersion2 <<legacy, не в DataContext>>
+}
+
+' --- наследование ---
+BaseEntity <|-- DateStampEntity
+BaseEntity <|-- UserEntity
+BaseEntity <|-- TemplateOperation
+BaseEntity <|-- Workstation
+DateStampEntity <|-- Component
+DateStampEntity <|-- ComponentVersion
+DateStampEntity <|-- ComponentProperty
+DateStampEntity <|-- ComponentMaterial
+DateStampEntity <|-- ComponentFile
+DateStampEntity <|-- AssemblyStructure
+DateStampEntity <|-- ComponentEditLock
+DateStampEntity <|-- TechnologicalProcess
+DateStampEntity <|-- Operation
+DateStampEntity <|-- ComponentVersion2
+
+' --- связи (по OnModelCreating) ---
+Component "1" *-- "0..*" ComponentVersion : Versions\n(cascade)
+Component "1" -- "0..1" TechnologicalProcess : по PartNumber
+Component "1" -- "0..1" ComponentEditLock : (cascade)
+UserEntity "1" -- "0..*" ComponentEditLock : User\n(restrict)
+UserEntity "1" -- "0..*" ComponentVersion : SavedByUser\n(restrict)
+
+ComponentVersion "1" *-- "0..1" ComponentMaterial : Material
+ComponentVersion "1" *-- "0..*" ComponentProperty : Properties
+ComponentVersion "1" *-- "0..*" ComponentFile : Files
+ComponentVersion "0..*" --> "0..1" AvaArticleModel : AvaArticle\n(restrict)
+ComponentMaterial "0..*" --> "0..1" AvaArticleModel : MaterialAvaArticle
+ComponentMaterial "0..*" --> "0..1" AvaArticleModel : PaintAvaArticle
+
+AssemblyStructure "0..*" --> "1" ComponentVersion : ParentComponentVersion
+AssemblyStructure "0..*" --> "1" ComponentVersion : ChildComponentVersion
+
+Project "0..1" *-- "0..*" Project : Parent / Children\n(cascade)
+Project "1" *-- "0..*" ProjectComponent : (cascade)
+ComponentVersion "1" -- "0..*" ProjectComponent : (cascade)
+
+TechnologicalProcess "1" *-- "0..*" Operation : Operations
+Workstation "1" o-- "0..*" TemplateOperation
+
+AGR_FlatAssemblyComponent --> ComponentVersion
+AGR_ComponentEditData ..> ComponentVersion : обновляет
+@enduml

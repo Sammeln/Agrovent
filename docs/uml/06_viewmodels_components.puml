@@ -1,0 +1,259 @@
+@startuml 06_viewmodels_components
+title Agrovent.ViewModels — компоненты SolidWorks, свойства, материалы, панель задач
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+interface INotifyPropertyChanged
+interface IAGR_BaseComponent
+interface IAGR_Part
+interface IAGR_Assembly
+interface IAGR_HasFile
+interface IAGR_HasMaterial
+interface IAGR_HasPaint
+interface IAGR_Material
+interface IAGR_PageView
+interface IAGR_SpecificationItem
+interface IAGR_ComponentRegistryItemVM
+interface IAGR_BasePropertiesCollection
+interface IAGR_PartPropertiesCollection
+interface IAGR_SheetMetallPropertiesCollection
+class ComponentVersion <<entity>>
+class AvaArticleModel <<entity>>
+
+package "ViewModels.Base" {
+  class BaseViewModel {
+    + PropertyChanged : PropertyChangedEventHandler
+    + IsLoading : bool
+    + LoadingStatus : string
+    # OnPropertyChanged(name)
+    # Set<T>(ref field, value) : bool
+  }
+  INotifyPropertyChanged <|.. BaseViewModel
+
+  class AGR_BaseComponent {
+    - _scopeFactory : IServiceScopeFactory
+    - _taskPane : AGR_TaskPaneViewModel
+    + IsAlive : bool
+    + SwDocument : ISwDocument3D
+    + Name / ConfigName / Extension : string
+    + PartNumber / Article : string
+    + Version : int
+    + StorageGuid : Guid?
+    + FilePath : string
+    + Preview : byte[]?
+    + AvaArticle : IAGR_AvaArticleModel
+    + ComponentVersion : ComponentVersion
+    + IsInDatabase : AGR_ComponentDatabaseState_e
+    + EditState : AGR_EditState_e
+    + EditLockedBy : string?
+    + HasMyLocks : bool
+    + PropertiesCollection : IAGR_PropertiesCollection
+    + ComponentType : AGR_ComponentType_e
+    + AvaType : AGR_AvaType_e
+    + ParentAssemblies : ICollection<IAGR_ComponentRegistryItemVM>?
+    + CanUserEdit : bool
+    + IsPurchased : bool
+    + AGR_BaseComponent(swDocument3D)
+    + RefreshFromDocument()
+    + PrecomputePreview()
+    .. COMMANDS ..
+    + SelectAvaArticleCommand
+    + OpenComponentCommand
+    + AddToAssemblyCommand
+    + ShowDetailsCommand
+    + SetNewPartnumberCommand
+    .. events ..
+    + PartnumberChanged
+  }
+
+  class AGR_FileComponent {
+    + CurrentModelFilePath / CurrentDrawFilePath : string
+    + StorageModelFilePath / StorageDrawFilePath : string
+    + ProductionModelFilePath / ProductionDrawFilePath : string
+    + StorageModelFileIsExist ... ProductionDrawFileIsExist : bool
+    + GetDrawFilePath() : string?
+  }
+}
+
+package "ViewModels.Components" {
+  class AGR_PartComponentVM {
+    + BaseMaterial : IAGR_Material
+    + BaseMaterialCount : decimal
+    + Paint : IAGR_Material?
+    + PaintCount : decimal?
+    + UpdatePropertiesAsync() : Task
+    + Refresh()
+    .. COMMANDS ..
+    + OpenFolderCommand
+    + SelectBaseMaterialCommand
+    + SelectPaintCommand
+    + ClearPaintCommand
+  }
+  class AGR_AssemblyComponentVM {
+    + SelectedItem : IAGR_BaseComponent
+    + AGR_TopComponents : ObservableCollection<AGR_SpecificationItemVM>
+    + SimpleTopComponents : ObservableCollection<AGR_SimpleSpecificationComponent>
+    + Paint : IAGR_Material?
+    + PaintCount : decimal?
+    + GetChildComponents() : IEnumerable<IAGR_SpecificationItem>
+    + GetFlatComponents(onlyActive) : IEnumerable<IAGR_SpecificationItem>
+    + GetSimpleTopComponentsList()
+    + Refresh()
+    .. COMMANDS ..
+    + OpenFolderCommand
+    + SelectPaintCommand
+    + ClearPaintCommand
+  }
+  class AGR_Material {
+    + Name / Article / UOM : string
+    + AvaModel : AvaArticleModel?
+  }
+  class AGR_Paint {
+    + Name / Article / UOM : string
+    + AvaModel : AvaArticleModel?
+    + TryLoadAvaModelFromNameAsync() : Task<bool>
+  }
+  class AGR_Paint2 <<internal, legacy>>
+  class AGR_ComponentRegistryItemVM {
+    - _entity : ComponentVersion
+    + Id / Version : int
+    + Name / PartNumber / RawPartNumber : string
+    + Preview : BitmapImage?
+    + SavedByUserInitials : string
+    + CreatedAt : DateTime
+    + ComponentType : AGR_ComponentType_e
+    + ComponentTypeDisplay / AvaTypeDisplay : string
+    + StoragePath : string
+  }
+  class AGR_HomePageVM <<internal>>
+}
+
+package "ViewModels.Properties" {
+  class AGR_BasePropertiesCollection <<internal>> {
+    + Volume / Mass / SurfaceArea : IXProperty
+    + Properties : ICollection<IXProperty>
+    + UpdateProperties()
+  }
+  class AGR_PartPropertiesCollection <<internal>> {
+    + Length / Width : IXProperty
+  }
+  class AGR_SheetPartPropertiesCollection <<internal>> {
+    + SheetMetall_* : IXProperty (9 шт.)
+  }
+  class AGR_Property {
+    + Name / Value / Expression : string
+  }
+}
+
+package "ViewModels.Specification (элемент)" {
+  class AGR_SpecificationItemVM {
+    - _component : IAGR_BaseComponent
+    + Component : IAGR_BaseComponent
+    + Quantity : int
+    + IsSelected : bool
+    + BaseMaterial / BasePaint : IAGR_Material?
+    + MaterialCount : decimal?
+    + AvaArticle : IAGR_AvaArticleModel?
+    + ComponentAvaType : AGR_AvaType_e
+    + PartnumberOrArticle / MaterialInfo : string
+  }
+  class AGR_SimpleSpecificationComponent {
+    + Name / ConfigName / PartNumber : string
+    + Quantity : int
+  }
+}
+
+package "ViewModels.TaskPane" {
+  class AGR_TaskPaneViewModel <<singleton>> {
+    - _app : ISwApplication
+    - _viewModelFactory : IAGR_ComponentViewModelFactory
+    - _unitOfWork : IUnitOfWork
+    - _viewModelCache : IAGR_ViewModelCacheService
+    - _editLocks : IAGR_EditLockService
+    + ActiveUser : IAGR_User
+    + ActiveComponent : ISwDocument3D
+    + ActiveView : IAGR_PageView
+    + BaseComponent / Selection : IAGR_PageView
+    + LoadingMessage : string
+    + LoadingProgress / TotalComponents : int
+    + OnDocumentActivatedAsync(doc : IXDocument)
+    + LoadComponentDataFromDatabaseAsync(component) : Task
+    + Dispose()
+  }
+  class AGR_ComponentRegistryTaskPaneVM <<singleton>> {
+    - _componentRepository : IAGR_ComponentRepository
+    - _scopeFactory : IServiceScopeFactory
+    - _app : ISwApplication
+    + RegistryItems : ObservableCollection<AGR_ComponentRegistryItemVM>
+    + SelectedItem : AGR_ComponentRegistryItemVM
+    + RegistryItemsView : ICollectionView
+    + SearchText / SelectedComponentType / SelectedAvaType : string?
+    .. COMMANDS ..
+    + LoadDataCommand
+    + OpenComponentCommand
+    + AddToAssemblyCommand
+    + ShowDetailsCommand
+  }
+  note bottom of AGR_TaskPaneViewModel
+    Устаревший дубль: Agrovent.ViewModels.Tree.AGR_TaskPaneViewModel
+    (DI и add-in используют вариант из ViewModels.TaskPane)
+  end note
+}
+
+' --- наследование / реализация ---
+BaseViewModel <|-- AGR_BaseComponent
+IAGR_BaseComponent <|.. AGR_BaseComponent
+AGR_BaseComponent <|-- AGR_FileComponent
+IAGR_HasFile <|.. AGR_FileComponent
+AGR_FileComponent <|-- AGR_PartComponentVM
+AGR_FileComponent <|-- AGR_AssemblyComponentVM
+IAGR_HasMaterial <|.. AGR_PartComponentVM
+IAGR_HasPaint <|.. AGR_PartComponentVM
+IAGR_Assembly <|.. AGR_AssemblyComponentVM
+IAGR_HasPaint <|.. AGR_AssemblyComponentVM
+note "IAGR_Part объявлен, но классами не реализуется" as N1
+N1 .. IAGR_Part
+
+BaseViewModel <|-- AGR_Material
+BaseViewModel <|-- AGR_Paint
+BaseViewModel <|-- AGR_Paint2
+IAGR_Material <|.. AGR_Material
+IAGR_Material <|.. AGR_Paint
+IAGR_Material <|.. AGR_Paint2
+BaseViewModel <|-- AGR_ComponentRegistryItemVM
+IAGR_ComponentRegistryItemVM <|.. AGR_ComponentRegistryItemVM
+IAGR_PageView <|.. AGR_HomePageVM
+
+BaseViewModel <|-- AGR_BasePropertiesCollection
+IAGR_BasePropertiesCollection <|.. AGR_BasePropertiesCollection
+AGR_BasePropertiesCollection <|-- AGR_PartPropertiesCollection
+AGR_BasePropertiesCollection <|-- AGR_SheetPartPropertiesCollection
+IAGR_PartPropertiesCollection <|.. AGR_PartPropertiesCollection
+IAGR_SheetMetallPropertiesCollection <|.. AGR_SheetPartPropertiesCollection
+BaseViewModel <|-- AGR_Property
+
+BaseViewModel <|-- AGR_SpecificationItemVM
+IAGR_SpecificationItem <|.. AGR_SpecificationItemVM
+BaseViewModel <|-- AGR_SimpleSpecificationComponent
+
+BaseViewModel <|-- AGR_TaskPaneViewModel
+BaseViewModel <|-- AGR_ComponentRegistryTaskPaneVM
+
+' --- ассоциации ---
+AGR_BaseComponent --> "0..1" ComponentVersion
+AGR_BaseComponent o-- AGR_BasePropertiesCollection : PropertiesCollection
+AGR_BaseComponent --> AGR_TaskPaneViewModel
+AGR_PartComponentVM o-- AGR_Material : BaseMaterial
+AGR_PartComponentVM o-- "0..1" AGR_Paint : Paint
+AGR_AssemblyComponentVM o-- "0..1" AGR_Paint : Paint
+AGR_AssemblyComponentVM *-- "0..*" AGR_SpecificationItemVM : AGR_TopComponents
+AGR_AssemblyComponentVM *-- "0..*" AGR_SimpleSpecificationComponent
+AGR_SpecificationItemVM --> AGR_BaseComponent : Component
+AGR_Material --> "0..1" AvaArticleModel
+AGR_Paint --> "0..1" AvaArticleModel
+AGR_ComponentRegistryItemVM --> ComponentVersion
+
+AGR_TaskPaneViewModel --> IAGR_PageView : ActiveView
+AGR_ComponentRegistryTaskPaneVM *-- "0..*" AGR_ComponentRegistryItemVM
+@enduml

@@ -1,0 +1,205 @@
+@startuml 04_dal
+title Agrovent.DAL — DataContext, UnitOfWork, репозитории, замки, план сохранения
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+class DbContext <<EF Core>>
+interface IDisposable
+interface IServiceScopeFactory
+interface IAGR_SaveProgressVM
+interface IAGR_User
+interface IAGR_BaseComponent
+
+class DataContext {
+  - _configuration : IConfiguration
+  + Components : DbSet<Component>
+  + ComponentVersions : DbSet<ComponentVersion>
+  + ComponentProperties : DbSet<ComponentProperty>
+  + ComponentMaterials : DbSet<ComponentMaterial>
+  + ComponentFiles : DbSet<ComponentFile>
+  + AssemblyStructures : DbSet<AssemblyStructure>
+  + ComponentEditLocks : DbSet<ComponentEditLock>
+  + AvaArticles : DbSet<AvaArticleModel>
+  + Projects : DbSet<Project>
+  + ProjectComponents : DbSet<ProjectComponent>
+  + Users : DbSet<UserEntity>
+  + TechProcesses : DbSet<TechnologicalProcess>
+  + Operations : DbSet<Operation>
+  + TemplateOperations : DbSet<TemplateOperation>
+  + Workstations : DbSet<Workstation>
+  # OnConfiguring(optionsBuilder)  // UseNpgsql
+  # OnModelCreating(modelBuilder)
+}
+DbContext <|-- DataContext
+
+interface IUnitOfWork {
+  + ComponentRepository : IAGR_ComponentRepository
+  + TechProcessRepository : IAGR_TechnologicalProcessRepository
+  + CompleteAsync() : Task<int>
+  + BeginTransactionAsync() : Task<IDbContextTransaction>
+  + CommitTransactionAsync() : Task
+  + RollbackTransactionAsync() : Task
+  + ClearTracking()
+}
+IDisposable <|-- IUnitOfWork
+class UnitOfWork {
+  - _context : DataContext
+  - _transaction : IDbContextTransaction
+}
+IUnitOfWork <|.. UnitOfWork
+UnitOfWork --> DataContext
+
+interface IAGR_ComponentRepository {
+  .. чтение ..
+  + GetComponentByPartNumber(partNumber) : Task<Component?>
+  + GetComponentVersion(partNumber, version) : Task<ComponentVersion?>
+  + GetLatestComponentVersion(partNumber) : Task<ComponentVersion?>
+  + GetAllLatestComponentVersionsAsync() : Task<IEnumerable<ComponentVersion>>
+  + GetComponentVersionForEdit(partNumber, version) : Task<ComponentVersion?>
+  .. сохранение (по плану) ..
+  + CreateNewComponent(component) : Task<Component>
+  + ResolvePlannedVersion(component, plan) : Task<ComponentVersion>
+  + CreateNewVersion(component, basedOnVersion) : Task<ComponentVersion>
+  + GetVersionForReference(component, componentId, version) : Task<ComponentVersion>
+  + UpdateReferencedVersionAsync(cv, component, fileValues) : Task<int>
+  + RemoveEditLocksAsync(componentIds, userId) : Task
+  + FindPurchasedCandidatesAsync(article, name, geometryFingerprint) : Task<List<AGR_PurchasedCandidate>>
+  .. структура сборки ..
+  + SaveAssemblyStructure(assembly, components, plan) : Task<ComponentVersion>
+  + GetAssemblyStructure(partNumber, version) : Task<List<AssemblyStructure>>
+  + GetAssemblyStructureRecursive(partNumber, version) : Task<List<AssemblyStructure>>
+  + GetFlatAssemblyComponents(partNumber, version) : Task<List<AGR_FlatAssemblyComponent>>
+  + GetAssembliesUsedComponent(child) : Task<List<ComponentVersion>>
+  + GetRootAssembliesForChildAsync(child) : Task<List<ComponentVersion>>
+  + GetTopLevelAssembliesNotInProjectsAsync() : Task<IEnumerable<ComponentVersion>>
+  .. Ava / техпроцесс / правка ..
+  + GetAvaArticlesByNameAsync(names) : Task<Dictionary<string, AvaArticleModel>>
+  + GetAvaArticleByArticleNumberAsync(article) : Task<AvaArticleModel?>
+  + GetComponentTechnologyProcessByPartNumberAsync(partNumber)
+  + GetComponentOperationsByPartNumberAsync(partNumber)
+  + GetAllTemplateOperationsAsync()
+  + UpdateComponentVersionEditsAsync(edits : IEnumerable<AGR_ComponentEditData>)
+  + AddComponentFileAsync(file) / RemoveComponentFileAsync(id)
+  + GetComponentCount() / GetComponentVersionCount()
+}
+class ComponentRepository {
+  - _context : DataContext
+  - _saveProgress : IAGR_SaveProgressVM
+  - _currentUser : IAGR_User
+  - {static} _dbLock : SemaphoreSlim
+}
+IAGR_ComponentRepository <|.. ComponentRepository
+ComponentRepository --> DataContext
+ComponentRepository --> IAGR_SaveProgressVM
+ComponentRepository --> IAGR_User
+ComponentRepository ..> AGR_SavePlan
+
+interface IAGR_TechnologicalProcessRepository {
+  + GetByPartNumberAsync(partNumber) : Task<TechnologicalProcess?>
+  + GetOrCreateForComponentAsync(partNumber) : Task<TechnologicalProcess>
+  + AddOperationAsync(process, templateOp, sequenceNumber) : Task<Operation>
+  + RemoveOperationAsync(operationId) : Task
+  + UpdateOperationAsync(operation) : Task
+  + GetTemplateOperationAsync() : Task<List<TemplateOperation>>
+}
+class AGR_TechnologicalProcessRepository
+IAGR_TechnologicalProcessRepository <|.. AGR_TechnologicalProcessRepository
+AGR_TechnologicalProcessRepository --> DataContext
+
+UnitOfWork o-- IAGR_ComponentRepository
+UnitOfWork o-- IAGR_TechnologicalProcessRepository
+
+interface IComponentDataService {
+  + GetLatestComponentVersion(partNumber) : ComponentVersion?
+  + GetAvaArticle(article) : AvaArticleModel?
+  + ComponentExistsInDatabase(partNumber) : bool
+}
+class ComponentDataService
+IComponentDataService <|.. ComponentDataService
+ComponentDataService --> DataContext
+
+interface IAGR_EditLockService {
+  + GetEditInfoAsync(partNumbers) : Task<Dictionary<string, AGR_EditComponentInfo>>
+  + GetCurrentUserIdAsync() : Task<int>
+  + GetMarkerIdentitiesAsync(componentIds) : Task<Dictionary<int, AGR_MarkerIdentity>>
+  + TryTakeAsync(items, machineName) : Task<IReadOnlyList<AGR_EditLockConflict>>
+  + ReleaseAsync(componentIds) : Task
+  + GetLocksAsync(componentIds) : Task<Dictionary<int, ComponentEditLock>>
+  + RefreshEditStateAsync(vm : IAGR_BaseComponent) : Task
+}
+class AGR_EditLockService <<singleton>> {
+  - _scopeFactory : IServiceScopeFactory
+  - _currentUser : IAGR_User
+  - _userGate : SemaphoreSlim
+}
+IAGR_EditLockService <|.. AGR_EditLockService
+AGR_EditLockService --> IServiceScopeFactory : scope -> DataContext
+AGR_EditLockService --> IAGR_User
+
+class AGR_EditLockConflict {
+  + ComponentId : int
+  + PartNumber : string
+  + UserName : string
+  + TakenAt : DateTime
+}
+class AGR_EditComponentInfo {
+  + ComponentId : int
+  + PartNumber : string
+  + Version : int
+  + State : AGR_EditState_e
+  + LockedBy : string?
+  + LockedAt : DateTime?
+}
+class AGR_MarkerIdentity {
+  + ComponentId : int
+  + StorageGuid : Guid
+  + PartNumber : string
+  + Versions : HashSet<int>
+}
+AGR_EditLockService ..> AGR_EditLockConflict
+AGR_EditLockService ..> AGR_EditComponentInfo
+AGR_EditLockService ..> AGR_MarkerIdentity
+
+package "План сохранения" {
+  enum AGR_VersionAction_e {
+    NewVersion
+    UseExisting
+  }
+  class AGR_VersionPlanItem {
+    + Action : AGR_VersionAction_e
+    + BasedOnVersion : int?
+    + ComponentId : int
+    + Version : int
+    + LockedComponentId : int?
+    + Component : IAGR_BaseComponent
+    + Saved : ComponentVersion?
+    + GeometryFingerprint : string?
+    + PropertiesFingerprint : string?
+    + PropertiesChanged : bool
+    + FileProperties : IReadOnlyDictionary<string,string>?
+    + MarkerOnly : bool
+  }
+  class AGR_SavePlan {
+    - _items : Dictionary<string, AGR_VersionPlanItem>
+    + Items : IReadOnlyDictionary<string, AGR_VersionPlanItem>
+    + {static} KeyOf(component) : string  // путь|конфигурация
+    + Contains(component) : bool
+    + Set(component, item)
+    + Get(component) : AGR_VersionPlanItem
+  }
+  class AGR_PurchasedCandidate {
+    + ComponentId : int
+    + PartNumber : string
+    + Version : int
+    + Name : string
+    + Article : int?
+    + ArticleName : string?
+  }
+  AGR_SavePlan "1" *-- "0..*" AGR_VersionPlanItem
+  AGR_VersionPlanItem --> AGR_VersionAction_e
+  AGR_VersionPlanItem --> "0..1" ComponentVersion : Saved
+}
+
+class ComponentVersion <<entity>>
+@enduml

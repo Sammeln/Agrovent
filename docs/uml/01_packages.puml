@@ -1,0 +1,91 @@
+@startuml 01_packages
+title Agrovent (AGR_PropManager) — сборки и пакеты решения
+
+skinparam packageStyle rectangle
+skinparam componentStyle uml2
+
+package "Внешние" #F5F5F5 {
+  [SolidWorks 2017 (COM)] as SW
+  [xCAD 0.8.3 (Xarial)] as XCAD
+  [EF Core + Npgsql] as EF
+  database "PostgreSQL" as PG
+  [Файловое хранилище\nStorageRoot\\GUID\\версия] as STORE
+  [NPOI (Excel)] as NPOI
+}
+
+package "Agrovent (add-in, net6.0-windows, WPF)" as APP {
+  [AgroventAddin\n+ AGR_Commands_e] as ADDIN
+  package "Services" as SVC {
+    [AGR_CommandService]
+    [ComponentVersionService]
+    [AGR_SavePlanBuilder]
+    [AGR_StorageWriter]
+    [AGR_MarkerService]
+    [AGR_ViewModelCacheService]
+    [AGR_ComponentViewModelFactory]
+    [ServiceConfiguration / AGR_ServiceContainer]
+  }
+  package "ViewModels" as VMS {
+    [Base: BaseViewModel, AGR_BaseComponent, AGR_FileComponent]
+    [Components: Part/Assembly VM, Material, Paint, RegistryItem]
+    [Properties]
+    [Specification]
+    [TaskPane]
+    [Windows (+Details)]
+    [Tree]
+    [PackNGo]
+  }
+  package "Views" as VIEWS {
+    [Pages (UserControl)]
+    [Windows (Window)]
+  }
+  package "Infrastructure" as AINF {
+    [Handlers: AGR_DocumentHandler]
+    [Helpers: Geometry/PropertiesFingerprint]
+    [Extensions: xCAD-расширения]
+    [Commands: BaseCommand, RelayCommand]
+    [Behaviours, Converters]
+  }
+  [Models: AGR_User] as MODELS
+}
+
+package "Agrovent.DAL" as DAL {
+  [DataContext]
+  [UnitOfWork]
+  [ComponentRepository]
+  [AGR_TechnologicalProcessRepository]
+  [AGR_EditLockService]
+  [ComponentDataService]
+  [AGR_SavePlan]
+  [Migrations (устарели, не использовать)] as MIG
+}
+
+package "AgroventInfrastructure (Agrovent.Infrastructure)" as INF {
+  [Entities: Base, Components, Projects, TechProcess] as ENT
+  [Interfaces: Components, Entities, Properties, Services, Specification] as IFACE
+  [Enums] as ENUMS
+  [AGR_Options, AGR_StoragePaths] as OPT
+  [Converters, Behaviors (WPF)] as IWPF
+}
+
+APP ..> DAL : ProjectReference
+DAL ..> INF : ProjectReference
+APP ..> INF : транзитивно
+
+ADDIN --> SVC
+ADDIN --> VMS
+SVC --> VMS
+VMS --> VIEWS : открывает окна
+VIEWS ..> VMS : DataContext
+SVC --> DAL
+VMS --> DAL
+AINF --> SVC
+
+ADDIN --> XCAD
+XCAD --> SW
+[AGR_MarkerService] --> XCAD : 3rd-party stream\n"Agrovent.Marker"
+[AGR_StorageWriter] --> STORE
+[DataContext] --> EF
+EF --> PG
+[Specification] --> NPOI
+@enduml
